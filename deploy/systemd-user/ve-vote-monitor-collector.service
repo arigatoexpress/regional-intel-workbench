@@ -1,0 +1,10 @@
+[Unit]
+Description=ve Vote Monitor snapshot collector
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/mnt/ssd/kimi-claw/ve-vote-monitor
+EnvironmentFile=%h/.config/ve-vote-monitor.env
+ExecStart=/mnt/ssd/kimi-claw/ve-vote-monitor/.venv/bin/ve-vote-monitor collect --force

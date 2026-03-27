@@ -1,0 +1,15 @@
+[Unit]
+Description=ve Vote Monitor local API
+After=network-online.target tailscaled.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/ve-vote-monitor
+EnvironmentFile=-/etc/ve-vote-monitor.env
+ExecStart=/opt/ve-vote-monitor/.venv/bin/ve-vote-monitor serve
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

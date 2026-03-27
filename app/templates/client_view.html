@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{{ view_meta.title }} | {{ view_meta.client_name }}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/static/app.css" />
+  </head>
+  <body>
+    <div class="backdrop"></div>
+    <main class="shell client-view-shell" data-view-id="{{ view_id }}" data-region-id="{{ view_meta.region_id }}">
+      <section class="hero client-hero">
+        <div class="hero-copy">
+          <p class="eyebrow">Client Intelligence Feed</p>
+          <h1>{{ view_meta.title }}</h1>
+          <p class="lede">
+            {{ view_meta.summary }}
+            <span>
+              This page is a tailored operating feed for {{ view_meta.client_name }}, built on top of the shared ethical regional-intel framework.
+            </span>
+          </p>
+          <div class="client-callout-row">
+            <div class="status-card client-callout">
+              <div class="status-label">Audience</div>
+              <div class="status-value client-callout-copy">{{ view_meta.audience }}</div>
+            </div>
+            <div class="status-card client-callout">
+              <div class="status-label">Region</div>
+              <div class="status-value client-callout-copy">{{ view_meta.region_id }}</div>
+            </div>
+          </div>
+        </div>
+        <div class="hero-actions intel-toolbar client-hero-actions">
+          <button id="client-view-refresh-button" class="primary-button" type="button">Refresh Feed</button>
+          <a class="ghost-button" href="/intel?region={{ view_meta.region_id }}">Open Full Intel Console</a>
+          <a class="ghost-button" href="/api/client-views/{{ view_id }}" target="_blank" rel="noreferrer">Open Feed API</a>
+          <div class="status-card">
+            <div class="status-label">Feed status</div>
+            <div id="client-view-status" class="status-value">Loading…</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="protocols-panel intel-panel client-guide-panel">
+        <div class="panel-header">
+          <h2>What This Feed Is For</h2>
+          <p>
+            This is a focused operating surface. It pulls the most relevant signals for this client use case into one page and keeps the full graph,
+            source links, and research drill-downs one click away.
+          </p>
+        </div>
+        <div id="client-view-metrics" class="client-metric-grid"></div>
+      </section>
+
+      <section class="protocols-panel intel-panel">
+        <div class="panel-header">
+          <h2>Austin Intelligence Map</h2>
+          <p>
+            A mapped view of public business and organization signals relevant to the feed. Use it to spot clusters, corridors, and operators worth
+            opening in the full intel console.
+          </p>
+        </div>
+        <div class="intel-map-layout">
+          <div id="client-view-map-canvas" class="intel-map-canvas">
+            <div class="subtle">Map loading…</div>
+          </div>
+          <div class="intel-map-sidebar">
+            <article id="client-view-map-legend" class="intel-card intel-map-panel">
+              <div class="subtle">Map summary loading…</div>
+            </article>
+            <article id="client-view-map-top-points" class="intel-card intel-map-panel">
+              <div class="subtle">Mapped shortlist loading…</div>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="protocols-panel intel-panel">
+        <div class="panel-header">
+          <h2>How To Use It</h2>
+          <p>Start here each morning, work top to bottom, and jump into the full intel console only when you need deeper context.</p>
+        </div>
+        <div id="client-view-playbook" class="intel-grid client-playbook-grid"></div>
+      </section>
+
+      <section class="protocols-panel intel-panel">
+        <div class="panel-header">
+          <h2>Feed Notes</h2>
+          <p>Why this custom feed exists and how it fits into the broader composable product surface.</p>
+        </div>
+        <ul id="client-view-notes" class="intel-list"></ul>
+      </section>
+
+      <div id="client-view-sections" class="client-section-stack"></div>
+    </main>
+
+    <script src="/static/intel_map.js" defer></script>
+    <script src="/static/client_view.js" defer></script>
+  </body>
+</html>

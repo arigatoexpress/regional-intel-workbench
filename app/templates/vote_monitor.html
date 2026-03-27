@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ve Vote Monitor</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/static/app.css" />
+  </head>
+  <body>
+    <div class="backdrop"></div>
+    <main class="shell">
+      <section class="hero">
+        <div class="hero-copy">
+          <p class="eyebrow">Vote Escrow Monitor</p>
+          <h1>Best Epoch Vote Targets Across Blackhole, Supernova, and Full Sail</h1>
+          <p class="lede">
+            Live cross-protocol monitor for <span>veBLACK</span>, <span>veNOVA</span>, and <span>veSAIL</span>.
+            Rankings stay protocol-specific so the units do not get mixed, while the weekly strategy engine blends current and historical pool data.
+          </p>
+        </div>
+        <div class="hero-actions">
+          <button id="refresh-button" class="primary-button" type="button">Refresh Snapshot</button>
+          <a href="/intel" class="ghost-button">Open Regional Intel</a>
+          <div class="status-card">
+            <div class="status-label">Snapshot</div>
+            <div id="snapshot-age" class="status-value">Loading…</div>
+          </div>
+          <div class="status-card">
+            <div class="status-label">Chains</div>
+            <div class="status-value">Avalanche, Ethereum, Sui</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="controls">
+        <div class="controls-header">
+          <h2>Your Vote Power</h2>
+          <p>Enter your balances to size this week's optimal split and compare it against the best all-in pool.</p>
+        </div>
+        <div class="vote-input-grid">
+          <label class="vote-input-card">
+            <span>veBLACK</span>
+            <input id="vote-power-blackhole" type="number" min="0" step="any" value="0" />
+          </label>
+          <label class="vote-input-card">
+            <span>veNOVA</span>
+            <input id="vote-power-supernova" type="number" min="0" step="any" value="0" />
+          </label>
+          <label class="vote-input-card">
+            <span>veSAIL</span>
+            <input id="vote-power-fullsail" type="number" min="0" step="any" value="0" />
+          </label>
+        </div>
+      </section>
+
+      <section class="notes-panel">
+        <div class="notes-header">
+          <h2>Scope Notes</h2>
+        </div>
+        <ul id="global-notes" class="notes-list"></ul>
+      </section>
+
+      <section class="protocols-panel">
+        <div class="panel-header">
+          <h2>Protocol Views</h2>
+          <p>The top pool card shows the live leader. The weekly strategy card below it sizes a model-driven allocation for your vote power.</p>
+        </div>
+        <div id="protocol-grid" class="protocol-grid"></div>
+      </section>
+    </main>
+    <script src="/static/app.js" defer></script>
+  </body>
+  </html>

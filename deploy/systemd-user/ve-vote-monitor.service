@@ -1,0 +1,15 @@
+[Unit]
+Description=ve Vote Monitor local API
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/mnt/ssd/kimi-claw/ve-vote-monitor
+EnvironmentFile=%h/.config/ve-vote-monitor.env
+ExecStart=/mnt/ssd/kimi-claw/ve-vote-monitor/.venv/bin/ve-vote-monitor serve --host 127.0.0.1 --port 8787
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target

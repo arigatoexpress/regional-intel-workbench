@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - master
+      - main
+      - 'codex/**'
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+          python -m playwright install --with-deps chromium
+
+      - name: Run API tests
+        run: python -m unittest discover -s tests -v
+
+      - name: Start app
+        run: |
+          python -m uvicorn app.main:app --host 127.0.0.1 --port 8768 > /tmp/regional-intel.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8768/api/intel/health > /dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          echo 'App failed to start'
+          cat /tmp/regional-intel.log
+          exit 1
+
+      - name: Run UI smoke
+        run: python scripts/ui_smoke.py

@@ -1,0 +1,11 @@
+[Unit]
+Description=ve Vote Monitor snapshot collector timer
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=15min
+Unit=ve-vote-monitor-collector.service
+Persistent=true
+
+[Install]
+WantedBy=timers.target

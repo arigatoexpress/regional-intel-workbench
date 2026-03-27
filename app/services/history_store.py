@@ -1,0 +1,144 @@
+from __future__ import annotations
+
+import json
+from datetime import UTC, datetime, timedelta
+from pathlib import Path
+from threading import Lock
+from typing import Any
+
+from app.models import DashboardSnapshot
+
+
+def _parse_timestamp(value: str) -> datetime:
+    return datetime.fromisoformat(value.replace("Z", "+00:00")).astimezone(UTC)
+
+
+class SnapshotHistoryStore:
+    def __init__(
+        self,
+        path: Path | None = None,
+        min_append_interval_seconds: int = 3_600,
+        max_records: int = 1_000,
+    ) -> None:
+        base_dir = Path(__file__).resolve().parents[2]
+        self.path = path or base_dir / "data" / "snapshot_history.jsonl"
+        self.min_append_interval_seconds = min_append_interval_seconds
+        self.max_records = max_records
+        self._lock = Lock()
+
+    def append_snapshot(self, snapshot: DashboardSnapshot) -> bool:
+        record = self._serialize_snapshot(snapshot)
+        current_timestamp = _parse_timestamp(snapshot.updated_at)
+
+        with self._lock:
+            self.path.parent.mkdir(parents=True, exist_ok=True)
+            last_record = self._read_last_record_unlocked()
+            if last_record:
+                last_timestamp = _parse_timestamp(str(last_record.get("updated_at")))
+                delta = (current_timestamp - last_timestamp).total_seconds()
+                if delta < self.min_append_interval_seconds and not self._has_recovered_protocol_data(
+                    last_record,
+                    record,
+                ):
+                    return False
+
+            with self.path.open("a", encoding="utf-8") as handle:
+                json.dump(record, handle, separators=(",", ":"))
+                handle.write("\n")
+
+            self._trim_if_needed_unlocked()
+            return True
+
+    def load_records(self, lookback_days: int = 30) -> list[dict[str, Any]]:
+        if not self.path.exists():
+            return []
+
+        cutoff = datetime.now(tz=UTC) - timedelta(days=lookback_days)
+        records: list[dict[str, Any]] = []
+
+        with self._lock:
+            with self.path.open("r", encoding="utf-8") as handle:
+                for line in handle:
+                    stripped = line.strip()
+                    if not stripped:
+                        continue
+                    try:
+                        record = json.loads(stripped)
+                    except json.JSONDecodeError:
+                        continue
+                    updated_at = record.get("updated_at")
+                    if not updated_at:
+                        continue
+                    if _parse_timestamp(str(updated_at)) < cutoff:
+                        continue
+                    records.append(record)
+
+        records.sort(key=lambda item: str(item.get("updated_at")))
+        return records
+
+    def _read_last_record_unlocked(self) -> dict[str, Any] | None:
+        if not self.path.exists():
+            return None
+        lines = self.path.read_text(encoding="utf-8").splitlines()
+        for line in reversed(lines):
+            stripped = line.strip()
+            if not stripped:
+                continue
+            try:
+                return json.loads(stripped)
+            except json.JSONDecodeError:
+                continue
+        return None
+
+    def _trim_if_needed_unlocked(self) -> None:
+        lines = self.path.read_text(encoding="utf-8").splitlines()
+        if len(lines) <= self.max_records:
+            return
+        retained = [line for line in lines[-self.max_records :] if line.strip()]
+        self.path.write_text("\n".join(retained) + "\n", encoding="utf-8")
+
+    def _serialize_snapshot(self, snapshot: DashboardSnapshot) -> dict[str, Any]:
+        protocols: list[dict[str, Any]] = []
+        for protocol in snapshot.protocols:
+            protocols.append(
+                {
+                    "id": protocol.id,
+                    "epoch_label": protocol.epoch_label,
+                    "pools": [
+                        {
+                            "pool_key": pool.pool_key,
+                            "name": pool.name,
+                            "fee_tier": pool.fee_tier,
+                            "apr": pool.apr,
+                            "total_rewards_usd": pool.total_rewards_usd,
+                            "current_votes": pool.current_votes,
+                            "weekly_volume_usd": pool.weekly_volume_usd,
+                            "predicted_volume_usd": pool.predicted_volume_usd,
+                            "prediction_confidence": pool.prediction_confidence,
+                        }
+                        for pool in protocol.pools
+                    ],
+                }
+            )
+
+        return {
+            "updated_at": snapshot.updated_at,
+            "protocols": protocols,
+        }
+
+    def _has_recovered_protocol_data(
+        self,
+        previous_record: dict[str, Any],
+        current_record: dict[str, Any],
+    ) -> bool:
+        previous_counts = {
+            str(protocol.get("id")): len(protocol.get("pools", []))
+            for protocol in previous_record.get("protocols", [])
+        }
+        for protocol in current_record.get("protocols", []):
+            protocol_id = str(protocol.get("id"))
+            current_count = len(protocol.get("pools", []))
+            previous_count = previous_counts.get(protocol_id, 0)
+            if previous_count == 0 and current_count > 0:
+                return True
+        return False

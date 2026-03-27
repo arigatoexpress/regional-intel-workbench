@@ -1,0 +1,412 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Regional Intelligence</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/static/app.css" />
+  </head>
+  <body>
+    <div class="backdrop"></div>
+    <main class="shell intel-shell">
+      <section class="hero intel-hero">
+        <div class="hero-copy">
+          <p class="eyebrow">Open Source Regional Intelligence</p>
+          <h1>Ethical Business Intelligence for Austin, Houston, and the Gunnison Valley</h1>
+          <p class="lede">
+            Public-source only. No login bypasses, no paywall scraping, no private dossiers. This surface blends local news signals,
+            permit activity, public business discovery, official regional contacts, and organization profiles into a regional intelligence feed.
+          </p>
+        </div>
+        <div class="hero-actions intel-toolbar">
+          <label class="vote-input-card">
+            <span>Region</span>
+            <select id="region-filter" class="intel-select">
+              <option value="">All regions</option>
+              <option value="austin_tx">Austin, Texas</option>
+              <option value="houston_tx">Houston, Texas</option>
+              <option value="gunnison_valley_co">Gunnison / Crested Butte Valley</option>
+            </select>
+          </label>
+          <label class="vote-input-card intel-search-card">
+            <span>Search the intelligence graph</span>
+            <div class="intel-search-row">
+              <input id="intel-search-input" class="intel-search-input" type="text" placeholder="AutoZone, Austin Monitor, Cathie Pagano, 901 Bagby…" />
+              <button id="intel-search-button" class="ghost-button" type="button">Search</button>
+            </div>
+          </label>
+          <label class="vote-input-card">
+            <span>Active collection</span>
+            <select id="collection-active-select" class="intel-select">
+              <option value="">No active collection</option>
+            </select>
+          </label>
+          <label class="vote-input-card">
+            <span>Active bundle</span>
+            <select id="bundle-active-select" class="intel-select">
+              <option value="">No active bundle</option>
+            </select>
+          </label>
+          <button id="intel-refresh-button" class="primary-button" type="button">Refresh Intelligence</button>
+          <div class="status-card">
+            <div class="status-label">Snapshot</div>
+            <div id="intel-snapshot-age" class="status-value">Loading…</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="protocols-panel intel-panel">
+        <div class="panel-header">
+          <h2>How To Use This</h2>
+          <p>
+            Use this page to track what changed in each region, identify companies and public-facing contacts, and search across all collected signals
+            before taking action. Everything shown here is public-source only and retains provenance.
+          </p>
+        </div>
+        <div class="intel-grid">
+          <article class="intel-card">
+            <div class="status-label">Signals</div>
+            <h3>News + permits</h3>
+            <p>Track openings, closures, construction, and business shifts. Address-linked items are higher-confidence action points.</p>
+          </article>
+          <article class="intel-card">
+            <div class="status-label">Leads</div>
+            <h3>Organizations</h3>
+            <p>See which businesses and organizations are active in each region, plus the public sources behind that activity.</p>
+          </article>
+          <article class="intel-card">
+            <div class="status-label">Contacts</div>
+            <h3>Public professional contacts</h3>
+            <p>Use only public office contacts, business sites, public phones, and public emails. No private-person harvesting.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="protocols-panel intel-panel">
+        <div class="panel-header">
+          <h2>Client Intelligence Feeds</h2>
+          <p>
+            These are reusable client-specific views built on top of the same shared regional-intel engine. Use them when a team needs a tailored
+            operating surface instead of the full analyst console.
+          </p>
+        </div>
+        <div id="client-view-grid" class="intel-grid"></div>
+      </section>
+
+      <section class="protocols-panel intel-panel">
+        <div class="panel-header">
+          <h2>Intelligence Map</h2>
+          <p>
+            A sleek geographic surface for mapped public business intelligence. Dots represent real public coordinates enriched with linked organizations,
+            contacts, news, and permit context where available.
+          </p>
+        </div>
+        <div class="intel-map-layout">
+          <div id="intel-map-canvas" class="intel-map-canvas">
+            <div class="subtle">Map loading…</div>
+          </div>
+          <div class="intel-map-sidebar">
+            <article id="intel-map-legend" class="intel-card intel-map-panel">
+              <div class="subtle">Map summary loading…</div>
+            </article>
+            <article id="intel-map-top-points" class="intel-card intel-map-panel">
+              <div class="subtle">Mapped shortlist loading…</div>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="protocols-panel intel-panel">
+        <div class="panel-header">
+          <h2>Regional Briefs</h2>
+          <p>High-level summaries of what matters most in each region right now.</p>
+        </div>
+        <div id="brief-grid" class="intel-grid"></div>
+      </section>
+
+      <section class="protocols-panel intel-panel">
+        <div class="panel-header">
+          <h2>Priority Watchlist</h2>
+          <p>Mixed-source ranked items across news, permits, organizations, and public contacts.</p>
+        </div>
+        <div id="watchlist-grid" class="intel-grid"></div>
+      </section>
+
+      <section class="protocols-panel intel-panel">
+        <div class="panel-header">
+          <h2>Opportunity Briefs</h2>
+          <p>Ranked items with reasons, built from multi-source signals instead of raw feed order.</p>
+        </div>
+        <div id="opportunity-grid" class="intel-grid"></div>
+      </section>
+
+      <section class="protocols-panel intel-panel">
+        <div class="panel-header">
+          <h2>Saved Watchlist</h2>
+          <p>Persistent saved entities and signals you want to revisit across sessions.</p>
+        </div>
+        <div id="saved-watchlist-grid" class="intel-grid"></div>
+      </section>
+
+      <section class="protocols-panel intel-panel">
+        <div class="panel-header">
+          <h2>Saved Collections</h2>
+          <p>Create named dossiers for deals, companies, corridors, or regions. Add items from the watchlist, opportunity feed, search results, or entity detail.</p>
+        </div>
+        <div class="intel-grid">
+          <article class="intel-card">
+            <div class="status-label">Create collection</div>
+            <h3>New dossier</h3>
+            <label class="vote-input-card">
+              <span>Title</span>
+              <input id="collection-title-input" class="intel-search-input" type="text" placeholder="South Austin retail watch" />
+            </label>
+            <label class="vote-input-card">
+              <span>Region</span>
+              <select id="collection-region-input" class="intel-select">
+                <option value="">Multi-region</option>
+                <option value="austin_tx">Austin, Texas</option>
+                <option value="houston_tx">Houston, Texas</option>
+                <option value="gunnison_valley_co">Gunnison / Crested Butte Valley</option>
+              </select>
+            </label>
+            <label class="vote-input-card">
+              <span>Note</span>
+              <textarea id="collection-note-input" class="intel-note-input" rows="3" placeholder="Why this dossier exists and what should be tracked."></textarea>
+            </label>
+            <button id="collection-create-button" class="ghost-button" type="button">Create collection</button>
+          </article>
+          <article class="intel-card intel-graph-summary">
+            <div class="status-label">Library</div>
+            <h3>Collection shelf</h3>
+            <p id="collection-active-summary" class="subtle">No active collection selected. Pick one to route quick-save actions into a dossier.</p>
+            <div id="collection-grid" class="intel-grid"></div>
+          </article>
+        </div>
+      </section>
+
+      <section class="protocols-panel intel-panel">
+        <div class="panel-header">
+          <h2>Briefing Bundles</h2>
+          <p>Package several collections into one exportable briefing. This is the top-level analyst delivery layer for a theme, client, region, or campaign.</p>
+        </div>
+        <div class="intel-grid">
+          <article class="intel-card">
+            <div class="status-label">Create bundle</div>
+            <h3>New briefing bundle</h3>
+            <label class="vote-input-card">
+              <span>Title</span>
+              <input id="bundle-title-input" class="intel-search-input" type="text" placeholder="Texas expansion weekly brief" />
+            </label>
+            <label class="vote-input-card">
+              <span>Region</span>
+              <select id="bundle-region-input" class="intel-select">
+                <option value="">Multi-region</option>
+                <option value="austin_tx">Austin, Texas</option>
+                <option value="houston_tx">Houston, Texas</option>
+                <option value="gunnison_valley_co">Gunnison / Crested Butte Valley</option>
+              </select>
+            </label>
+            <label class="vote-input-card">
+              <span>Note</span>
+              <textarea id="bundle-note-input" class="intel-note-input" rows="3" placeholder="Who this bundle is for and why these collections belong together."></textarea>
+            </label>
+            <button id="bundle-create-button" class="ghost-button" type="button">Create bundle</button>
+          </article>
+          <article class="intel-card intel-graph-summary">
+            <div class="status-label">Bundle shelf</div>
+            <h3>Saved delivery packs</h3>
+            <p id="bundle-active-summary" class="subtle">No active bundle selected. Pick one to route collection-level packaging into a top-level briefing.</p>
+            <div id="bundle-grid" class="intel-grid"></div>
+          </article>
+        </div>
+      </section>
+
+      <section class="protocols-panel intel-panel">
+        <div class="panel-header">
+          <h2>Monitor Rules</h2>
+          <p>Save focused monitoring rules so the system highlights only the changes and source incidents that matter to you.</p>
+        </div>
+        <div class="intel-grid">
+          <article class="intel-card">
+            <div class="status-label">Create rule</div>
+            <h3>New monitor rule</h3>
+            <label class="vote-input-card">
+              <span>Title</span>
+              <input id="monitor-title-input" class="intel-search-input" type="text" placeholder="Houston permit surges" />
+            </label>
+            <label class="vote-input-card">
+              <span>Region</span>
+              <select id="monitor-region-input" class="intel-select">
+                <option value="">All regions</option>
+                <option value="austin_tx">Austin, Texas</option>
+                <option value="houston_tx">Houston, Texas</option>
+                <option value="gunnison_valley_co">Gunnison / Crested Butte Valley</option>
+              </select>
+            </label>
+            <label class="vote-input-card">
+              <span>Entity kind</span>
+              <select id="monitor-kind-input" class="intel-select">
+                <option value="">All kinds</option>
+                <option value="news">News</option>
+                <option value="permit">Permit</option>
+                <option value="business">Business</option>
+                <option value="contact">Contact</option>
+                <option value="organization">Organization</option>
+              </select>
+            </label>
+            <label class="vote-input-card">
+              <span>Change type</span>
+              <select id="monitor-change-type-input" class="intel-select">
+                <option value="">Any change</option>
+                <option value="added">Added</option>
+                <option value="removed">Removed</option>
+                <option value="score_shift">Score shift</option>
+                <option value="status_change">Permit status change</option>
+                <option value="repeated_empty">Repeated empty source</option>
+                <option value="recovery">Source recovery</option>
+                <option value="volume_surge">Source surge</option>
+                <option value="stale_source">Stale source</option>
+              </select>
+            </label>
+            <label class="vote-input-card">
+              <span>Keyword</span>
+              <input id="monitor-keyword-input" class="intel-search-input" type="text" placeholder="autozone, closure, fondren…" />
+            </label>
+            <label class="vote-input-card">
+              <span>Min score delta</span>
+              <input id="monitor-score-delta-input" class="intel-search-input" type="number" min="0" step="1" placeholder="10" />
+            </label>
+            <label class="vote-input-card">
+              <span>Note</span>
+              <textarea id="monitor-note-input" class="intel-note-input" rows="3" placeholder="What this rule is trying to catch."></textarea>
+            </label>
+            <button id="monitor-create-button" class="ghost-button" type="button">Create monitor rule</button>
+          </article>
+          <article class="intel-card intel-graph-summary">
+            <div class="status-label">Rule shelf</div>
+            <h3>Saved monitor rules</h3>
+            <div id="monitor-grid" class="intel-grid"></div>
+          </article>
+        </div>
+      </section>
+
+      <section class="protocols-panel intel-panel">
+        <div class="panel-header">
+          <h2>History + Trends</h2>
+          <p>Snapshot history from the local store so you can see whether signal coverage is growing or thinning.</p>
+        </div>
+        <div id="trend-grid" class="intel-grid"></div>
+      </section>
+
+      <section class="protocols-panel intel-panel">
+        <div class="panel-header">
+          <h2>Source Reliability</h2>
+          <p>Recent live, empty, and manual states per source so trust issues are visible instead of implicit.</p>
+        </div>
+        <div id="source-history-grid" class="intel-grid"></div>
+      </section>
+
+      <section class="protocols-panel intel-panel">
+        <div class="panel-header">
+          <h2>Source Incident Log</h2>
+          <p>Persistent diagnostics built from source history. This separates one-off empty runs from repeated failures, recoveries, surges, and stale sources.</p>
+        </div>
+        <div id="source-incident-grid" class="intel-grid"></div>
+      </section>
+
+      <section class="protocols-panel intel-panel">
+        <div class="panel-header">
+          <h2>Regional Change Log</h2>
+          <p>Snapshot-over-snapshot count deltas so you can see what changed in each region without diffing raw feeds by hand.</p>
+        </div>
+        <div id="region-change-grid" class="intel-grid"></div>
+      </section>
+
+      <section class="protocols-panel intel-panel">
+        <div class="panel-header">
+          <h2>Entity Change Log</h2>
+          <p>Concrete item-level diffs across snapshots: new entities, removed entities, score shifts, and permit status transitions.</p>
+        </div>
+        <div id="entity-change-grid" class="intel-grid"></div>
+      </section>
+
+      <section class="protocols-panel intel-panel">
+        <div class="panel-header">
+          <h2>Operational Alerts</h2>
+          <p>Priority issues and high-signal items that need attention now.</p>
+        </div>
+        <div id="alert-grid" class="intel-grid"></div>
+      </section>
+
+      <section class="protocols-panel intel-panel">
+        <div class="panel-header">
+          <h2>Regional Briefing Packs</h2>
+          <p>Ready-to-use briefing memos per region, combining opportunities, source issues, contacts, and watchlist context.</p>
+        </div>
+        <div id="region-briefing-grid" class="intel-grid"></div>
+      </section>
+
+      <section class="protocols-panel intel-panel">
+        <div class="panel-header">
+          <h2>Search Results</h2>
+          <p>Cross-entity search over news, permits, businesses, contacts, and organization profiles.</p>
+        </div>
+        <div id="search-results" class="intel-search-results">
+          <div class="subtle">Run a search to find people, companies, addresses, or public contact points across the regional dataset.</div>
+        </div>
+      </section>
+
+      <section class="protocols-panel intel-panel">
+        <div class="panel-header">
+          <h2>Relationship Graph</h2>
+          <p>Entity map across organizations, public contacts, businesses, news mentions, and permit/development signals.</p>
+        </div>
+        <div id="relationship-graph" class="intel-search-results">
+          <div class="subtle">Relationship graph is loading…</div>
+        </div>
+      </section>
+
+      <section class="protocols-panel intel-panel">
+        <div class="panel-header">
+          <h2>Entity Detail</h2>
+          <p>Click an organization in the live feed or search results to inspect linked businesses, contacts, news, and permits.</p>
+        </div>
+        <div id="entity-detail" class="intel-search-results">
+          <div class="subtle">No organization selected yet.</div>
+        </div>
+      </section>
+
+      <section class="notes-panel intel-panel">
+        <div class="notes-header">
+          <h2>Ethics Guardrails</h2>
+        </div>
+        <div id="ethics-grid" class="intel-grid"></div>
+      </section>
+
+      <section class="protocols-panel intel-panel">
+        <div class="panel-header">
+          <h2>Source Coverage + Health</h2>
+          <p>Every item below is attached to a known source class so collection stays reviewable and legally bounded.</p>
+        </div>
+        <div id="source-grid" class="intel-grid"></div>
+      </section>
+
+      <section class="protocols-panel intel-panel">
+        <div class="panel-header">
+          <h2>Live Intelligence Feed</h2>
+          <p>News signals, permit activity, organizations, public contacts, and business leads grouped by region.</p>
+        </div>
+        <div id="region-summaries" class="intel-columns"></div>
+      </section>
+    </main>
+    <script src="/static/intel_map.js" defer></script>
+    <script src="/static/intel.js" defer></script>
+  </body>
+  </html>
