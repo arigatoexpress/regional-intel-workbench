@@ -1,0 +1,316 @@
+/* ============================================================
+   SAPPHIRE OS — Regional Intel theme override
+   Aligns Regional Intel workbench with Sapphire dashboard palette
+   ============================================================ */
+
+/* Font stack — no CDN dependency */
+@import url('data:text/css,');
+
+:root {
+  /* Sapphire palette overrides */
+  --bg:           #0a0c10;
+  --bg-soft:      #0d1117;
+  --panel:        rgba(22, 27, 34, 0.92);
+  --panel-strong: rgba(22, 27, 34, 0.98);
+  --line:         rgba(48, 54, 61, 0.8);
+  --text:         #e6edf3;
+  --muted:        #8b949e;
+
+  /* Accent: sapphire blue instead of teal */
+  --hot:          #58a6ff;
+  --alert:        #f59e0b;
+  --danger:       #ef4444;
+  --glow:         rgba(59, 130, 246, 0.25);
+
+  /* Extra tokens used by sapphire UI */
+  --green:        #3fb950;
+  --amber:        #f59e0b;
+  --red:          #ef4444;
+  --cyan:         #56d364;
+  --accent:       #3b82f6;
+  --accent-bright:#93c5fd;
+}
+
+/* System font stack — removes Chakra Petch/Google Fonts dependency */
+html, body, * {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif !important;
+}
+
+/* Body background — match Sapphire dark base */
+html, body {
+  background: #0a0c10 !important;
+}
+
+/* Remove animated gradient background */
+html {
+  background:
+    radial-gradient(circle at top left, rgba(59, 130, 246, 0.08), transparent 30%),
+    linear-gradient(180deg, #0d1117 0%, #0a0c10 100%) !important;
+}
+
+/* Backdrop grid — keep but tone down */
+.backdrop {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px) !important;
+  background-size: 40px 40px !important;
+}
+
+/* Panels / cards — Sapphire card style */
+.hero, .controls, .notes-panel, .protocols-panel,
+.intel-card, .intel-map-canvas, .intel-map-panel,
+.vote-input-card, .status-card {
+  background: #161b22 !important;
+  border: 1px solid rgba(48, 54, 61, 0.8) !important;
+  border-radius: 8px !important;
+  backdrop-filter: none !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4) !important;
+}
+
+/* Hero section — flatten the big card */
+.hero {
+  border-radius: 8px !important;
+}
+
+/* Map stage background */
+.intel-map-stage {
+  background:
+    radial-gradient(circle at 20% 25%, rgba(59, 130, 246, 0.08), transparent 30%),
+    linear-gradient(180deg, #0d1117, #0a0c10) !important;
+  border-radius: 8px !important;
+  min-height: 480px !important;
+}
+
+/* Map canvas — ensure visible height */
+.intel-map-canvas {
+  min-height: 480px !important;
+  border-radius: 8px !important;
+}
+
+/* Empty state in map */
+.empty-state, .intel-map-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  color: #8b949e;
+  font-size: 13px;
+  padding: 32px;
+  text-align: center;
+}
+
+/* Headings */
+h1, h2, h3, h4 {
+  color: #e6edf3 !important;
+  font-weight: 600 !important;
+}
+
+.eyebrow {
+  color: #58a6ff !important;
+  font-size: 11px !important;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.lede, p {
+  color: #8b949e !important;
+  font-size: 13px !important;
+  line-height: 1.6 !important;
+}
+
+/* Status labels */
+.status-label, .subtle {
+  color: #484f58 !important;
+  font-size: 11px !important;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.status-value {
+  color: #e6edf3 !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+}
+
+/* Buttons — primary */
+.primary-button, button.primary-button {
+  background: #1e3a5f !important;
+  color: #93c5fd !important;
+  border: 1px solid rgba(59, 130, 246, 0.4) !important;
+  border-radius: 6px !important;
+  padding: 8px 16px !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  cursor: pointer !important;
+  transition: background 0.15s ease !important;
+}
+.primary-button:hover {
+  background: #2a4a70 !important;
+  border-color: rgba(59, 130, 246, 0.7) !important;
+}
+
+/* Ghost buttons */
+.ghost-button, button.ghost-button {
+  background: transparent !important;
+  color: #8b949e !important;
+  border: 1px solid rgba(48, 54, 61, 0.8) !important;
+  border-radius: 6px !important;
+  padding: 7px 14px !important;
+  font-size: 12px !important;
+  cursor: pointer !important;
+}
+.ghost-button:hover {
+  color: #e6edf3 !important;
+  background: rgba(255, 255, 255, 0.04) !important;
+}
+
+/* Selects and inputs */
+.intel-select, .intel-search-input, select, input[type="text"] {
+  background: #0d1117 !important;
+  border: 1px solid rgba(48, 54, 61, 0.8) !important;
+  border-radius: 6px !important;
+  color: #e6edf3 !important;
+  font-size: 13px !important;
+  padding: 8px 12px !important;
+  width: 100% !important;
+}
+.intel-select:focus, .intel-search-input:focus {
+  outline: none !important;
+  border-color: rgba(59, 130, 246, 0.6) !important;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15) !important;
+}
+
+/* Vote/input cards (filter labels) */
+.vote-input-card span:first-child,
+.vote-input-card > span {
+  color: #484f58 !important;
+  font-size: 11px !important;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  display: block;
+  margin-bottom: 6px;
+}
+
+/* Intel items / list rows */
+.intel-item {
+  padding: 10px 14px !important;
+  border-bottom: 1px solid rgba(48, 54, 61, 0.45) !important;
+  font-size: 13px !important;
+  color: #e6edf3 !important;
+}
+.intel-item:hover {
+  background: rgba(255, 255, 255, 0.03) !important;
+}
+.intel-item:last-child {
+  border-bottom: none !important;
+}
+
+/* Intel cards */
+.intel-card {
+  padding: 16px !important;
+  border-radius: 8px !important;
+}
+
+/* Panel headers */
+.panel-header {
+  padding: 16px 20px 12px !important;
+  border-bottom: 1px solid rgba(48, 54, 61, 0.45) !important;
+  margin-bottom: 0 !important;
+}
+.panel-header h2 {
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  color: #93c5fd !important;
+  margin-bottom: 4px !important;
+}
+.panel-header p {
+  font-size: 12px !important;
+  margin: 0 !important;
+}
+
+/* Tags / badges */
+.tag, .badge, [class*="tag-"] {
+  font-size: 11px !important;
+  padding: 2px 8px !important;
+  border-radius: 4px !important;
+  background: rgba(59, 130, 246, 0.15) !important;
+  color: #93c5fd !important;
+  border: 1px solid rgba(59, 130, 246, 0.3) !important;
+}
+
+/* Score / priority indicators */
+.hot, .score-high, [class*="priority-high"] {
+  color: #3fb950 !important;
+}
+.alert-val, .score-med, [class*="priority-med"] {
+  color: #f59e0b !important;
+}
+.danger-val, .score-low, [class*="priority-low"] {
+  color: #ef4444 !important;
+}
+
+/* Map dots — restyle for sapphire palette */
+.intel-map-dot-org .intel-map-dot-core       { background: #3b82f6 !important; box-shadow: 0 0 8px rgba(59,130,246,0.5) !important; }
+.intel-map-dot-business .intel-map-dot-core  { background: #3fb950 !important; box-shadow: 0 0 8px rgba(63,185,80,0.5) !important; }
+.intel-map-dot-contact .intel-map-dot-core   { background: #f59e0b !important; box-shadow: 0 0 8px rgba(245,158,11,0.5) !important; }
+.intel-map-dot-news .intel-map-dot-core      { background: #56d364 !important; box-shadow: 0 0 8px rgba(86,211,100,0.4) !important; }
+.intel-map-dot-permit .intel-map-dot-core    { background: #ef4444 !important; box-shadow: 0 0 8px rgba(239,68,68,0.4) !important; }
+.intel-map-dot.is-selected .intel-map-dot-core {
+  outline: 2px solid #93c5fd !important;
+  outline-offset: 3px !important;
+}
+
+/* Map overlays */
+.intel-map-overlay {
+  background: rgba(13, 17, 23, 0.85) !important;
+  border: 1px solid rgba(48, 54, 61, 0.6) !important;
+  border-radius: 6px !important;
+  padding: 8px 12px !important;
+}
+
+/* Map axis lines */
+.intel-map-axis { opacity: 0.08 !important; }
+.intel-map-grid { opacity: 0.04 !important; }
+
+/* Nav breadcrumb / search toolbar */
+.intel-toolbar {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 12px !important;
+}
+
+/* Search row */
+.intel-search-row {
+  display: flex !important;
+  gap: 8px !important;
+}
+.intel-search-input {
+  flex: 1 !important;
+}
+
+/* Loading states — show helpful text */
+.subtle {
+  color: #484f58 !important;
+  font-style: italic !important;
+}
+
+/* Shell spacing */
+.shell {
+  padding: 24px 16px 64px !important;
+}
+
+.intel-shell > section {
+  margin-bottom: 16px !important;
+}
+
+/* Hero layout — stack on smaller screens */
+.intel-hero {
+  padding: 20px !important;
+}
+
+/* Scrollbars */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #0a0c10; }
+::-webkit-scrollbar-thumb { background: rgba(48,54,61,0.8); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(88,166,255,0.4); }

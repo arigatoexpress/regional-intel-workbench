@@ -1,0 +1,108 @@
+{
+  "campaign_id": "elite-net-solutions-houston-2026",
+  "client": {
+    "name": "Elite Net Solutions",
+    "website": "elitenetsolutions.io",
+    "description": "Enterprise-grade WiFi/networking for residential homes in Houston. Veteran-owned. Commercial hospitality background applied to residential.",
+    "service_area": "Houston metro (Harris, Fort Bend, Montgomery, Waller counties)",
+    "differentiator": "Hotel-quality WiFi for affluent homeowners. Ubiquiti UniFi enterprise gear, Starlink dual-WAN, local security with no cloud subscriptions.",
+    "avg_project_value_low": 3500,
+    "avg_project_value_high": 15000
+  },
+  "created": "2026-04-14",
+  "region": "houston_tx",
+  "target_subregions": [
+    "The Woodlands", "Katy", "Sugar Land", "Memorial",
+    "New Caney", "Cypress", "Pearland", "Clear Lake",
+    "River Oaks", "Bellaire", "West University Place"
+  ],
+  "ideal_customer_profile": {
+    "property_value_min": 400000,
+    "homeowner_type": "affluent residential",
+    "triggers": [
+      "New home construction permit (custom build)",
+      "Major renovation permit ($100K+)",
+      "Commercial-to-residential conversion",
+      "Smart home / home automation project",
+      "Remote work home office build-out",
+      "Starlink or fiber upgrade inquiry",
+      "Home security system installation",
+      "Pool house / guest house / ADU addition"
+    ],
+    "neighborhoods_priority": [
+      {"name": "The Woodlands", "tier": 1, "avg_home_value": 650000},
+      {"name": "River Oaks", "tier": 1, "avg_home_value": 2500000},
+      {"name": "Memorial", "tier": 1, "avg_home_value": 900000},
+      {"name": "West University Place", "tier": 1, "avg_home_value": 1100000},
+      {"name": "Sugar Land", "tier": 2, "avg_home_value": 480000},
+      {"name": "Katy (Cinco Ranch)", "tier": 2, "avg_home_value": 520000},
+      {"name": "Pearland (Shadow Creek)", "tier": 2, "avg_home_value": 420000},
+      {"name": "Cypress", "tier": 2, "avg_home_value": 440000},
+      {"name": "New Caney", "tier": 3, "avg_home_value": 380000}
+    ],
+    "anti_targets": [
+      "Apartment complexes",
+      "Commercial retail/office",
+      "Low-income housing",
+      "Properties under $300K"
+    ]
+  },
+  "real_client_examples": [
+    {
+      "client": "Jaclyn",
+      "address": "24009 Misty Oaks Circle, New Caney TX",
+      "project_type": "Internet expansion",
+      "neighborhood_tier": 3
+    },
+    {
+      "client": "Mike",
+      "address": "1096 Cielo Springs Dr, Blanco TX",
+      "project_type": "Full network + security overhaul",
+      "equipment": [
+        "Ubiquiti Cloud Gateway Ultra (dual-WAN controller)",
+        "3x Ubiquiti UniFi nanoHD APs (whole-home WiFi)",
+        "Ubiquiti UniFi Switch Lite 8 PoE",
+        "Reolink 8-Channel NVR + 4 cameras + doorbell",
+        "Starlink roof install + dual-WAN failover",
+        "Structured wiring: ethernet runs, utility panel, intercom removal"
+      ],
+      "neighborhood_tier": 2
+    }
+  ],
+  "lead_scoring": {
+    "criteria": [
+      {"factor": "Permit value $200K+", "weight": 30},
+      {"factor": "Tier 1 neighborhood", "weight": 25},
+      {"factor": "New construction (not renovation)", "weight": 20},
+      {"factor": "Single-family residential", "weight": 15},
+      {"factor": "Tier 2 neighborhood", "weight": 10},
+      {"factor": "Renovation $50K-$200K", "weight": 8},
+      {"factor": "Has structured wiring indicator", "weight": 7}
+    ],
+    "score_buckets": {
+      "A": {"min": 70, "description": "Hot lead — contact immediately"},
+      "B": {"min": 40, "description": "Warm lead — targeted outreach"},
+      "C": {"min": 20, "description": "Monitor — follow up in 60 days"},
+      "D": {"min": 0, "description": "Low priority — bulk nurture only"}
+    }
+  },
+  "collection_keywords": [
+    "home construction permit",
+    "residential renovation",
+    "smart home installation",
+    "structured wiring",
+    "custom home build",
+    "home office",
+    "Starlink installation",
+    "network installation",
+    "home security",
+    "luxury home renovation",
+    "pool house",
+    "guest house ADU"
+  ],
+  "outreach_templates": {
+    "new_construction": "Congratulations on your new home in [neighborhood]! Elite Net Solutions specializes in enterprise-grade WiFi infrastructure for new construction — the kind hotels use. We wire your home right the first time, so you never have dead zones. Veteran-owned, local to Houston.",
+    "renovation": "Working on a major renovation at [address]? This is the perfect time to upgrade your home network infrastructure before the walls close. We install Ubiquiti UniFi systems with whole-home coverage, Starlink dual-WAN failover, and local security cameras — no monthly cloud subscriptions.",
+    "remote_work": "Working from home and tired of video calls dropping? Elite Net Solutions installs commercial-grade WiFi (the same systems Marriott and Hyatt use) in Houston homes. We handle everything from ethernet runs to Starlink dual-WAN failover."
+  }
+}

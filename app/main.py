@@ -1248,6 +1248,97 @@ async def api_strategy(
     return strategy.model_dump()
 
 
+@app.get("/intel/v2", response_class=HTMLResponse)
+async def intel_v2(request: Request):
+    """Elite Net Solutions campaign intelligence — v2 with Leaflet map"""
+    return templates.TemplateResponse(request, "intel_v2.html", {})
+
+
+@app.get("/api/campaigns/elite-net-solutions")
+async def api_campaign_leads():
+    """Return Elite Net Solutions campaign leads with geocoded coordinates"""
+    import json as _json
+
+    leads_path = BASE_DIR.parent / "data" / "campaigns" / "elite-net-solutions" / "leads.json"
+    if not leads_path.exists():
+        return {"error": "Campaign data not found", "leads": [], "summary": {}}
+
+    data = _json.loads(leads_path.read_text())
+    leads = data.get("leads", [])
+
+    # Neighborhood → approximate Houston coordinates
+    HOOD_COORDS = {
+        "Houston Metro":          (29.7604, -95.3698),
+        "Katy/Cypress":           (29.7857, -95.8245),
+        "Katy":                   (29.7858, -95.8202),
+        "Katy/Westgreen":         (29.7859, -95.8124),
+        "Spring/The Woodlands":   (30.0799, -95.4194),
+        "The Woodlands":          (30.1658, -95.4613),
+        "Near Northside":         (29.7833, -95.3500),
+        "Heights":                (29.7965, -95.4012),
+        "Montrose":               (29.7452, -95.3904),
+        "East End":               (29.7341, -95.3108),
+        "South Houston":          (29.6629, -95.2318),
+        "Upper Kirby/River Oaks": (29.7369, -95.4192),
+        "Garden Oaks":            (29.8181, -95.4260),
+        "Galleria/Briargrove":    (29.7369, -95.4613),
+    }
+
+    import random
+    rng = random.Random(42)  # deterministic jitter
+
+    enriched = []
+    for i, lead in enumerate(leads):
+        hood = lead.get("neighborhood", "Houston Metro")
+        base_lat, base_lon = HOOD_COORDS.get(hood, HOOD_COORDS["Houston Metro"])
+        # Scatter Metro leads across city; named hoods get tighter cluster
+        spread = 0.12 if hood == "Houston Metro" else 0.018
+        lat = base_lat + rng.uniform(-spread, spread)
+        lon = base_lon + rng.uniform(-spread, spread)
+        enriched.append({**lead, "lat": round(lat, 6), "lon": round(lon, 6)})
+
+    return {
+        "campaign_id": data.get("campaign_id", "elite-net-solutions"),
+        "generated": data.get("generated"),
+        "summary": data.get("summary", {}),
+        "leads": enriched,
+    }
+
+
+@app.get("/api/campaigns/elite-net-solutions/summary")
+async def api_campaign_summary():
+    """Elite Net Solutions campaign summary stats"""
+    import json as _json
+    from collections import Counter
+
+    leads_path = BASE_DIR.parent / "data" / "campaigns" / "elite-net-solutions" / "leads.json"
+    if not leads_path.exists():
+        return {"error": "Campaign data not found"}
+
+    data = _json.loads(leads_path.read_text())
+    leads = data.get("leads", [])
+    summary = data.get("summary", {})
+
+    grades = Counter(l.get("grade") for l in leads)
+    neighborhoods = Counter(l.get("neighborhood") for l in leads)
+    types = Counter(l.get("type") for l in leads)
+    top_leads = sorted(
+        [l for l in leads if l.get("grade") == "A"],
+        key=lambda l: l.get("score", 0),
+        reverse=True,
+    )[:10]
+
+    return {
+        "total": len(leads),
+        "grades": dict(grades),
+        "neighborhoods": dict(neighborhoods.most_common(10)),
+        "types": dict(types),
+        "top_leads": top_leads,
+        "pipeline_low": summary.get("pipeline_value_low", 0),
+        "pipeline_high": summary.get("pipeline_value_high", 0),
+    }
+
+
 @app.get("/api/digest")
 async def api_digest(
     blackhole: float | None = None,
