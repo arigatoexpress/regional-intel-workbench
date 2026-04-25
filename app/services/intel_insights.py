@@ -94,7 +94,6 @@ def build_entity_timeline(snapshot: RegionalIntelSnapshot, item_id: str) -> list
     if detail is None:
         return []
 
-    org = detail["organization"]
     timeline: list[IntelTimelineEvent] = []
 
     for item in detail["news"]:

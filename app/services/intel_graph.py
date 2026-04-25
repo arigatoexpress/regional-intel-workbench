@@ -68,7 +68,6 @@ def build_intel_graph(
     else:
         seed_orgs = organizations[:18]
 
-    seed_org_ids = {item.item_id for item in seed_orgs}
     seed_org_names = {_normalize_text(item.name): item.item_id for item in seed_orgs}
 
     nodes: dict[str, IntelGraphNode] = {}
