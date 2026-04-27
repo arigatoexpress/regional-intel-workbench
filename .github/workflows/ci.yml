@@ -10,7 +10,8 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    if: ${{ vars.SAPPHIRE_RUNNER != '' }}
+    runs-on: ${{ fromJSON(vars.SAPPHIRE_RUNNER) }}
     timeout-minutes: 20
 
     steps:

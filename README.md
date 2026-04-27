@@ -125,21 +125,30 @@ regional-intel intel-collections
 regional-intel intel-bundles
 regional-intel intel-monitor-rules --region austin_tx
 regional-intel intel-foundry-export --region austin_tx --output-dir data/foundry/regional-intel
+regional-intel intel-ooda-packet --region austin_tx --json
 regional-intel serve --port 8768
 ```
 
 `intel-foundry-export` writes local Foundry-ready NDJSON files for
 `Region`, `IntelItem`, and `IntelSourceHealth` from the latest stored snapshot
-by default. Add `--refresh` only when you want to refresh public sources before
-exporting.
+by default. The manifest includes row hashes, file hashes, provenance drop
+counts, and a source-health summary. Add `--refresh` only when you want to
+refresh public sources before exporting.
+
+`intel-ooda-packet` is read-only. It uses the latest stored regional snapshot,
+performs no external refresh, performs no Foundry/GCS/BQ writes, and returns
+safe act recommendations only.
 
 ## Validation
 
 API regression:
 
 ```bash
-python -m unittest discover -s tests -v
+uv run --python 3.11 python -m unittest discover -s tests -v
 ```
+
+The GitHub workflow uses the `SAPPHIRE_RUNNER` no-spend gate and skips hosted
+Actions unless a self-hosted runner label is configured.
 
 Headless UI smoke:
 
@@ -163,6 +172,7 @@ GET  /api/intel/snapshot
 GET  /api/intel/recent
 GET  /api/intel/search
 GET  /api/intel/source-health
+GET  /api/intel/ooda-packet
 GET  /api/intel/source-history
 GET  /api/intel/source-incidents
 GET  /api/intel/briefs

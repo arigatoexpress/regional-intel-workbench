@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import contextlib
+import io
+import json
 import math
 import tempfile
 import unittest
@@ -274,12 +277,50 @@ class IntelAppTestCase(unittest.TestCase):
         self.assertEqual(entity_changes.status_code, 200)
         self.assertIn("changes", entity_changes.json())
 
+    def test_ooda_packet_endpoint_is_read_only_and_uses_stored_snapshot(self) -> None:
+        async def fail_if_refreshed(force_refresh: bool = False):
+            raise AssertionError("OODA packet endpoint must not refresh sources")
+
+        main.regional_intel_service.get_snapshot = fail_if_refreshed
+        response = self.client.get("/api/intel/ooda-packet", params={"region": "austin_tx"})
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["packet_type"], "regional_ooda")
+        self.assertEqual(payload["region"], "austin_tx")
+        self.assertTrue(payload["constraints"]["read_only"])
+        self.assertFalse(payload["constraints"]["external_refresh"])
+        self.assertFalse(payload["constraints"]["external_writes"])
+        self.assertIn("source_health_summary", payload["observe"])
+        self.assertIn("dropped_rows", payload["observe"])
+        self.assertIn("IntelItem", payload["observe"]["export_object_types"])
+        self.assertEqual(payload["act"]["writes"], [])
+        self.assertEqual(payload["act"]["external_calls"], [])
+
     def test_invalid_resources_return_404(self) -> None:
         self.assertEqual(self.client.get("/api/client-views/does_not_exist").status_code, 404)
         self.assertEqual(self.client.get("/api/intel/items/unknown/abc").status_code, 404)
         self.assertEqual(self.client.get("/api/intel/organizations/not-real").status_code, 404)
         self.assertEqual(self.client.delete("/api/intel/watchlist-items/not-real").status_code, 404)
         self.assertEqual(self.client.delete("/api/intel/annotations/organization/not-real").status_code, 404)
+
+
+class IntelOodaCliTestCase(unittest.TestCase):
+    def test_ooda_packet_cli_reads_latest_snapshot_without_refresh_flag(self) -> None:
+        from app.cli import main as cli_main
+
+        stdout = io.StringIO()
+        with contextlib.redirect_stdout(stdout):
+            exit_code = cli_main(["intel-ooda-packet", "--region", "austin_tx", "--json"])
+
+        self.assertEqual(exit_code, 0)
+        payload = json.loads(stdout.getvalue())
+        self.assertEqual(payload["packet_type"], "regional_ooda")
+        self.assertEqual(payload["region"], "austin_tx")
+        self.assertTrue(payload["constraints"]["read_only"])
+        self.assertFalse(payload["constraints"]["external_refresh"])
+        self.assertFalse(payload["constraints"]["external_writes"])
+        self.assertEqual(payload["act"]["writes"], [])
+        self.assertEqual(payload["act"]["external_calls"], [])
 
 
 def _build_controlled_snapshot(
@@ -531,7 +572,7 @@ class IntelRecentEndpointTestCase(unittest.TestCase):
         self.assertEqual(ids, {"good", "bad"})
 
     def test_missing_optional_fields_use_safe_fallbacks(self) -> None:
-        # News with no publication and no address_hint → source_name still
+        # News with no publication and no address_hint still
         # falls back to a non-empty string and summary survives.
         news = _news("n_min", score=42.0)
         news.publication = None

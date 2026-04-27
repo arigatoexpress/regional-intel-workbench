@@ -16,6 +16,7 @@ from pydantic import Field
 
 from app.config import get_settings, resolve_vote_powers
 from app.intel_models import RegionId
+from app.intel_models import RegionalIntelSnapshot
 from app.presenters.digest import build_digest_payload
 from app.services.aggregator import DashboardService
 from app.services.intel_graph import build_intel_graph
@@ -38,6 +39,7 @@ from app.services.client_views import available_client_views
 from app.services.client_views import build_client_view
 from app.services.intel_collection_store import IntelCollectionStore
 from app.services.intel_monitor_store import IntelMonitorStore
+from app.services.regional_ooda import build_regional_ooda_packet
 from app.services.regional_intel import RegionalIntelService
 from app.services.intel_watchlist_store import IntelWatchlistStore
 from app.services.strategy import build_strategy_snapshot
@@ -1035,6 +1037,15 @@ async def api_intel_source_health(force: bool = False, region: RegionId | None =
     snapshot = await regional_intel_service.get_snapshot(force_refresh=force)
     payload = _filter_region_snapshot(snapshot, region)
     return {"source_health": payload["source_health"]}
+
+
+@app.get("/api/intel/ooda-packet")
+async def api_intel_ooda_packet(region: RegionId | None = None):
+    latest_record = regional_intel_service.history_store.load_latest_record()
+    if latest_record is None:
+        raise HTTPException(status_code=404, detail="No stored regional intel snapshot found")
+    snapshot = RegionalIntelSnapshot.model_validate(latest_record)
+    return build_regional_ooda_packet(snapshot, region=region)
 
 
 @app.get("/api/intel/briefs")

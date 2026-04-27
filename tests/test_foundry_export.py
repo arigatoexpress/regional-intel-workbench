@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import unittest
 from pathlib import Path
@@ -20,6 +21,7 @@ from app.services.foundry_export import export_snapshot
 from app.services.foundry_export import intel_item_objects
 from app.services.foundry_export import region_objects
 from app.services.foundry_export import source_health_objects
+from app.services.regional_ooda import build_regional_ooda_packet
 
 
 def _snapshot() -> RegionalIntelSnapshot:
@@ -186,14 +188,31 @@ class FoundryExportTestCase(unittest.TestCase):
             manifest = export_snapshot(snapshot, output_dir, region="austin_tx")
 
             self.assertEqual(manifest["region"], "austin_tx")
+            self.assertEqual(manifest["schema_version"], 2)
             self.assertEqual(manifest["object_types"]["Region"]["rows"], 1)
             self.assertEqual(manifest["object_types"]["IntelItem"]["rows"], 5)
             self.assertEqual(manifest["object_types"]["IntelSourceHealth"]["rows"], 1)
+            self.assertEqual(manifest["dropped_rows"]["total"], 0)
+            self.assertEqual(manifest["source_health_summary"]["by_status"], {"live": 1})
+            self.assertEqual(manifest["source_health_summary"]["by_region"], {"austin_tx": 1})
             self.assertTrue((output_dir / "manifest.json").is_file())
 
             items = _read_ndjson(output_dir / "IntelItem.ndjson")
             self.assertEqual({item["kind"] for item in items}, {"business", "contact", "news", "organization", "permit"})
             self.assertEqual(items[0]["snapshot_updated_at"], "2026-04-27T16:00:00Z")
+            item_info = manifest["object_types"]["IntelItem"]
+            self.assertEqual(item_info["filename"], "IntelItem.ndjson")
+            self.assertEqual(len(item_info["file_sha256"]), 64)
+            self.assertEqual(
+                item_info["file_sha256"],
+                hashlib.sha256((output_dir / "IntelItem.ndjson").read_bytes()).hexdigest(),
+            )
+            self.assertEqual(len(item_info["row_hashes"]), 5)
+            self.assertTrue(all(len(row["sha256"]) == 64 for row in item_info["row_hashes"]))
+            self.assertEqual(
+                item_info["row_hashes"][0]["object_id"],
+                "regional-intel:item:business:business-1",
+            )
 
 
 class FoundryExportDeterminismTestCase(unittest.TestCase):
@@ -215,7 +234,7 @@ class FoundryExportDeterminismTestCase(unittest.TestCase):
                 )
 
     def test_duplicate_kind_and_item_id_still_sort_stably(self) -> None:
-        # Two news rows that share (region_id, kind, item_id) — primary key
+        # Two news rows that share (region_id, kind, item_id) - primary key
         # collision. Without a tie-break the sort is non-deterministic; with
         # the content-hash secondary key, two runs must agree.
         snapshot = _snapshot()
@@ -272,7 +291,7 @@ class FoundryExportProvenanceGuardTestCase(unittest.TestCase):
                 permit_type="Building",
                 status="filed",
                 status_date="2026-04-27",
-                source_name="",  # blank — dropped
+                source_name="",  # blank - dropped
                 source_url="",
                 signal_type="construction",
                 signal_score=22.0,
@@ -284,7 +303,7 @@ class FoundryExportProvenanceGuardTestCase(unittest.TestCase):
                 region_id="austin_tx",
                 name="Mystery LLC",
                 categories=["unknown"],
-                # source_names empty list → org row has source_name=None in export
+                # source_names empty list means org row has source_name=None in export
                 source_names=[],
                 latest_activity_at="2026-04-27T09:00:00Z",
                 organization_score=33.0,
@@ -310,6 +329,25 @@ class FoundryExportProvenanceGuardTestCase(unittest.TestCase):
         self.assertIn("org-no-prov", joined_logs)
         self.assertIn("missing provenance", joined_logs)
 
+    def test_manifest_reports_dropped_rows_by_reason(self) -> None:
+        snapshot = self._snapshot_with_missing_provenance()
+        with TemporaryDirectory() as tmp:
+            with self.assertLogs("app.services.foundry_export", level="WARNING"):
+                manifest = export_snapshot(snapshot, Path(tmp), region="austin_tx")
+
+        dropped = manifest["dropped_rows"]
+        self.assertEqual(dropped["total"], 3)
+        self.assertEqual(dropped["by_reason"], {"missing_provenance": 3})
+        self.assertEqual(
+            {(item["kind"], item["item_id"]) for item in dropped["details"]},
+            {
+                ("news", "news-no-prov"),
+                ("permit", "permit-no-prov"),
+                ("organization", "org-no-prov"),
+            },
+        )
+        self.assertTrue(all("source_name" in item["missing_fields"] for item in dropped["details"]))
+
     def test_business_and_contact_rows_are_not_provenance_guarded(self) -> None:
         # Pydantic already enforces source_name/source_url for those models
         # at ingestion. The guard should be a no-op for them.
@@ -318,6 +356,25 @@ class FoundryExportProvenanceGuardTestCase(unittest.TestCase):
         kinds = {row["kind"] for row in items}
         self.assertIn("business", kinds)
         self.assertIn("contact", kinds)
+
+
+class RegionalOodaPacketTestCase(unittest.TestCase):
+    def test_packet_contains_read_only_provenance_and_safe_act_recommendations(self) -> None:
+        packet = build_regional_ooda_packet(_snapshot(), region="austin_tx")
+
+        self.assertEqual(packet["packet_type"], "regional_ooda")
+        self.assertEqual(packet["region"], "austin_tx")
+        self.assertTrue(packet["constraints"]["read_only"])
+        self.assertFalse(packet["constraints"]["external_refresh"])
+        self.assertFalse(packet["constraints"]["external_writes"])
+        self.assertTrue(packet["constraints"]["safe_act_recommendations_only"])
+        self.assertEqual(packet["observe"]["dropped_rows"]["total"], 0)
+        self.assertEqual(packet["observe"]["source_health_summary"]["by_status"], {"live": 1})
+        self.assertEqual(len(packet["observe"]["export_object_types"]["IntelItem"]["file_sha256"]), 64)
+        self.assertEqual(len(packet["observe"]["export_object_types"]["IntelItem"]["row_hashes"]), 5)
+        self.assertEqual(packet["act"]["writes"], [])
+        self.assertEqual(packet["act"]["external_calls"], [])
+        self.assertTrue(packet["act"]["recommendations"])
 
 
 if __name__ == "__main__":
