@@ -121,6 +121,7 @@ def _snapshot() -> RegionalIntelSnapshot:
                 region_id="austin_tx",
                 name="Example Coffee",
                 categories=["retail"],
+                website="https://example.test/org",
                 business_lead_count=1,
                 news_signal_count=1,
                 contact_count=1,
@@ -193,6 +194,130 @@ class FoundryExportTestCase(unittest.TestCase):
             items = _read_ndjson(output_dir / "IntelItem.ndjson")
             self.assertEqual({item["kind"] for item in items}, {"business", "contact", "news", "organization", "permit"})
             self.assertEqual(items[0]["snapshot_updated_at"], "2026-04-27T16:00:00Z")
+
+
+class FoundryExportDeterminismTestCase(unittest.TestCase):
+    """Same snapshot + region must yield byte-identical NDJSON across runs."""
+
+    def test_intel_item_ndjson_is_byte_identical_across_runs(self) -> None:
+        snapshot = _snapshot()
+        with TemporaryDirectory() as tmp_a, TemporaryDirectory() as tmp_b:
+            export_snapshot(snapshot, Path(tmp_a), region="austin_tx")
+            export_snapshot(snapshot, Path(tmp_b), region="austin_tx")
+
+            for filename in ("Region.ndjson", "IntelItem.ndjson", "IntelSourceHealth.ndjson"):
+                bytes_a = (Path(tmp_a) / filename).read_bytes()
+                bytes_b = (Path(tmp_b) / filename).read_bytes()
+                self.assertEqual(
+                    bytes_a,
+                    bytes_b,
+                    f"{filename} differed across runs",
+                )
+
+    def test_duplicate_kind_and_item_id_still_sort_stably(self) -> None:
+        # Two news rows that share (region_id, kind, item_id) — primary key
+        # collision. Without a tie-break the sort is non-deterministic; with
+        # the content-hash secondary key, two runs must agree.
+        snapshot = _snapshot()
+        snapshot.news.append(
+            NewsSignal(
+                item_id="news-1",  # duplicate id
+                region_id="austin_tx",
+                title="Distinct downstream coverage",
+                summary="Different body, same item id collision case.",
+                source_name="Public News Two",
+                source_url="https://example.test/news-2",
+                published_at="2026-04-27T11:00:00Z",
+                signal_type="business_growth",
+                actionable=True,
+                signal_score=42.0,
+            )
+        )
+
+        items_first = intel_item_objects(snapshot)
+        items_second = intel_item_objects(snapshot)
+        self.assertEqual(items_first, items_second)
+        self.assertEqual(
+            json.dumps(items_first, sort_keys=True),
+            json.dumps(items_second, sort_keys=True),
+        )
+
+
+class FoundryExportProvenanceGuardTestCase(unittest.TestCase):
+    """News/permit/org rows lacking source_name + source_url must be dropped."""
+
+    def _snapshot_with_missing_provenance(self) -> RegionalIntelSnapshot:
+        snap = _snapshot()
+        snap.news.append(
+            NewsSignal(
+                item_id="news-no-prov",
+                region_id="austin_tx",
+                title="Unverified rumor",
+                summary="No source attribution.",
+                source_name="",  # blank source name
+                source_url="",  # blank source url
+                published_at="2026-04-27T12:00:00Z",
+                signal_type="rumor",
+                actionable=False,
+                signal_score=10.0,
+            )
+        )
+        snap.permits.append(
+            PermitSignal(
+                item_id="permit-no-prov",
+                region_id="austin_tx",
+                county="Travis",
+                address="999 Unknown Way",
+                permit_number="P-X",
+                permit_type="Building",
+                status="filed",
+                status_date="2026-04-27",
+                source_name="",  # blank — dropped
+                source_url="",
+                signal_type="construction",
+                signal_score=22.0,
+            )
+        )
+        snap.organizations.append(
+            OrganizationProfile(
+                item_id="org-no-prov",
+                region_id="austin_tx",
+                name="Mystery LLC",
+                categories=["unknown"],
+                # source_names empty list → org row has source_name=None in export
+                source_names=[],
+                latest_activity_at="2026-04-27T09:00:00Z",
+                organization_score=33.0,
+            )
+        )
+        return snap
+
+    def test_rows_without_provenance_are_dropped_and_logged(self) -> None:
+        snapshot = self._snapshot_with_missing_provenance()
+        with self.assertLogs("app.services.foundry_export", level="WARNING") as captured:
+            items = intel_item_objects(snapshot, region="austin_tx")
+
+        item_ids = {row["item_id"] for row in items}
+        self.assertNotIn("news-no-prov", item_ids)
+        self.assertNotIn("permit-no-prov", item_ids)
+        self.assertNotIn("org-no-prov", item_ids)
+        # The original well-attributed news row still emits.
+        self.assertIn("news-1", item_ids)
+
+        joined_logs = "\n".join(captured.output)
+        self.assertIn("news-no-prov", joined_logs)
+        self.assertIn("permit-no-prov", joined_logs)
+        self.assertIn("org-no-prov", joined_logs)
+        self.assertIn("missing provenance", joined_logs)
+
+    def test_business_and_contact_rows_are_not_provenance_guarded(self) -> None:
+        # Pydantic already enforces source_name/source_url for those models
+        # at ingestion. The guard should be a no-op for them.
+        snapshot = _snapshot()
+        items = intel_item_objects(snapshot, region="austin_tx")
+        kinds = {row["kind"] for row in items}
+        self.assertIn("business", kinds)
+        self.assertIn("contact", kinds)
 
 
 if __name__ == "__main__":

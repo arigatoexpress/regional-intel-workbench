@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from datetime import datetime
 from datetime import timezone
 from pathlib import Path
@@ -224,6 +225,21 @@ def _severity(score: float) -> str:
     return "low"
 
 
+def _normalize_score(score) -> float:
+    """Coerce a score-like value to a finite float rounded to 2 decimals.
+
+    Rejects NaN and infinities (returns 0.0) so downstream JSON/JS consumers
+    never receive non-finite numbers.
+    """
+    try:
+        value = float(score) if score is not None else 0.0
+    except (TypeError, ValueError):
+        return 0.0
+    if not math.isfinite(value):
+        return 0.0
+    return round(value, 2)
+
+
 def _intel_url(kind: str, item_id: str | None, *, region_id: str | None = None) -> str | None:
     if not item_id:
         return None
@@ -244,6 +260,7 @@ def _recent_item(
     source_url: str | None,
     tags: list[str] | None = None,
 ) -> dict:
+    normalized_score = _normalize_score(score)
     return {
         "id": f"{kind}:{item_id}",
         "item_id": item_id,
@@ -253,8 +270,8 @@ def _recent_item(
         "title": title,
         "summary": summary,
         "detail": summary,
-        "score": round(float(score or 0), 2),
-        "severity": _severity(float(score or 0)),
+        "score": normalized_score,
+        "severity": _severity(normalized_score),
         "timestamp": timestamp,
         "source_name": source_name,
         "source_url": source_url,
@@ -266,7 +283,11 @@ def _recent_item(
 
 def _build_recent_items(snapshot, *, region: RegionId | None, limit: int) -> dict:
     payload = _filter_region_snapshot(snapshot, region)
-    effective_limit = max(1, min(int(limit or 10), 50))
+    try:
+        raw_limit = int(limit) if limit is not None else 10
+    except (TypeError, ValueError):
+        raw_limit = 10
+    effective_limit = max(1, min(raw_limit, 50))
     items: list[dict] = []
 
     for item in payload.get("news", []):
