@@ -124,8 +124,14 @@ regional-intel intel-briefing <item_id>
 regional-intel intel-collections
 regional-intel intel-bundles
 regional-intel intel-monitor-rules --region austin_tx
+regional-intel intel-foundry-export --region austin_tx --output-dir data/foundry/regional-intel
 regional-intel serve --port 8768
 ```
+
+`intel-foundry-export` writes local Foundry-ready NDJSON files for
+`Region`, `IntelItem`, and `IntelSourceHealth` from the latest stored snapshot
+by default. Add `--refresh` only when you want to refresh public sources before
+exporting.
 
 ## Validation
 

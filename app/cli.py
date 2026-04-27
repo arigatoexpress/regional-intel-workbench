@@ -4,13 +4,12 @@ import argparse
 import asyncio
 import json
 import sys
-
-import uvicorn
+from pathlib import Path
 
 from app.config import get_settings, resolve_vote_powers
 from app.intel_models import RegionId
+from app.intel_models import RegionalIntelSnapshot
 from app.presenters.digest import build_digest_payload
-from app.services.aggregator import DashboardService
 from app.services.intel_insights import build_briefing_pack
 from app.services.intel_insights import build_bundle_briefing_pack
 from app.services.intel_insights import build_collection_briefing_pack
@@ -26,6 +25,7 @@ from app.services.intel_analyst_store import IntelAnalystStore
 from app.services.intel_bundle_store import IntelBundleStore
 from app.services.intel_collection_store import IntelCollectionStore
 from app.services.intel_monitor_store import IntelMonitorStore
+from app.services.foundry_export import export_snapshot
 from app.services.intel_watchlist_store import IntelWatchlistStore
 from app.services.regional_intel import RegionalIntelService
 from app.services.regional_history_store import RegionalIntelHistoryStore
@@ -33,6 +33,8 @@ from app.services.strategy import build_strategy_snapshot
 
 
 async def _build_snapshot(force: bool):
+    from app.services.aggregator import DashboardService
+
     service = DashboardService()
     return await service.get_snapshot(force_refresh=force)
 
@@ -410,6 +412,34 @@ async def _run_intel_monitor_rules(force: bool, region: RegionId | None, as_json
     return 0
 
 
+async def _run_intel_foundry_export(
+    *,
+    output_dir: Path,
+    refresh: bool,
+    region: RegionId | None,
+    as_json: bool,
+) -> int:
+    if refresh:
+        snapshot = await _build_intel_snapshot(force=True)
+    else:
+        latest_record = RegionalIntelHistoryStore().load_latest_record()
+        if latest_record is None:
+            print("No stored regional intel snapshot found. Run `regional-intel intel-collect` first.", file=sys.stderr)
+            return 2
+        snapshot = RegionalIntelSnapshot.model_validate(latest_record)
+
+    manifest = export_snapshot(snapshot, output_dir, region=region)
+    if as_json:
+        json.dump(manifest, sys.stdout, indent=2)
+        sys.stdout.write("\n")
+        return 0
+
+    print(f"Foundry export written to {manifest['manifest_path']}")
+    for object_type, info in manifest["object_types"].items():
+        print(f"- {object_type}: {info['rows']} rows -> {info['path']}")
+    return 0
+
+
 def _build_source_history_local(lookback_days: int, region: RegionId | None):
     records = RegionalIntelHistoryStore().load_records(lookback_days=lookback_days)
     sources: dict[str, dict] = {}
@@ -602,10 +632,34 @@ def main(argv: list[str] | None = None) -> int:
         default=None,
         help="Filter output to a single region.",
     )
+    intel_foundry_export_parser = subparsers.add_parser(
+        "intel-foundry-export",
+        help="Write Foundry-ready regional intelligence NDJSON files.",
+    )
+    intel_foundry_export_parser.add_argument(
+        "--output-dir",
+        type=Path,
+        default=Path("data/foundry/regional-intel"),
+        help="Directory for Region/IntelItem/IntelSourceHealth NDJSON files.",
+    )
+    intel_foundry_export_parser.add_argument(
+        "--refresh",
+        action="store_true",
+        help="Refresh from public sources before exporting; default uses latest stored snapshot.",
+    )
+    intel_foundry_export_parser.add_argument("--json", action="store_true", help="Print the export manifest JSON.")
+    intel_foundry_export_parser.add_argument(
+        "--region",
+        choices=("austin_tx", "houston_tx", "gunnison_valley_co"),
+        default=None,
+        help="Filter output to a single region.",
+    )
 
     args = parser.parse_args(argv)
 
     if args.command == "serve":
+        import uvicorn
+
         uvicorn.run("app.main:app", host=args.host, port=args.port, reload=False)
         return 0
     if args.command == "collect":
@@ -652,6 +706,15 @@ def main(argv: list[str] | None = None) -> int:
         return asyncio.run(_run_intel_entity_changes(region=args.region, kind=args.kind, item_id=args.item_id, as_json=args.json))
     if args.command == "intel-monitor-rules":
         return asyncio.run(_run_intel_monitor_rules(force=args.force, region=args.region, as_json=args.json))
+    if args.command == "intel-foundry-export":
+        return asyncio.run(
+            _run_intel_foundry_export(
+                output_dir=args.output_dir,
+                refresh=args.refresh,
+                region=args.region,
+                as_json=args.json,
+            )
+        )
 
     parser.error("Unknown command")
     return 2
