@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import datetime
+from datetime import timezone
 from pathlib import Path
 from typing import Literal
 
@@ -200,6 +202,193 @@ def _filter_region_snapshot(snapshot, region: RegionId | None):
     ]
     payload["briefs"] = [item for item in payload["briefs"] if item["region_id"] == region]
     return payload
+
+
+def _parse_timestamp(value: str | None) -> datetime:
+    if not value:
+        return datetime.min.replace(tzinfo=timezone.utc)
+    try:
+        parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    except ValueError:
+        return datetime.min.replace(tzinfo=timezone.utc)
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=timezone.utc)
+    return parsed
+
+
+def _severity(score: float) -> str:
+    if score >= 85:
+        return "high"
+    if score >= 60:
+        return "medium"
+    return "low"
+
+
+def _intel_url(kind: str, item_id: str | None, *, region_id: str | None = None) -> str | None:
+    if not item_id:
+        return None
+    region_qs = f"&region={region_id}" if region_id else ""
+    return f"/intel?detail_kind={kind}&detail_id={item_id}{region_qs}"
+
+
+def _recent_item(
+    *,
+    kind: str,
+    item_id: str,
+    region_id: str,
+    title: str,
+    summary: str,
+    score: float,
+    timestamp: str | None,
+    source_name: str,
+    source_url: str | None,
+    tags: list[str] | None = None,
+) -> dict:
+    return {
+        "id": f"{kind}:{item_id}",
+        "item_id": item_id,
+        "kind": kind,
+        "region": region_id,
+        "region_id": region_id,
+        "title": title,
+        "summary": summary,
+        "detail": summary,
+        "score": round(float(score or 0), 2),
+        "severity": _severity(float(score or 0)),
+        "timestamp": timestamp,
+        "source_name": source_name,
+        "source_url": source_url,
+        "url": source_url,
+        "intel_url": _intel_url(kind, item_id, region_id=region_id),
+        "tags": [item for item in tags or [] if item],
+    }
+
+
+def _build_recent_items(snapshot, *, region: RegionId | None, limit: int) -> dict:
+    payload = _filter_region_snapshot(snapshot, region)
+    effective_limit = max(1, min(int(limit or 10), 50))
+    items: list[dict] = []
+
+    for item in payload.get("news", []):
+        items.append(
+            _recent_item(
+                kind="news",
+                item_id=item["item_id"],
+                region_id=item["region_id"],
+                title=item["title"],
+                summary=item.get("address_hint") or item.get("summary") or "",
+                score=float(item.get("signal_score") or 0),
+                timestamp=item.get("published_at"),
+                source_name=item.get("source_name") or item.get("publication") or "Public news",
+                source_url=item.get("source_url"),
+                tags=[item.get("signal_type", ""), "actionable" if item.get("actionable") else ""],
+            )
+        )
+
+    for item in payload.get("permits", []):
+        items.append(
+            _recent_item(
+                kind="permit",
+                item_id=item["item_id"],
+                region_id=item["region_id"],
+                title=item["address"],
+                summary=" | ".join(
+                    part
+                    for part in [
+                        item.get("county"),
+                        item.get("permit_type"),
+                        item.get("status"),
+                        item.get("permit_number"),
+                    ]
+                    if part
+                ),
+                score=float(item.get("signal_score") or 0),
+                timestamp=item.get("status_date"),
+                source_name=item.get("source_name") or "Public permit source",
+                source_url=item.get("source_url"),
+                tags=[item.get("signal_type", ""), item.get("status", "")],
+            )
+        )
+
+    for item in payload.get("organizations", []):
+        items.append(
+            _recent_item(
+                kind="organization",
+                item_id=item["item_id"],
+                region_id=item["region_id"],
+                title=item["name"],
+                summary=" | ".join(
+                    part
+                    for part in [
+                        ", ".join(item.get("categories", [])[:3]),
+                        item.get("address"),
+                        f"{item.get('permit_signal_count', 0)} permits",
+                        f"{item.get('news_signal_count', 0)} news",
+                    ]
+                    if part
+                ),
+                score=float(item.get("organization_score") or 0),
+                timestamp=item.get("latest_activity_at"),
+                source_name=", ".join(item.get("source_names", [])[:2]) or "Regional graph",
+                source_url=item.get("website"),
+                tags=list(item.get("categories", [])[:4]),
+            )
+        )
+
+    for item in payload.get("businesses", []):
+        items.append(
+            _recent_item(
+                kind="business",
+                item_id=item["item_id"],
+                region_id=item["region_id"],
+                title=item["name"],
+                summary=item.get("address") or item.get("category") or "Public business lead",
+                score=float(item.get("lead_score") or 0),
+                timestamp=None,
+                source_name=item.get("source_name") or "Public business source",
+                source_url=item.get("website") or item.get("source_url"),
+                tags=[item.get("category", "")],
+            )
+        )
+
+    for item in payload.get("contacts", []):
+        items.append(
+            _recent_item(
+                kind="contact",
+                item_id=item["item_id"],
+                region_id=item["region_id"],
+                title=item["name"],
+                summary=" | ".join(
+                    part
+                    for part in [item.get("title"), item.get("organization"), item.get("email") or item.get("phone")]
+                    if part
+                ),
+                score=float(item.get("contact_score") or 0),
+                timestamp=None,
+                source_name=item.get("source_name") or "Public contact source",
+                source_url=item.get("website") or item.get("source_url"),
+                tags=[item.get("contact_type", "public_professional_contact")],
+            )
+        )
+
+    items.sort(
+        key=lambda item: (
+            _parse_timestamp(item.get("timestamp")),
+            float(item.get("score") or 0),
+            str(item.get("title") or "").lower(),
+        ),
+        reverse=True,
+    )
+    return {
+        "region": region,
+        "limit": effective_limit,
+        "items": items[:effective_limit],
+        "item_count": len(items),
+        "notes": [
+            "Recent feed is assembled from public-source regional intelligence snapshots.",
+            "Undated business/contact rows sort after dated news, permit, and organization rows.",
+        ],
+    }
 
 
 def _organization_detail(snapshot, item_id: str):
@@ -806,6 +995,12 @@ async def api_client_view(view_id: str, force: bool = False):
 async def api_intel_snapshot(force: bool = False, region: RegionId | None = None):
     snapshot = await regional_intel_service.get_snapshot(force_refresh=force)
     return _filter_region_snapshot(snapshot, region)
+
+
+@app.get("/api/intel/recent")
+async def api_intel_recent(force: bool = False, region: RegionId | None = None, limit: int = 10):
+    snapshot = await regional_intel_service.get_snapshot(force_refresh=force)
+    return _build_recent_items(snapshot, region=region, limit=limit)
 
 
 @app.get("/api/intel/search")
