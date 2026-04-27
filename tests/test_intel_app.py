@@ -107,6 +107,30 @@ class IntelAppTestCase(unittest.TestCase):
         self.assertGreaterEqual(len(view_payload["sections"]), 6)
         self.assertTrue(any(section["section_id"] == "what_changed" for section in view_payload["sections"]))
 
+    def test_recent_feed_contract_for_sapphire_proxy(self) -> None:
+        recent = self.client.get("/api/intel/recent", params={"region": "austin_tx", "limit": 5})
+        self.assertEqual(recent.status_code, 200)
+        payload = recent.json()
+        self.assertEqual(payload["region"], "austin_tx")
+        self.assertEqual(payload["limit"], 5)
+        self.assertLessEqual(len(payload["items"]), 5)
+        self.assertGreater(payload["item_count"], 5)
+
+        timestamps = [item["timestamp"] or "" for item in payload["items"]]
+        self.assertEqual(timestamps, sorted(timestamps, reverse=True))
+        self.assertTrue(all(item["region_id"] == "austin_tx" for item in payload["items"]))
+        self.assertTrue(all(item["region"] == "austin_tx" for item in payload["items"]))
+        self.assertTrue(all(item["source_name"] for item in payload["items"]))
+        self.assertTrue(any(item["source_url"] for item in payload["items"]))
+        self.assertTrue(all(item["severity"] in {"high", "medium", "low"} for item in payload["items"]))
+        self.assertTrue(all(item["intel_url"].startswith("/intel?") for item in payload["items"]))
+        self.assertTrue({"id", "kind", "title", "timestamp", "tags"} <= set(payload["items"][0]))
+
+        capped = self.client.get("/api/intel/recent", params={"limit": 500})
+        self.assertEqual(capped.status_code, 200)
+        self.assertEqual(capped.json()["limit"], 50)
+        self.assertLessEqual(len(capped.json()["items"]), 50)
+
     def test_search_detail_and_briefing_endpoints(self) -> None:
         search = self.client.get("/api/intel/search", params={"q": "Amy", "region": "austin_tx"})
         self.assertEqual(search.status_code, 200)

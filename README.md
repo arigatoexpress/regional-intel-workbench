@@ -160,6 +160,7 @@ The UI smoke covers:
 ```text
 GET  /api/intel/health
 GET  /api/intel/snapshot
+GET  /api/intel/recent
 GET  /api/intel/search
 GET  /api/intel/source-health
 GET  /api/intel/source-history
@@ -179,6 +180,10 @@ GET  /api/intel/monitor-rules
 GET  /api/client-views
 GET  /api/client-views/{view_id}
 ```
+
+`/api/intel/recent?limit=10&region=austin_tx` returns a compact feed for
+external dashboards, including `id`, `kind`, `region`, `title`, `timestamp`,
+`severity`, `score`, source provenance, tags, and an `/intel` deep link.
 
 ## Repository layout
 
