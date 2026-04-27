@@ -34,6 +34,9 @@ class Settings:
     default_supernova_vote_power: float
     default_fullsail_vote_power: float
     public_base_url: str | None
+    regional_intel_source_timeout: float
+    regional_intel_retry_limit: int
+    regional_intel_retry_backoff_base: float
 
     def default_vote_powers(self) -> dict[str, float]:
         return {
@@ -54,6 +57,9 @@ def get_settings() -> Settings:
         default_supernova_vote_power=_env_float("VE_MONITOR_SUPERNOVA_VOTE_POWER", 0.0),
         default_fullsail_vote_power=_env_float("VE_MONITOR_FULLSAIL_VOTE_POWER", 0.0),
         public_base_url=public_base_url.strip() if public_base_url else None,
+        regional_intel_source_timeout=_env_float("REGIONAL_INTEL_SOURCE_TIMEOUT", 25.0),
+        regional_intel_retry_limit=max(_env_int("REGIONAL_INTEL_RETRY_LIMIT", 2), 0),
+        regional_intel_retry_backoff_base=_env_float("REGIONAL_INTEL_RETRY_BACKOFF_BASE", 0.5),
     )
 
 
