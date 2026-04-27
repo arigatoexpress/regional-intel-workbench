@@ -27,6 +27,7 @@ from app.services.intel_collection_store import IntelCollectionStore
 from app.services.intel_monitor_store import IntelMonitorStore
 from app.services.foundry_export import export_snapshot
 from app.services.intel_watchlist_store import IntelWatchlistStore
+from app.services.regional_ooda import build_regional_ooda_packet
 from app.services.regional_intel import RegionalIntelService
 from app.services.regional_history_store import RegionalIntelHistoryStore
 from app.services.strategy import build_strategy_snapshot
@@ -440,6 +441,36 @@ async def _run_intel_foundry_export(
     return 0
 
 
+async def _run_intel_ooda_packet(
+    *,
+    region: RegionId | None,
+    as_json: bool,
+) -> int:
+    latest_record = RegionalIntelHistoryStore().load_latest_record()
+    if latest_record is None:
+        print("No stored regional intel snapshot found. Run `regional-intel intel-collect` first.", file=sys.stderr)
+        return 2
+    snapshot = RegionalIntelSnapshot.model_validate(latest_record)
+    packet = build_regional_ooda_packet(snapshot, region=region)
+    if as_json:
+        json.dump(packet, sys.stdout, indent=2)
+        sys.stdout.write("\n")
+        return 0
+
+    observe = packet["observe"]
+    orient = packet["orient"]
+    print(f"Regional OODA packet for {packet['region'] or 'all regions'}")
+    print(f"- Snapshot: {packet['snapshot_updated_at']}")
+    print(f"- Rows dropped: {observe['dropped_rows']['total']} {observe['dropped_rows']['by_reason']}")
+    print(f"- Source health: {orient['source_health']['status']}")
+    for object_type, info in observe["export_object_types"].items():
+        print(f"- {object_type}: {info['rows']} rows | file_sha256={info['file_sha256']}")
+    print("Safe act recommendations:")
+    for item in packet["act"]["recommendations"]:
+        print(f"- {item['title']}: {item['rationale']}")
+    return 0
+
+
 def _build_source_history_local(lookback_days: int, region: RegionId | None):
     records = RegionalIntelHistoryStore().load_records(lookback_days=lookback_days)
     sources: dict[str, dict] = {}
@@ -654,6 +685,17 @@ def main(argv: list[str] | None = None) -> int:
         default=None,
         help="Filter output to a single region.",
     )
+    intel_ooda_packet_parser = subparsers.add_parser(
+        "intel-ooda-packet",
+        help="Print a read-only regional OODA packet from the latest stored snapshot.",
+    )
+    intel_ooda_packet_parser.add_argument("--json", action="store_true", help="Print the raw OODA packet JSON.")
+    intel_ooda_packet_parser.add_argument(
+        "--region",
+        choices=("austin_tx", "houston_tx", "gunnison_valley_co"),
+        default=None,
+        help="Filter output to a single region.",
+    )
 
     args = parser.parse_args(argv)
 
@@ -715,6 +757,8 @@ def main(argv: list[str] | None = None) -> int:
                 as_json=args.json,
             )
         )
+    if args.command == "intel-ooda-packet":
+        return asyncio.run(_run_intel_ooda_packet(region=args.region, as_json=args.json))
 
     parser.error("Unknown command")
     return 2

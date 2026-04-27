@@ -40,7 +40,7 @@ def _write_ndjson(path: Path, rows: list[dict[str, Any]]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", encoding="utf-8") as handle:
         for row in rows:
-            handle.write(json.dumps(row, sort_keys=True, separators=(",", ":")))
+            handle.write(_canonical_json(row))
             handle.write("\n")
 
 
@@ -117,24 +117,71 @@ def _has_provenance(row: dict[str, Any]) -> bool:
     return bool(name and str(name).strip()) and bool(url and str(url).strip())
 
 
-def _drop_missing_provenance(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Drop guarded item kinds without source_name + source_url; log each drop."""
+def _empty_drop_report() -> dict[str, Any]:
+    return {"total": 0, "by_reason": {}, "details": []}
+
+
+def _record_drop(report: dict[str, Any], *, reason: str, row: dict[str, Any], missing_fields: list[str]) -> None:
+    report["total"] += 1
+    report["by_reason"][reason] = report["by_reason"].get(reason, 0) + 1
+    report["details"].append(
+        {
+            "reason": reason,
+            "object_type": "IntelItem",
+            "kind": row.get("kind"),
+            "item_id": row.get("item_id"),
+            "region_id": row.get("region_id"),
+            "missing_fields": missing_fields,
+        }
+    )
+
+
+def _drop_missing_provenance_with_report(
+    rows: list[dict[str, Any]],
+    *,
+    log_drops: bool = True,
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    """Drop guarded item kinds without source_name + source_url; log/report each drop."""
     kept: list[dict[str, Any]] = []
+    report = _empty_drop_report()
     for row in rows:
         kind = row.get("kind")
         if kind in PROVENANCE_REQUIRED_KINDS and not _has_provenance(row):
-            logger.warning(
-                "foundry_export: dropping %s item %s (region=%s) — missing provenance "
-                "(source_name=%r, source_url=%r)",
-                kind,
-                row.get("item_id"),
-                row.get("region_id"),
-                row.get("source_name"),
-                row.get("source_url"),
-            )
+            missing_fields = [
+                field
+                for field in ("source_name", "source_url")
+                if not (row.get(field) and str(row.get(field)).strip())
+            ]
+            _record_drop(report, reason="missing_provenance", row=row, missing_fields=missing_fields)
+            if log_drops:
+                logger.warning(
+                    "foundry_export: dropping %s item %s (region=%s) - missing provenance "
+                    "(source_name=%r, source_url=%r)",
+                    kind,
+                    row.get("item_id"),
+                    row.get("region_id"),
+                    row.get("source_name"),
+                    row.get("source_url"),
+                )
             continue
         kept.append(row)
-    return kept
+    return kept, report
+
+
+def _drop_missing_provenance(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return _drop_missing_provenance_with_report(rows)[0]
+
+
+def _canonical_json(row: dict[str, Any]) -> str:
+    return json.dumps(row, sort_keys=True, separators=(",", ":"))
+
+
+def _ndjson_bytes(rows: list[dict[str, Any]]) -> bytes:
+    return "".join(f"{_canonical_json(row)}\n" for row in rows).encode("utf-8")
+
+
+def _sha256_bytes(payload: bytes) -> str:
+    return hashlib.sha256(payload).hexdigest()
 
 
 def _row_hash(row: dict[str, Any]) -> str:
@@ -144,15 +191,70 @@ def _row_hash(row: dict[str, Any]) -> str:
     sort identically. Salts the hash with the canonical JSON representation
     used at write time.
     """
-    payload = json.dumps(row, sort_keys=True, separators=(",", ":"))
-    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+    return _sha256_bytes(_canonical_json(row).encode("utf-8"))
 
 
-def intel_item_objects(
+def _row_hash_entries(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [
+        {
+            "object_id": row.get("object_id"),
+            "sha256": _row_hash(row),
+        }
+        for row in rows
+    ]
+
+
+def _source_health_summary(rows: list[dict[str, Any]]) -> dict[str, Any]:
+    by_status: dict[str, int] = {}
+    by_category: dict[str, int] = {}
+    by_region: dict[str, int] = {}
+    live_pull_sources = 0
+    total_item_count = 0
+    for row in rows:
+        status = str(row.get("status") or "unknown")
+        category = str(row.get("category") or "unknown")
+        by_status[status] = by_status.get(status, 0) + 1
+        by_category[category] = by_category.get(category, 0) + 1
+        if row.get("live_pull"):
+            live_pull_sources += 1
+        total_item_count += int(row.get("item_count") or 0)
+        for region_id in row.get("region_ids") or []:
+            key = str(region_id)
+            by_region[key] = by_region.get(key, 0) + 1
+    return {
+        "total_sources": len(rows),
+        "live_pull_sources": live_pull_sources,
+        "total_item_count": total_item_count,
+        "by_status": dict(sorted(by_status.items())),
+        "by_category": dict(sorted(by_category.items())),
+        "by_region": dict(sorted(by_region.items())),
+    }
+
+
+def _object_type_manifest_info(
+    *,
+    object_type: str,
+    rows: list[dict[str, Any]],
+    output_dir: Path | None,
+) -> dict[str, Any]:
+    filename = OBJECT_FILES[object_type]
+    info: dict[str, Any] = {
+        "filename": filename,
+        "rows": len(rows),
+        "file_sha256": _sha256_bytes(_ndjson_bytes(rows)),
+        "row_hashes": _row_hash_entries(rows),
+    }
+    if output_dir is not None:
+        info["path"] = str(output_dir / filename)
+    return info
+
+
+def _intel_item_objects_with_drop_report(
     snapshot: RegionalIntelSnapshot,
     *,
     region: RegionId | None = None,
-) -> list[dict[str, Any]]:
+    log_drops: bool = True,
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     rows: list[dict[str, Any]] = []
     rows.extend(_news_object(item, snapshot) for item in snapshot.news if _region_allowed(item.region_id, region))
     rows.extend(
@@ -175,7 +277,7 @@ def intel_item_objects(
         for item in snapshot.organizations
         if _region_allowed(item.region_id, region)
     )
-    rows = _drop_missing_provenance(rows)
+    rows, drop_report = _drop_missing_provenance_with_report(rows, log_drops=log_drops)
     # Deterministic ordering: primary tuple is (region_id, kind, item_id);
     # tie-break with a content hash so duplicate-id rows still sort stably
     # and runs produce byte-identical NDJSON.
@@ -187,7 +289,15 @@ def intel_item_objects(
             _row_hash(item),
         )
     )
-    return rows
+    return rows, drop_report
+
+
+def intel_item_objects(
+    snapshot: RegionalIntelSnapshot,
+    *,
+    region: RegionId | None = None,
+) -> list[dict[str, Any]]:
+    return _intel_item_objects_with_drop_report(snapshot, region=region)[0]
 
 
 def _base_item(
@@ -352,6 +462,45 @@ def _organization_object(item: OrganizationProfile, snapshot: RegionalIntelSnaps
     )
 
 
+def build_export_plan(
+    snapshot: RegionalIntelSnapshot,
+    *,
+    region: RegionId | None = None,
+    output_dir: Path | None = None,
+    log_drops: bool = True,
+) -> tuple[dict[str, list[dict[str, Any]]], dict[str, Any]]:
+    """Build deterministic export rows plus manifest metadata without writing files."""
+    intel_items, drop_report = _intel_item_objects_with_drop_report(
+        snapshot,
+        region=region,
+        log_drops=log_drops,
+    )
+    rows_by_type = {
+        "Region": region_objects(snapshot, region=region),
+        "IntelItem": intel_items,
+        "IntelSourceHealth": source_health_objects(snapshot, region=region),
+    }
+    files = {
+        object_type: _object_type_manifest_info(
+            object_type=object_type,
+            rows=rows,
+            output_dir=output_dir,
+        )
+        for object_type, rows in rows_by_type.items()
+    }
+    manifest = {
+        "schema_version": 2,
+        "generated_at": _now_iso(),
+        "snapshot_updated_at": snapshot.updated_at,
+        "region": region,
+        "object_types": files,
+        "dropped_rows": drop_report,
+        "source_health_summary": _source_health_summary(rows_by_type["IntelSourceHealth"]),
+        "policy": _source_policy(snapshot),
+    }
+    return rows_by_type, manifest
+
+
 def export_snapshot(
     snapshot: RegionalIntelSnapshot,
     output_dir: Path,
@@ -360,26 +509,11 @@ def export_snapshot(
 ) -> dict[str, Any]:
     """Write Foundry-ready NDJSON exports and return a manifest."""
     output_dir.mkdir(parents=True, exist_ok=True)
-    rows_by_type = {
-        "Region": region_objects(snapshot, region=region),
-        "IntelItem": intel_item_objects(snapshot, region=region),
-        "IntelSourceHealth": source_health_objects(snapshot, region=region),
-    }
-    files = {}
+    rows_by_type, manifest = build_export_plan(snapshot, region=region, output_dir=output_dir)
     for object_type, rows in rows_by_type.items():
-        filename = OBJECT_FILES[object_type]
-        path = output_dir / filename
+        path = Path(manifest["object_types"][object_type]["path"])
         _write_ndjson(path, rows)
-        files[object_type] = {"path": str(path), "rows": len(rows)}
 
-    manifest = {
-        "schema_version": 1,
-        "generated_at": _now_iso(),
-        "snapshot_updated_at": snapshot.updated_at,
-        "region": region,
-        "object_types": files,
-        "policy": _source_policy(snapshot),
-    }
     manifest_path = output_dir / "manifest.json"
     manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     manifest["manifest_path"] = str(manifest_path)
