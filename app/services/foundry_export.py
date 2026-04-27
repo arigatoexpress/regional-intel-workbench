@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import hashlib
 import json
+import logging
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -15,11 +17,19 @@ from app.intel_models import RegionProfile
 from app.intel_models import RegionalIntelSnapshot
 from app.intel_models import SourceHealth
 
+logger = logging.getLogger(__name__)
+
 OBJECT_FILES = {
     "Region": "Region.ndjson",
     "IntelItem": "IntelItem.ndjson",
     "IntelSourceHealth": "IntelSourceHealth.ndjson",
 }
+
+# Item kinds that MUST carry both source_name and source_url. Business and
+# contact rows are validated by pydantic at ingestion (str fields, not Optional);
+# news, permits, and organizations can slip through with empty/None provenance
+# from upstream aggregators, so we guard them here before emission.
+PROVENANCE_REQUIRED_KINDS = {"news", "permit", "organization"}
 
 
 def _now_iso() -> str:
@@ -100,6 +110,44 @@ def _source_health_object(item: SourceHealth, snapshot: RegionalIntelSnapshot) -
     }
 
 
+def _has_provenance(row: dict[str, Any]) -> bool:
+    """Return True iff the row carries a non-empty source_name and source_url."""
+    name = row.get("source_name")
+    url = row.get("source_url")
+    return bool(name and str(name).strip()) and bool(url and str(url).strip())
+
+
+def _drop_missing_provenance(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Drop guarded item kinds without source_name + source_url; log each drop."""
+    kept: list[dict[str, Any]] = []
+    for row in rows:
+        kind = row.get("kind")
+        if kind in PROVENANCE_REQUIRED_KINDS and not _has_provenance(row):
+            logger.warning(
+                "foundry_export: dropping %s item %s (region=%s) — missing provenance "
+                "(source_name=%r, source_url=%r)",
+                kind,
+                row.get("item_id"),
+                row.get("region_id"),
+                row.get("source_name"),
+                row.get("source_url"),
+            )
+            continue
+        kept.append(row)
+    return kept
+
+
+def _row_hash(row: dict[str, Any]) -> str:
+    """Stable secondary sort key for byte-identical NDJSON across runs.
+
+    Same content => same hash, so two equal rows from different Python runs
+    sort identically. Salts the hash with the canonical JSON representation
+    used at write time.
+    """
+    payload = json.dumps(row, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
 def intel_item_objects(
     snapshot: RegionalIntelSnapshot,
     *,
@@ -127,7 +175,18 @@ def intel_item_objects(
         for item in snapshot.organizations
         if _region_allowed(item.region_id, region)
     )
-    rows.sort(key=lambda item: (item["region_id"], item["kind"], item["item_id"]))
+    rows = _drop_missing_provenance(rows)
+    # Deterministic ordering: primary tuple is (region_id, kind, item_id);
+    # tie-break with a content hash so duplicate-id rows still sort stably
+    # and runs produce byte-identical NDJSON.
+    rows.sort(
+        key=lambda item: (
+            item["region_id"],
+            item["kind"],
+            item["item_id"],
+            _row_hash(item),
+        )
+    )
     return rows
 
 
@@ -278,7 +337,7 @@ def _organization_object(item: OrganizationProfile, snapshot: RegionalIntelSnaps
         summary=summary,
         score=item.organization_score,
         source_name=", ".join(item.source_names) if item.source_names else None,
-        source_url=None,
+        source_url=item.website,
         observed_at=item.latest_activity_at,
         snapshot=snapshot,
         attributes={
