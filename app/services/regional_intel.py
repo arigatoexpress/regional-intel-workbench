@@ -27,8 +27,23 @@ from app.intel_models import RegionId
 from app.intel_models import RegionProfile
 from app.intel_models import RegionalIntelSnapshot
 from app.intel_models import SourceHealth
+from app.config import get_settings
 from app.services.regional_history_store import RegionalIntelHistoryStore
 from app.utils import clean_text, utc_now_iso
+
+
+# Transient errors that warrant a retry. httpx.TimeoutException is a subclass of
+# OSError-adjacent NetworkError; we list the bare-Python types explicitly so the
+# helper still works under tests that raise asyncio.TimeoutError directly.
+_TRANSIENT_RETRY_EXCEPTIONS: tuple[type[BaseException], ...] = (
+    asyncio.TimeoutError,
+    TimeoutError,
+    ConnectionError,
+    OSError,
+    httpx.TimeoutException,
+    httpx.NetworkError,
+    httpx.RemoteProtocolError,
+)
 
 
 GOOGLE_NEWS_RSS = "https://news.google.com/rss/search?q={query}&hl=en-US&gl=US&ceid=US:en"
@@ -937,8 +952,12 @@ def _source_matches_name(source: IntelSource, candidate_name: str, candidate_url
     return False
 
 
-def _build_source_health(snapshot: RegionalIntelSnapshot) -> list[SourceHealth]:
+def _build_source_health(
+    snapshot: RegionalIntelSnapshot,
+    failed_sources: dict[str, dict[str, Any]] | None = None,
+) -> list[SourceHealth]:
     output: list[SourceHealth] = []
+    failed = failed_sources or {}
     for source in snapshot.sources:
         last_seen_at: str | None = None
         item_count = 0
@@ -967,6 +986,17 @@ def _build_source_health(snapshot: RegionalIntelSnapshot) -> list[SourceHealth]:
                 notes.append("No items observed in the latest snapshot.")
         else:
             notes.append("Manual-reference source; live adapter still pending.")
+        # Overlay any recorded fetch failures matching this source.
+        for label, record in failed.items():
+            if (
+                source.source_key == label
+                or source.name == label
+                or label.startswith(f"{source.source_key}:")
+            ):
+                status = "failed"
+                notes.append(
+                    f"Fetch failed after {record['attempts']} attempt(s): {record['error']}."
+                )
         output.append(
             SourceHealth(
                 source_key=source.source_key,
@@ -1118,6 +1148,72 @@ class RegionalIntelService:
         self._lock = asyncio.Lock()
         self._snapshot: RegionalIntelSnapshot | None = None
         self._expires_at = 0.0
+        # Per-snapshot failure ledger keyed by source label. Cleared at the
+        # start of each _build_snapshot so source-health reflects the latest
+        # collection cycle only.
+        self._failed_sources: dict[str, dict[str, Any]] = {}
+
+    async def _retry_fetch(
+        self,
+        source_label: str,
+        factory,
+        *,
+        retry_limit: int | None = None,
+        backoff_base: float | None = None,
+        sleep=None,
+    ):
+        """Run ``factory()`` with bounded retry on transient errors.
+
+        ``factory`` must be a zero-argument callable returning an awaitable
+        (so each retry gets a fresh coroutine). Returns the awaited value on
+        success. On total failure (or non-transient exception) returns ``None``
+        and records the failure under ``source_label`` in ``_failed_sources``
+        so :func:`_build_source_health` can surface it.
+        """
+        settings = get_settings()
+        attempts = retry_limit if retry_limit is not None else settings.regional_intel_retry_limit
+        base = backoff_base if backoff_base is not None else settings.regional_intel_retry_backoff_base
+        sleeper = sleep if sleep is not None else asyncio.sleep
+        last_exc: BaseException | None = None
+        # attempts is the number of retries; total tries == attempts + 1.
+        for attempt in range(attempts + 1):
+            try:
+                return await factory()
+            except _TRANSIENT_RETRY_EXCEPTIONS as exc:
+                last_exc = exc
+                if attempt >= attempts:
+                    break
+                # Bounded exponential backoff: base * 2**attempt, capped so the
+                # tail of any retry chain cannot exceed the per-source timeout.
+                cap = max(get_settings().regional_intel_source_timeout, base)
+                delay = min(base * (2 ** attempt), cap)
+                await sleeper(delay)
+            except Exception as exc:  # non-transient: fail fast.
+                self._record_source_failure(source_label, exc, transient=False, attempts=attempt + 1)
+                return None
+        self._record_source_failure(
+            source_label,
+            last_exc if last_exc is not None else RuntimeError("unknown failure"),
+            transient=True,
+            attempts=attempts + 1,
+        )
+        return None
+
+    def _record_source_failure(
+        self,
+        source_label: str,
+        exc: BaseException,
+        *,
+        transient: bool,
+        attempts: int,
+    ) -> None:
+        self._failed_sources[source_label] = {
+            "label": source_label,
+            "error": f"{type(exc).__name__}: {exc}",
+            "transient": transient,
+            "attempts": attempts,
+            "observed_at": utc_now_iso(),
+        }
 
     async def get_snapshot(self, force_refresh: bool = False) -> RegionalIntelSnapshot:
         now = time.monotonic()
@@ -1139,7 +1235,11 @@ class RegionalIntelService:
             return snapshot
 
     async def _build_snapshot(self) -> RegionalIntelSnapshot:
-        async with httpx.AsyncClient(timeout=25.0, headers={"User-Agent": "regional-intel-bot/0.1"}) as client:
+        # Reset per-snapshot failure ledger so source-health only reflects this
+        # collection cycle.
+        self._failed_sources = {}
+        timeout = get_settings().regional_intel_source_timeout
+        async with httpx.AsyncClient(timeout=timeout, headers={"User-Agent": "regional-intel-bot/0.1"}) as client:
             news_task = asyncio.create_task(self._collect_news(client))
             permit_task = asyncio.create_task(self._collect_permits(client))
             business_task = asyncio.create_task(self._collect_businesses(client))
@@ -1211,8 +1311,16 @@ class RegionalIntelService:
                 businesses=businesses,
                 contacts=contacts,
                 organizations=organizations,
-            )
+            ),
+            failed_sources=self._failed_sources,
         )
+        if self._failed_sources:
+            failure_labels = sorted(self._failed_sources.keys())
+            notes.append(
+                "One or more public sources failed during this collection: "
+                + ", ".join(failure_labels)
+                + ". See source_health for details."
+            )
         briefs = _build_region_briefs(
             RegionalIntelSnapshot(
                 updated_at=utc_now_iso(),
@@ -1253,10 +1361,16 @@ class RegionalIntelService:
             allowed_publications = REGION_PUBLICATIONS.get(region.id, [])
             for query in REGION_NEWS_QUERIES.get(region.id, []):
                 url = GOOGLE_NEWS_RSS.format(query=quote_plus(query))
-                try:
+
+                async def _fetch(url=url):
                     response = await client.get(url)
                     response.raise_for_status()
-                except Exception:
+                    return response
+
+                response = await self._retry_fetch(
+                    f"google_news_rss:{region.id}:{query}", _fetch
+                )
+                if response is None:
                     continue
                 try:
                     root = ET.fromstring(response.text)
@@ -1315,14 +1429,16 @@ class RegionalIntelService:
     async def _collect_austin_region_permits(self, client: httpx.AsyncClient) -> list[PermitSignal]:
         output: list[PermitSignal] = []
 
-        try:
+        async def _fetch_austin():
             response = await client.get(
                 AUSTIN_PERMITS_URL,
                 params={"$order": "issue_date DESC", "$limit": "25"},
             )
             response.raise_for_status()
-            rows = response.json()
-        except Exception:
+            return response.json()
+
+        rows = await self._retry_fetch("austin_open_data_permits", _fetch_austin)
+        if rows is None:
             rows = []
 
         for row in rows:
@@ -1362,13 +1478,17 @@ class RegionalIntelService:
             ("Williamson", WILCO_PERMITS_URL),
         ]
         for county, url in county_specs:
-            try:
+
+            async def _fetch_county(url=url):
                 response = await client.post(url, data=_county_portal_datatables_payload(start=0, length=15))
                 response.raise_for_status()
-                payload = response.json()
-                rows = payload.get("data", []) if isinstance(payload, dict) else []
-            except Exception:
+                return response.json()
+
+            payload = await self._retry_fetch(f"county_public_permits:{county}", _fetch_county)
+            if payload is None:
                 rows = []
+            else:
+                rows = payload.get("data", []) if isinstance(payload, dict) else []
             for row in rows:
                 if not isinstance(row, dict):
                     continue
@@ -1396,10 +1516,13 @@ class RegionalIntelService:
         return output
 
     async def _collect_houston_region_development_reports(self, client: httpx.AsyncClient) -> list[PermitSignal]:
-        try:
+        async def _fetch_index():
             response = await client.get(HOUSTON_DEV_REPORTS_URL)
             response.raise_for_status()
-        except Exception:
+            return response
+
+        response = await self._retry_fetch("houston_planning_dev_reports", _fetch_index)
+        if response is None:
             return []
 
         links = re.findall(r'href=["\']([^"\']+\.xlsx)["\']', response.text, re.IGNORECASE)
@@ -1418,10 +1541,17 @@ class RegionalIntelService:
         output: list[PermitSignal] = []
         seen_rows: set[str] = set()
         for report_url in report_urls:
-            try:
+
+            async def _fetch_report(report_url=report_url):
                 report_response = await client.get(report_url)
                 report_response.raise_for_status()
-                rows = _xlsx_rows(report_response.content)
+                return report_response.content
+
+            content = await self._retry_fetch(f"houston_planning_report:{report_url}", _fetch_report)
+            if content is None:
+                continue
+            try:
+                rows = _xlsx_rows(content)
             except Exception:
                 continue
             for row in rows:
@@ -1489,11 +1619,16 @@ class RegionalIntelService:
     async def _collect_region_businesses(self, client: httpx.AsyncClient, region: RegionProfile) -> list[BusinessLead]:
         async def fetch_elements(bbox: tuple[float, float, float, float]) -> list[dict[str, Any]]:
             south, west, north, east = bbox
-            try:
+
+            async def _fetch_overpass():
                 response = await client.post(OVERPASS_URL, content=_business_query_for_bbox(south, west, north, east).encode("utf-8"))
                 response.raise_for_status()
-                payload = response.json()
-            except Exception:
+                return response.json()
+
+            payload = await self._retry_fetch(
+                f"osm_overpass:{region.id}:{south:.3f},{west:.3f}", _fetch_overpass
+            )
+            if payload is None:
                 return []
             raw = payload.get("elements", []) if isinstance(payload, dict) else []
             return [item for item in raw if isinstance(item, dict)]
@@ -1570,12 +1705,14 @@ class RegionalIntelService:
 
     async def _collect_austin_contacts(self, client: httpx.AsyncClient) -> list[PublicContact]:
         contacts: list[PublicContact] = []
-        try:
+
+        async def _fetch_contacts():
             response = await client.get(AUSTIN_CONTACTS_URL)
             response.raise_for_status()
-            plain = _html_to_text(response.text)
-        except Exception:
-            plain = ""
+            return response
+
+        response = await self._retry_fetch("austin_economic_development_contacts", _fetch_contacts)
+        plain = _html_to_text(response.text) if response is not None else ""
         if plain:
             phone = _extract_first_phone(plain)
             contacts.append(
@@ -1592,10 +1729,14 @@ class RegionalIntelService:
                     notes=["Public department page for Austin small business and economic development programs."],
                 )
             )
-        try:
+        async def _fetch_rally():
             response = await client.get(AUSTIN_RALLY_URL)
             response.raise_for_status()
-            text = _html_to_text(response.text)
+            return response
+
+        rally_response = await self._retry_fetch("austin_economic_development_news", _fetch_rally)
+        if rally_response is not None:
+            text = _html_to_text(rally_response.text)
             for name, title in [
                 ("Anthony Segura", "Deputy Director, Austin Economic Development"),
                 ("Changwon Keum", "CEO, 3billion"),
@@ -1617,16 +1758,19 @@ class RegionalIntelService:
                         notes=["Named in an official Austin Economic Development release."],
                     )
                 )
-        except Exception:
-            pass
         return contacts
 
     async def _collect_houston_contacts(self, client: httpx.AsyncClient) -> list[PublicContact]:
         contacts: list[PublicContact] = []
-        try:
+
+        async def _fetch_ecodev():
             response = await client.get(HOUSTON_ECODEV_CONTACT_URL)
             response.raise_for_status()
-            plain = _html_to_text(response.text)
+            return response
+
+        eco_response = await self._retry_fetch("houston_economic_development", _fetch_ecodev)
+        if eco_response is not None:
+            plain = _html_to_text(eco_response.text)
             if "Mayor's Office of Economic Development" in plain:
                 contacts.append(
                     PublicContact(
@@ -1642,12 +1786,15 @@ class RegionalIntelService:
                         notes=["Public office contact page for Houston economic development."],
                     )
                 )
-        except Exception:
-            pass
-        try:
+
+        async def _fetch_innovation():
             response = await client.get(HOUSTON_INNOVATION_URL)
             response.raise_for_status()
-            plain = _html_to_text(response.text)
+            return response
+
+        inno_response = await self._retry_fetch("houston_innovation", _fetch_innovation)
+        if inno_response is not None:
+            plain = _html_to_text(inno_response.text)
             if "Jesse Bounds" in plain:
                 contacts.append(
                     PublicContact(
@@ -1657,15 +1804,13 @@ class RegionalIntelService:
                         title="Director of Innovation",
                         organization="Mayor's Office of Innovation & Performance",
                         website=HOUSTON_INNOVATION_URL,
-                        email=_extract_first_email(response.text),
+                        email=_extract_first_email(inno_response.text),
                         phone=_extract_first_phone(plain),
                         source_name="Mayor's Office of Innovation & Performance",
                         source_url=HOUSTON_INNOVATION_URL,
                         notes=["Public-facing innovation office leadership contact."],
                     )
                 )
-        except Exception:
-            pass
         return contacts
 
     async def _collect_gunnison_contacts(self, client: httpx.AsyncClient) -> list[PublicContact]:
@@ -1675,10 +1820,14 @@ class RegionalIntelService:
             ("Gunnison County Permit Database", GUNNISON_PERMIT_DATABASE_URL, "Gunnison County Planning, Building, and Environmental Health"),
             ("Town of Crested Butte Permitting", CRESTED_BUTTE_PERMITTING_URL, "Town of Crested Butte Community Development"),
         ]:
-            try:
+
+            async def _fetch_gunnison(url=url):
                 response = await client.get(url)
                 response.raise_for_status()
-            except Exception:
+                return response
+
+            response = await self._retry_fetch(f"gunnison_valley_contacts:{source_name}", _fetch_gunnison)
+            if response is None:
                 continue
             plain = _html_to_text(response.text)
             email = _extract_first_email(response.text)
