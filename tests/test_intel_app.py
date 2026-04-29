@@ -117,9 +117,21 @@ class IntelAppTestCase(unittest.TestCase):
         self.assertEqual(view.status_code, 200)
         view_payload = view.json()
         self.assertEqual(view_payload["view_id"], "blanga_austin")
+        self.assertEqual(view_payload["region_id"], "austin_tx")
         self.assertGreaterEqual(len(view_payload["hero_metrics"]), 4)
         self.assertGreaterEqual(len(view_payload["sections"]), 6)
-        self.assertTrue(any(section["section_id"] == "what_changed" for section in view_payload["sections"]))
+        section_ids = {section["section_id"] for section in view_payload["sections"]}
+        self.assertIn("deal_radar", section_ids)
+        self.assertIn("what_changed", section_ids)
+        feed_items = [item for section in view_payload["sections"] for item in section["items"]]
+        self.assertTrue(any(item.get("source_url") for item in feed_items))
+        self.assertTrue(any(item.get("recommended_action") for item in feed_items))
+        self.assertTrue(
+            all(
+                item.get("intel_url") is None or item["intel_url"].startswith("/intel?")
+                for item in feed_items
+            )
+        )
 
     def test_recent_feed_contract_for_sapphire_proxy(self) -> None:
         recent = self.client.get("/api/intel/recent", params={"region": "austin_tx", "limit": 5})
@@ -282,7 +294,7 @@ class IntelAppTestCase(unittest.TestCase):
             raise AssertionError("OODA packet endpoint must not refresh sources")
 
         main.regional_intel_service.get_snapshot = fail_if_refreshed
-        response = self.client.get("/api/intel/ooda-packet", params={"region": "austin_tx"})
+        response = self.client.get("/api/intel/ooda-packet?region=austin_tx")
         self.assertEqual(response.status_code, 200)
         payload = response.json()
         self.assertEqual(payload["packet_type"], "regional_ooda")
@@ -290,9 +302,19 @@ class IntelAppTestCase(unittest.TestCase):
         self.assertTrue(payload["constraints"]["read_only"])
         self.assertFalse(payload["constraints"]["external_refresh"])
         self.assertFalse(payload["constraints"]["external_writes"])
+        self.assertTrue(payload["constraints"]["safe_act_recommendations_only"])
         self.assertIn("source_health_summary", payload["observe"])
         self.assertIn("dropped_rows", payload["observe"])
         self.assertIn("IntelItem", payload["observe"]["export_object_types"])
+        self.assertEqual(payload["observe"]["snapshot_counts"]["regions"], 1)
+        self.assertEqual(payload["decide"]["recommended_mode"], "manual_review")
+        self.assertTrue(payload["act"]["recommendations"])
+        self.assertTrue(
+            all(
+                item["mode"] == "read_only_recommendation"
+                for item in payload["act"]["recommendations"]
+            )
+        )
         self.assertEqual(payload["act"]["writes"], [])
         self.assertEqual(payload["act"]["external_calls"], [])
 

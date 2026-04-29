@@ -26,11 +26,11 @@ From the repo root:
 
 ```bash
 cd /Users/aribs/Code/regional-intel-workbench
-source .venv/bin/activate
-regional-intel serve --port 8768
+uv run --no-project --python 3.11 --with-editable . regional-intel serve --port 8768
 ```
 
-If the editable package is not installed yet:
+No explicit virtualenv activation is required for the default demo path. If you
+prefer a persistent editable install:
 
 ```bash
 python -m venv .venv
@@ -71,7 +71,7 @@ Open these tabs before the conversation starts:
    Run or describe:
 
    ```bash
-   regional-intel intel-ooda-packet --region austin_tx --json
+   uv run --no-project --python 3.11 --with-editable . regional-intel intel-ooda-packet --region austin_tx --json
    ```
 
    The important point is the boundary: OODA packets are recommendations from
@@ -119,24 +119,47 @@ dashboard. It returns a structured client workflow with metrics, sections,
 scored feed items, source URLs, recommended next steps for human review, and
 deep links back into the shared intelligence console.
 
+## Demo-Safe Surface Boundary
+
+Use read-only surfaces by default during a live demo:
+
+```text
+GET /intel
+GET /blanga/austin
+GET /client-views/blanga_austin
+GET /api/client-views/blanga_austin
+GET /api/intel/recent?region=austin_tx
+GET /api/intel/ooda-packet?region=austin_tx
+```
+
+Those paths are appropriate for a clean client-view or OODA walkthrough. The
+OODA endpoint reads the latest stored snapshot and returns recommendations only;
+it does not refresh sources or write to external systems.
+
+The analyst-store endpoints are intentionally mutable local workflow surfaces:
+`POST` and `DELETE` calls for annotations, watchlist items, collections,
+bundles, and monitor rules update local analyst JSON stores. Use them only when
+you want to demonstrate saving analyst state, and avoid `force=true`,
+`intel-collect`, or export `--refresh` during a read-only demo.
+
 ## CLI Snippets
 
 Use read paths by default during a demo:
 
 ```bash
-regional-intel intel-snapshot --region austin_tx
-regional-intel intel-search "redevelopment" --region austin_tx
-regional-intel intel-opportunities --region houston_tx
-regional-intel intel-region-briefing --region austin_tx
-regional-intel intel-monitor-rules --region austin_tx
-regional-intel intel-ooda-packet --region austin_tx --json
+uv run --no-project --python 3.11 --with-editable . regional-intel intel-snapshot --region austin_tx
+uv run --no-project --python 3.11 --with-editable . regional-intel intel-search "redevelopment" --region austin_tx
+uv run --no-project --python 3.11 --with-editable . regional-intel intel-opportunities --region houston_tx
+uv run --no-project --python 3.11 --with-editable . regional-intel intel-region-briefing --region austin_tx
+uv run --no-project --python 3.11 --with-editable . regional-intel intel-monitor-rules --region austin_tx
+uv run --no-project --python 3.11 --with-editable . regional-intel intel-ooda-packet --region austin_tx --json
 ```
 
 Use exports only when the audience specifically asks about downstream data
 handoff:
 
 ```bash
-regional-intel intel-foundry-export --region austin_tx --output-dir data/foundry/regional-intel
+uv run --no-project --python 3.11 --with-editable . regional-intel intel-foundry-export --region austin_tx --output-dir data/foundry/regional-intel
 ```
 
 Add `--refresh` only when you intentionally want to discuss live public-source

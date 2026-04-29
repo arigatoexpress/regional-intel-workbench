@@ -70,10 +70,16 @@ The committed public-source snapshot was refreshed on **2026-04-29 at 05:44 UTC*
 
 For a quick demo, start the app locally, open `/intel` to show the shared regional console, then open `/blanga/austin` to show how the same graph becomes a polished client workflow. The strongest talking points are public-source guardrails, source-level provenance, the Austin redevelopment feed, and the read-only OODA packet path.
 
+No explicit virtualenv activation is required for the demo path:
+
 ```bash
-regional-intel serve --port 8768
-regional-intel intel-ooda-packet --region austin_tx --json
+uv run --no-project --python 3.11 --with-editable . regional-intel serve --port 8768
+uv run --no-project --python 3.11 --with-editable . regional-intel intel-ooda-packet --region austin_tx --json
 ```
+
+Run these from the repo root. The `--no-project --with-editable .` form keeps
+the checkout clean when no `uv.lock` is present. If you already have the editable
+package installed, the shorter `regional-intel` commands still work.
 
 See [`docs/SHOWCASE.md`](docs/SHOWCASE.md) for a tighter demo script,
 CLI snippets, screenshot policy, and provenance guardrails.
@@ -273,16 +279,32 @@ GET /client-views/{view_id}
 
 `/api/client-views/blanga_austin` returns the curated Austin client feed as JSON, including metrics, feed sections, item scores, public source URLs, recommended human-review actions, and deep links back into the shared console.
 
+### Demo-Safe Surface Boundary
+
+Default demo-safe surfaces are read-only browser pages, default `GET` API calls,
+and OODA packet generation from stored snapshots. Use `/intel`, `/blanga/austin`,
+`/client-views/blanga_austin`, `/api/client-views/blanga_austin`,
+`/api/intel/recent?region=austin_tx`, and
+`/api/intel/ooda-packet?region=austin_tx` when you want a clean read-only demo.
+
+Analyst-store endpoints are different: `POST` and `DELETE` calls under
+`/api/intel/annotations`, `/api/intel/watchlist-items`,
+`/api/intel/collections`, `/api/intel/bundles`, and
+`/api/intel/monitor-rules` mutate local analyst JSON stores. They are safe for a
+local analyst workflow, but they are not read-only demo surfaces. Avoid
+`force=true`, `intel-collect`, and `intel-foundry-export --refresh` unless the
+conversation is specifically about source refreshes or local export handoff.
+
 ## Friend-Demo Checklist
 
 Before showing the repo to a friend, buyer, or collaborator:
 
-- Start locally with `regional-intel serve --port 8768`.
+- Start locally with `uv run --no-project --python 3.11 --with-editable . regional-intel serve --port 8768`.
 - Open `/intel`, `/blanga/austin`, and `/api/client-views/blanga_austin` in three tabs.
 - Use the committed screenshots in `docs/assets/` if the room is noisy, offline, or short on time.
 - Say plainly that this is a local-first demo, not a hosted deployment claim.
 - Point out source URLs, source health, and the public-source-only guardrails before discussing recommendations.
-- Show one CLI read path, such as `regional-intel intel-ooda-packet --region austin_tx --json`.
+- Show one CLI read path, such as `uv run --no-project --python 3.11 --with-editable . regional-intel intel-ooda-packet --region austin_tx --json`.
 - Avoid live external refreshes during the demo unless the audience specifically wants to discuss source adapters.
 - Do not add private customer data, secrets, login-gated sources, or real outreach actions to make the demo look richer.
 
