@@ -63,6 +63,9 @@ regional-intel serve --port 8768
 regional-intel intel-ooda-packet --region austin_tx --json
 ```
 
+See [`docs/SHOWCASE.md`](docs/SHOWCASE.md) for a tighter demo script,
+CLI snippets, screenshot policy, and provenance guardrails.
+
 ## Intelligence Loop
 
 ```mermaid
