@@ -18,7 +18,9 @@
 
 Regional Intelligence Workbench turns public regional signals into a practical analyst surface: permits, local news, open business data, source health, entity timelines, client-specific feeds, and read-only OODA packets. It is designed for high-context local-market research where every surfaced item needs provenance a human can inspect before acting.
 
-The current workspace covers **Austin**, **Houston**, and **Gunnison / Crested Butte Valley**. Its first production-style client feed is the **Blanga Austin STNL + Redevelopment Feed** at `/blanga/austin`; the legacy `ve-vote-monitor` dashboard remains available at `/vote-monitor` for compatibility.
+The current workspace covers **Austin**, **Houston**, and **Gunnison / Crested Butte Valley**. Its first polished client feed is the **Blanga Austin STNL + Redevelopment Feed** at `/blanga/austin`; the legacy `ve-vote-monitor` dashboard remains available at `/vote-monitor` for compatibility.
+
+> Showcase posture: this repo is presented as a **local-first demo and analyst workbench**. The screenshots, CLI, FastAPI app, and committed sample history are demoable from a laptop; this README does not claim a hosted production deployment.
 
 ## Demo Preview
 
@@ -54,7 +56,17 @@ The committed public-source snapshot was refreshed on **2026-04-29 at 05:44 UTC*
 | `regional-intel` | CLI for refreshes, search, opportunity ranking, briefing packs, Foundry export, and read-only OODA packets. |
 | Foundry export | Local NDJSON export with row hashes, file hashes, source-health summary, and provenance drop reporting. |
 
-## Showcase Path
+## What To Show First
+
+| Moment | Proof point |
+| --- | --- |
+| Shared console | `/intel` shows one regional intelligence model with search, source diagnostics, graph context, watchlists, collections, and briefing flows. |
+| Client view | `/blanga/austin` shows how the same graph becomes a polished, audience-specific workflow without forking the collector. |
+| API surface | `/api/client-views/blanga_austin` and `/api/intel/recent?region=austin_tx` expose the same intelligence as JSON for external tools. |
+| Provenance | Source names, source URLs, source-health rows, and history records are kept close to the surfaced signal. |
+| Safety boundary | OODA packets are read-only recommendations from stored snapshots; they do not refresh sources or write to external systems. |
+
+## Local Demo Path
 
 For a quick demo, start the app locally, open `/intel` to show the shared regional console, then open `/blanga/austin` to show how the same graph becomes a polished client workflow. The strongest talking points are public-source guardrails, source-level provenance, the Austin redevelopment feed, and the read-only OODA packet path.
 
@@ -117,7 +129,12 @@ This product is intentionally constrained:
 - No private-person dossiering.
 - Public professional and business contacts only.
 - Source name and source URL retained for surfaced signals.
+- Source-health and source-history views make stale or failing sources visible instead of hiding them.
+- Foundry export reports provenance drops rather than silently promoting incomplete rows.
 - OODA packets are read-only and do not perform external refreshes or external writes.
+- Humans verify provenance before any outreach, transaction, publication, or operational action.
+
+The intent is to support disciplined regional research, not automated targeting. The workbench should make a reviewer faster at asking the right follow-up questions while keeping source context visible.
 
 ## Architecture
 
@@ -145,6 +162,14 @@ Key modules:
 | `app/services/intel_insights.py` | Graph, opportunities, alerts, changes, timelines, briefings, and monitor evaluations. |
 | `app/services/foundry_export.py` | Foundry-ready NDJSON export and manifest generation. |
 | `app/services/regional_ooda.py` | Read-only regional OODA packet generation from stored snapshots. |
+
+Design principles:
+
+- **Local demo first:** the reliable path is `regional-intel serve --port 8768` plus committed screenshots and local JSON endpoints.
+- **Shared graph, tailored views:** client feeds are composed from the shared regional snapshot instead of becoming one-off scrapers.
+- **Provenance near the signal:** source name, URL, source health, item IDs, history, and deep links stay visible across UI, API, CLI, and export paths.
+- **Read-only recommendations:** analysis packets can suggest safe next steps, but they do not execute outreach, trades, writes, or refreshes.
+- **Graceful source failure:** source-health rows and incident views are part of the product surface, so a demo can explain what is fresh, degraded, or manual-reference only.
 
 ## Quick Start
 
@@ -200,36 +225,66 @@ regional-intel serve --port 8768
 
 ## API Highlights
 
+Read-mostly demo endpoints:
+
 ```text
-GET  /api/intel/health
-GET  /api/intel/regions
-GET  /api/intel/sources
-GET  /api/intel/snapshot
-GET  /api/intel/recent
-GET  /api/intel/search
-GET  /api/intel/source-health
-GET  /api/intel/source-history
-GET  /api/intel/source-incidents
-GET  /api/intel/alerts
-GET  /api/intel/graph
-GET  /api/intel/opportunities
-GET  /api/intel/ooda-packet
-GET  /api/intel/briefs
-GET  /api/intel/region-briefing/{region_id}
-GET  /api/intel/briefing/{item_id}
-GET  /api/intel/items/{kind}/{item_id}
-GET  /api/intel/timeline/{item_id}
-GET  /api/intel/region-changes
-GET  /api/intel/entity-changes
-GET  /api/intel/watchlist
-GET  /api/intel/collections
-GET  /api/intel/bundles
-GET  /api/intel/monitor-rules
-GET  /api/client-views
-GET  /api/client-views/{view_id}
+GET /api/intel/health
+GET /api/intel/regions
+GET /api/intel/sources
+GET /api/intel/snapshot
+GET /api/intel/recent
+GET /api/intel/search
+GET /api/intel/graph
+GET /api/intel/opportunities
+GET /api/intel/alerts
+GET /api/intel/briefs
+GET /api/intel/region-briefing/{region_id}
+GET /api/intel/briefing/{item_id}
+GET /api/intel/items/{kind}/{item_id}
+GET /api/intel/timeline/{item_id}
+GET /api/intel/ooda-packet
+```
+
+Source and change diagnostics:
+
+```text
+GET /api/intel/source-health
+GET /api/intel/source-history
+GET /api/intel/source-incidents
+GET /api/intel/trends
+GET /api/intel/region-changes
+GET /api/intel/entity-changes
+```
+
+Client and analyst workflow views:
+
+```text
+GET /api/client-views
+GET /api/client-views/{view_id}
+GET /api/intel/watchlist
+GET /api/intel/watchlist-items
+GET /api/intel/collections
+GET /api/intel/bundles
+GET /api/intel/monitor-rules
+GET /client-views/{view_id}
 ```
 
 `/api/intel/recent?limit=10&region=austin_tx` returns a compact feed for external dashboards, including item identity, kind, region, title, timestamp, severity, score, source provenance, tags, and a deep link back into `/intel`.
+
+`/api/client-views/blanga_austin` returns the curated Austin client feed as JSON, including metrics, feed sections, item scores, public source URLs, recommended human-review actions, and deep links back into the shared console.
+
+## Friend-Demo Checklist
+
+Before showing the repo to a friend, buyer, or collaborator:
+
+- Start locally with `regional-intel serve --port 8768`.
+- Open `/intel`, `/blanga/austin`, and `/api/client-views/blanga_austin` in three tabs.
+- Use the committed screenshots in `docs/assets/` if the room is noisy, offline, or short on time.
+- Say plainly that this is a local-first demo, not a hosted deployment claim.
+- Point out source URLs, source health, and the public-source-only guardrails before discussing recommendations.
+- Show one CLI read path, such as `regional-intel intel-ooda-packet --region austin_tx --json`.
+- Avoid live external refreshes during the demo unless the audience specifically wants to discuss source adapters.
+- Do not add private customer data, secrets, login-gated sources, or real outreach actions to make the demo look richer.
 
 ## Validation
 
@@ -245,7 +300,7 @@ Headless UI smoke:
 python scripts/ui_smoke.py
 ```
 
-The GitHub workflow uses the `SAPPHIRE_RUNNER` no-spend gate and skips hosted Actions unless a self-hosted runner label is configured. The UI smoke covers `/blanga/austin` on desktop and mobile, `/intel?region=austin_tx` on desktop, map presence, key metric rendering, and horizontal overflow regressions.
+The dependable validation path is local. The UI smoke covers `/blanga/austin` on desktop and mobile, `/intel?region=austin_tx` on desktop, map presence, key metric rendering, and horizontal overflow regressions.
 
 ## Repository Layout
 
