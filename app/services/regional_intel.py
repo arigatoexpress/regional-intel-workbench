@@ -51,7 +51,7 @@ AUSTIN_PERMITS_URL = "https://data.austintexas.gov/resource/3syk-w9eu.json"
 HAYS_PERMITS_URL = "https://www.hayscountypermits.com/api/v1/permits/datatables/list/public"
 WILCO_PERMITS_URL = "https://www.wilcopermits.com/api/v1/permits/datatables/list/public"
 OVERPASS_URL = "https://overpass-api.de/api/interpreter"
-AUSTIN_CONTACTS_URL = "https://www.austintexas.gov/department/small-business-division"
+AUSTIN_CONTACTS_URL = "https://www.austintexas.gov/economic-development/divisions/small-business-division"
 AUSTIN_RALLY_URL = "https://www.austintexas.gov/economic-development/news/council-approves-global-genomics-company-expansion-austin-81m-investment"
 HOUSTON_ECODEV_CONTACT_URL = "https://www.houstontx.gov/ecodev/contactus.html"
 HOUSTON_INNOVATION_URL = "https://innovation.houstontx.gov/"
@@ -1229,12 +1229,12 @@ class RegionalIntelService:
             now = time.monotonic()
             if not force_refresh and self._snapshot is not None and now < self._expires_at:
                 return self._snapshot
-            snapshot = await self._build_snapshot()
+            snapshot = await self._build_snapshot(force_history_append=force_refresh)
             self._snapshot = snapshot
             self._expires_at = time.monotonic() + self.ttl_seconds
             return snapshot
 
-    async def _build_snapshot(self) -> RegionalIntelSnapshot:
+    async def _build_snapshot(self, *, force_history_append: bool = False) -> RegionalIntelSnapshot:
         # Reset per-snapshot failure ledger so source-health only reflects this
         # collection cycle.
         self._failed_sources = {}
@@ -1351,7 +1351,7 @@ class RegionalIntelService:
             briefs=briefs,
             notes=notes,
         )
-        self.history_store.append_snapshot(snapshot)
+        self.history_store.append_snapshot(snapshot, force=force_history_append)
         return snapshot
 
     async def _collect_news(self, client: httpx.AsyncClient) -> list[NewsSignal]:

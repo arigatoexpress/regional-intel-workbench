@@ -8,6 +8,8 @@
 
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-3776AB?style=for-the-badge&logo=python&logoColor=white)](pyproject.toml)
 [![FastAPI](https://img.shields.io/badge/FastAPI-analyst%20console-009688?style=for-the-badge&logo=fastapi&logoColor=white)](app/main.py)
+[![Tests](https://img.shields.io/badge/tests-37%2F37%20passing-16A34A?style=for-the-badge)](tests)
+[![UI smoke](https://img.shields.io/badge/UI%20smoke-Playwright%20verified-2563EB?style=for-the-badge)](scripts/ui_smoke.py)
 [![Public source only](https://img.shields.io/badge/guardrail-public%20source%20only-0F766E?style=for-the-badge)](#ethics-and-provenance)
 [![Foundry ready](https://img.shields.io/badge/export-Foundry%20NDJSON-7C3AED?style=for-the-badge)](app/services/foundry_export.py)
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-111827?style=for-the-badge)](LICENSE)
@@ -17,6 +19,30 @@
 Regional Intelligence Workbench turns public regional signals into a practical analyst surface: permits, local news, open business data, source health, entity timelines, client-specific feeds, and read-only OODA packets. It is designed for high-context local-market research where every surfaced item needs provenance a human can inspect before acting.
 
 The current workspace covers **Austin**, **Houston**, and **Gunnison / Crested Butte Valley**. Its first production-style client feed is the **Blanga Austin STNL + Redevelopment Feed** at `/blanga/austin`; the legacy `ve-vote-monitor` dashboard remains available at `/vote-monitor` for compatibility.
+
+## Demo Preview
+
+<p align="center">
+  <img src="docs/assets/regional-intel-console.png" alt="Regional Intelligence Workbench analyst console showing Austin regional intelligence controls" width="92%">
+</p>
+
+<p align="center">
+  <img src="docs/assets/blanga-austin-feed.png" alt="Blanga Austin client intelligence feed with deal radar metrics and map" width="92%">
+</p>
+
+## Current Snapshot
+
+The committed public-source snapshot was refreshed on **2026-04-29 at 05:44 UTC** after repairing Austin's moved Small Business Division URL and compacting malformed legacy history records.
+
+| Metric | Current value |
+| --- | ---: |
+| Regions | 3 |
+| News items | 7 |
+| Permit items | 120 |
+| Public business leads | 240 |
+| Public professional contacts | 7 |
+| Organization profiles | 180 |
+| Source-health rows | 20 |
 
 ## At a Glance
 
