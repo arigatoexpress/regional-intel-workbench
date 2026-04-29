@@ -11,7 +11,7 @@ on:
 jobs:
   test:
     if: ${{ vars.SAPPHIRE_RUNNER != '' }}
-    runs-on: ${{ fromJSON(vars.SAPPHIRE_RUNNER) }}
+    runs-on: ${{ fromJSON(vars.SAPPHIRE_RUNNER || '["self-hosted","sapphire-disabled"]') }}
     timeout-minutes: 20
 
     steps:

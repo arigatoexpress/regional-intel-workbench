@@ -9,9 +9,14 @@ WORKFLOW = Path(__file__).resolve().parents[1] / ".github" / "workflows" / "ci.y
 class WorkflowRunnerGateTests(unittest.TestCase):
     def test_ci_workflow_uses_sapphire_runner_gate(self) -> None:
         text = WORKFLOW.read_text(encoding="utf-8")
+        expected_runner = (
+            "runs-on: ${{ fromJSON(vars.SAPPHIRE_RUNNER || "
+            '\'["self-hosted","sapphire-disabled"]\') }}'
+        )
 
         self.assertIn("if: ${{ vars.SAPPHIRE_RUNNER != '' }}", text)
-        self.assertIn("runs-on: ${{ fromJSON(vars.SAPPHIRE_RUNNER) }}", text)
+        self.assertIn(expected_runner, text)
+        self.assertNotIn("runs-on: ${{ fromJSON(vars.SAPPHIRE_RUNNER) }}", text)
         self.assertNotIn("ubuntu-latest", text)
         self.assertNotIn("macos-latest", text)
         self.assertNotIn("windows-latest", text)
