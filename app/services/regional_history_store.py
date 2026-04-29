@@ -26,14 +26,14 @@ class RegionalIntelHistoryStore:
         self.max_records = max_records
         self._lock = Lock()
 
-    def append_snapshot(self, snapshot: RegionalIntelSnapshot) -> bool:
+    def append_snapshot(self, snapshot: RegionalIntelSnapshot, *, force: bool = False) -> bool:
         record = snapshot.model_dump()
         current_timestamp = _parse_timestamp(snapshot.updated_at)
 
         with self._lock:
             self.path.parent.mkdir(parents=True, exist_ok=True)
             last_record = self._read_last_record_unlocked()
-            if last_record:
+            if last_record and not force:
                 last_timestamp = _parse_timestamp(str(last_record.get("updated_at")))
                 delta = (current_timestamp - last_timestamp).total_seconds()
                 if delta < self.min_append_interval_seconds:
