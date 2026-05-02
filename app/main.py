@@ -6,14 +6,15 @@ from datetime import timezone
 from pathlib import Path
 from typing import Literal
 
-from fastapi import FastAPI, Request
+from fastapi import Depends, FastAPI, Request
 from fastapi import HTTPException
-from fastapi.responses import HTMLResponse, PlainTextResponse
+from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 from pydantic import Field
 
+from app.admin import require_admin
 from app.config import get_settings, resolve_vote_powers
 from app.intel_models import RegionId
 from app.intel_models import RegionalIntelSnapshot
@@ -181,6 +182,120 @@ async def api_health():
 @app.get("/api/intel/health")
 async def api_intel_health():
     return {"status": "ok"}
+
+
+# ---------------------------------------------------------------------------
+# Admin frontend (dedicated dashboard at /admin)
+# ---------------------------------------------------------------------------
+
+
+@app.get("/healthz/")
+async def healthz():
+    """Cloud Run / k8s style health probe.
+
+    Explicit JSONResponse + Cache-Control:no-store so probes never get a
+    stale 200 from a CDN or browser cache.
+    """
+
+    return JSONResponse(
+        {"status": "ok"},
+        headers={"Cache-Control": "no-store"},
+    )
+
+
+@app.get("/admin", response_class=HTMLResponse)
+async def admin_page(request: Request) -> HTMLResponse:
+    """Render the admin dashboard shell.
+
+    The HTML page itself is unauthenticated so the operator can land on the
+    page and supply the ``X-Admin-Token`` header (stored in localStorage)
+    via the in-page prompt. Every ``/api/admin/*`` call is gated.
+    """
+
+    return templates.TemplateResponse(request, "admin.html", {})
+
+
+@app.get("/api/admin/regions", dependencies=[Depends(require_admin)])
+async def api_admin_regions():
+    """Return the configured region catalog with bbox + center for the map."""
+
+    catalog = [item.model_dump() for item in regional_intel_service.region_catalog()]
+    for region in catalog:
+        bbox = region.get("bbox") or []
+        if len(bbox) == 4:
+            south, west, north, east = bbox
+            region["center"] = [(south + north) / 2.0, (west + east) / 2.0]
+            region["bounds"] = [[south, west], [north, east]]
+        else:
+            region["center"] = None
+            region["bounds"] = None
+    return {"regions": catalog}
+
+
+@app.get("/api/admin/overview", dependencies=[Depends(require_admin)])
+async def api_admin_overview(
+    region: RegionId | None = None,
+    days: int = 14,
+    limit: int = 40,
+    force: bool = False,
+):
+    """One-shot fetch the admin UI uses to populate every panel.
+
+    Returns recent items grouped by category, source health for the region,
+    trends, monitor rules, and a summary. Bundling avoids the N+1
+    request waterfall a naive frontend would create.
+    """
+
+    snapshot = await regional_intel_service.get_snapshot(force_refresh=force)
+    lookback = max(1, min(int(days or 14), 30))
+    effective_limit = max(1, min(int(limit or 40), 200))
+
+    recent = _build_recent_items(snapshot, region=region, limit=effective_limit)
+    items_by_category: dict[str, list] = {}
+    for item in recent.get("items", []):
+        kind = item.get("kind") or "other"
+        items_by_category.setdefault(kind, []).append(item)
+
+    source_health = {
+        "source_health": _filter_region_snapshot(snapshot, region)["source_health"],
+    }
+    trends = _build_trends(regional_intel_service, lookback_days=lookback, region=region)
+    source_history = _build_source_history(
+        regional_intel_service, lookback_days=lookback, region=region
+    )
+    monitor = _build_monitor_rules(snapshot, region=region)
+
+    payload = _filter_region_snapshot(snapshot, region)
+    summary = {
+        "region": region,
+        "updated_at": payload.get("updated_at"),
+        "regions": payload.get("regions", []),
+        "counts": {
+            "news": len(payload.get("news", [])),
+            "permits": len(payload.get("permits", [])),
+            "businesses": len(payload.get("businesses", [])),
+            "contacts": len(payload.get("contacts", [])),
+            "organizations": len(payload.get("organizations", [])),
+            "sources": len(payload.get("sources", [])),
+        },
+    }
+    return {
+        "summary": summary,
+        "recent": recent,
+        "items_by_category": items_by_category,
+        "source_health": source_health,
+        "source_history": source_history,
+        "trends": trends,
+        "monitor": monitor,
+    }
+
+
+@app.get("/api/admin/search", dependencies=[Depends(require_admin)])
+async def api_admin_search(q: str, region: RegionId | None = None, force: bool = False):
+    """Full-text search across the snapshot. Reuses /api/intel/search."""
+
+    snapshot = await regional_intel_service.get_snapshot(force_refresh=force)
+    return _search_snapshot(snapshot, q, region)
 
 
 def _filter_region_snapshot(snapshot, region: RegionId | None):

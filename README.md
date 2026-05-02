@@ -113,6 +113,50 @@ Client feeds are curated views on top of the shared intelligence graph. The curr
 | --- | --- | --- |
 | `/blanga/austin` | Single-tenant retail and redevelopment brokerage in the Austin MSA | Deal radar, vacancy and closure signals, retail construction, tenant-improvement activity, redevelopment watch, operator discovery, public contact paths, and recent change tracking. |
 
+### Admin Console
+
+The dedicated admin frontend lives at `/admin` and is the operator-facing dashboard for production. It is read-only for now and ships:
+
+- **Region selector** dropdown wired to `/api/admin/regions` (every region returns `bbox`, `center`, and `bounds` for map rendering).
+- **Map view** (Leaflet, dark CARTO basemap) showing the active region's bounding box.
+- **Latest intel feed** grouped by category (news / permit / business / organization / contact) with score + source + timestamp.
+- **Source health panel** combining the live `source_health` snapshot with 14d history (`non_empty_runs`, last fetch).
+- **Trends panel** with sparkline charts per category over the last 14 daily snapshots.
+- **Search bar** that filters items via `/api/admin/search`.
+- **Monitor rules** list pulled from `/api/admin/overview` (read-only — mutation endpoints are intentionally not exposed in the admin surface).
+- **"How to interpret" modal** documenting every panel.
+
+Admin auth is a stub `X-Admin-Token` header gate (env var `ADMIN_TOKEN`) that will be replaced by WebAuthn. When `ADMIN_TOKEN` is unset the gate is open (dev mode); when set, every `/api/admin/*` route requires the matching header. The page itself is unauthenticated so the operator can land and supply the token via the in-page prompt (stored in `localStorage`). Health probe lives at `/healthz/` and returns `Cache-Control: no-store`.
+
+#### Run locally
+
+```bash
+pip install -e .
+uvicorn app.main:app --reload --port 8000
+# open http://localhost:8000/admin
+# (optional) export ADMIN_TOKEN=changeme  -- then click "Set token" in the UI
+```
+
+#### Build + deploy to Cloud Run
+
+```bash
+docker build -t regional-intel-admin .
+docker run --rm -p 8080:8080 -e ADMIN_TOKEN=changeme regional-intel-admin
+# then: open http://localhost:8080/admin
+
+# Or one-shot via Cloud Build:
+gcloud builds submit --config cloudbuild.yaml \
+  --substitutions=_REGION=us-central1,_SERVICE=regional-intel-admin
+
+# After first deploy, wire ADMIN_TOKEN to Secret Manager:
+gcloud run services update regional-intel-admin --region=us-central1 \
+  --update-secrets=ADMIN_TOKEN=regional-intel-admin-token:latest
+
+# Map the production domain:
+gcloud beta run domain-mappings create --service=regional-intel-admin \
+  --region=us-central1 --domain=regional.sapphirealpha.xyz
+```
+
 ### Legacy Vote Monitor
 
 The original vote-monitor surface remains available at `/vote-monitor` and is still served by the same FastAPI app. Active development is now centered on the regional intelligence platform.

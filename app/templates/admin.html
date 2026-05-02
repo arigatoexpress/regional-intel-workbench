@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Regional Intel — Admin</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+      crossorigin=""
+    />
+    <link rel="stylesheet" href="/static/admin.css" />
+  </head>
+  <body>
+    <div class="admin-backdrop"></div>
+    <header class="admin-header">
+      <div class="admin-brand">
+        <span class="admin-brand-dot"></span>
+        <div>
+          <div class="admin-eyebrow">Regional Intel Workbench</div>
+          <h1>Admin Console</h1>
+        </div>
+      </div>
+      <div class="admin-controls">
+        <label class="admin-region-label" for="admin-region">Region</label>
+        <select id="admin-region" class="admin-select"></select>
+        <input
+          id="admin-search"
+          class="admin-search"
+          type="search"
+          placeholder="Search news, permits, businesses, contacts..."
+          autocomplete="off"
+        />
+        <button id="admin-refresh" class="admin-btn admin-btn-ghost" type="button">
+          Refresh
+        </button>
+        <button id="admin-help" class="admin-btn admin-btn-ghost" type="button">
+          How to interpret
+        </button>
+        <button id="admin-token-btn" class="admin-btn admin-btn-primary" type="button">
+          Set token
+        </button>
+      </div>
+    </header>
+
+    <div id="admin-banner" class="admin-banner" hidden></div>
+
+    <main class="admin-shell">
+      <section class="admin-card admin-card-summary">
+        <header class="admin-card-header">
+          <h2>Summary</h2>
+          <span id="admin-updated-at" class="admin-mono admin-muted">&mdash;</span>
+        </header>
+        <div id="admin-summary" class="admin-summary-grid">
+          <div class="admin-stat" data-key="news"><div class="admin-stat-label">News</div><div class="admin-stat-value admin-mono">&mdash;</div></div>
+          <div class="admin-stat" data-key="permits"><div class="admin-stat-label">Permits</div><div class="admin-stat-value admin-mono">&mdash;</div></div>
+          <div class="admin-stat" data-key="businesses"><div class="admin-stat-label">Businesses</div><div class="admin-stat-value admin-mono">&mdash;</div></div>
+          <div class="admin-stat" data-key="contacts"><div class="admin-stat-label">Contacts</div><div class="admin-stat-value admin-mono">&mdash;</div></div>
+          <div class="admin-stat" data-key="organizations"><div class="admin-stat-label">Orgs</div><div class="admin-stat-value admin-mono">&mdash;</div></div>
+          <div class="admin-stat" data-key="sources"><div class="admin-stat-label">Sources</div><div class="admin-stat-value admin-mono">&mdash;</div></div>
+        </div>
+      </section>
+
+      <section class="admin-grid">
+        <article class="admin-card admin-card-map">
+          <header class="admin-card-header">
+            <h2>Region map</h2>
+            <span id="admin-region-name" class="admin-muted">&mdash;</span>
+          </header>
+          <div id="admin-map" class="admin-map"></div>
+          <footer class="admin-card-footer admin-mono admin-muted">
+            <span id="admin-region-bbox">bbox: &mdash;</span>
+          </footer>
+        </article>
+
+        <article class="admin-card admin-card-feed">
+          <header class="admin-card-header">
+            <h2>Latest intel</h2>
+            <span id="admin-feed-count" class="admin-mono admin-muted">&mdash;</span>
+          </header>
+          <div id="admin-feed" class="admin-feed admin-empty">
+            <p class="admin-muted">Loading...</p>
+          </div>
+        </article>
+      </section>
+
+      <section class="admin-grid admin-grid-2">
+        <article class="admin-card">
+          <header class="admin-card-header">
+            <h2>Source health</h2>
+            <span id="admin-source-count" class="admin-mono admin-muted">&mdash;</span>
+          </header>
+          <div id="admin-source-health" class="admin-source-list admin-empty">
+            <p class="admin-muted">Loading...</p>
+          </div>
+        </article>
+
+        <article class="admin-card">
+          <header class="admin-card-header">
+            <h2>Trends (last 14d)</h2>
+            <span id="admin-trends-meta" class="admin-mono admin-muted">&mdash;</span>
+          </header>
+          <div id="admin-trends" class="admin-trends admin-empty">
+            <p class="admin-muted">Loading...</p>
+          </div>
+        </article>
+      </section>
+
+      <section class="admin-card">
+        <header class="admin-card-header">
+          <h2>Monitor rules</h2>
+          <span id="admin-rules-count" class="admin-mono admin-muted">&mdash;</span>
+        </header>
+        <div id="admin-rules" class="admin-rules admin-empty">
+          <p class="admin-muted">Loading...</p>
+        </div>
+      </section>
+    </main>
+
+    <div id="admin-modal" class="admin-modal" hidden>
+      <div class="admin-modal-card">
+        <header class="admin-modal-header">
+          <h2 id="admin-modal-title">How to interpret</h2>
+          <button id="admin-modal-close" class="admin-btn admin-btn-ghost" type="button">Close</button>
+        </header>
+        <div id="admin-modal-body" class="admin-modal-body"></div>
+      </div>
+    </div>
+
+    <script
+      src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+      integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+      crossorigin=""
+    ></script>
+    <script src="/static/admin.js" defer></script>
+  </body>
+</html>

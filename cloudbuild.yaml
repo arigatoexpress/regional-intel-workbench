@@ -1,0 +1,54 @@
+# Build + deploy to Cloud Run.
+#
+# Usage:
+#   gcloud builds submit --config cloudbuild.yaml \
+#     --substitutions=_REGION=us-central1,_SERVICE=regional-intel-admin
+#
+# After the first deploy, map the custom domain:
+#   gcloud beta run domain-mappings create \
+#     --service=regional-intel-admin \
+#     --region=us-central1 \
+#     --domain=regional.sapphirealpha.xyz
+substitutions:
+  _REGION: us-central1
+  _SERVICE: regional-intel-admin
+  _IMAGE: gcr.io/$PROJECT_ID/regional-intel-admin
+
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -t
+      - $_IMAGE:$SHORT_SHA
+      - -t
+      - $_IMAGE:latest
+      - .
+  - name: gcr.io/cloud-builders/docker
+    args: [push, $_IMAGE:$SHORT_SHA]
+  - name: gcr.io/cloud-builders/docker
+    args: [push, $_IMAGE:latest]
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - $_SERVICE
+      - --image=$_IMAGE:$SHORT_SHA
+      - --region=$_REGION
+      - --platform=managed
+      - --allow-unauthenticated
+      - --port=8080
+      - --memory=512Mi
+      - --cpu=1
+      - --max-instances=4
+      # ADMIN_TOKEN should be wired to a Secret Manager secret in production.
+      # gcloud run deploy ... --update-secrets=ADMIN_TOKEN=regional-intel-admin-token:latest
+      - --set-env-vars=PYTHONUNBUFFERED=1
+      - --quiet
+
+images:
+  - $_IMAGE:$SHORT_SHA
+  - $_IMAGE:latest
+
+options:
+  logging: CLOUD_LOGGING_ONLY
