@@ -133,6 +133,23 @@ class IntelAppTestCase(unittest.TestCase):
             )
         )
 
+    def test_client_view_reuses_loaded_history_records(self) -> None:
+        original_load_records = main.regional_intel_service.history_store.load_records
+        calls: list[int] = []
+
+        def counted_load_records(lookback_days: int = 30):
+            calls.append(lookback_days)
+            return original_load_records(lookback_days=lookback_days)
+
+        main.regional_intel_service.history_store.load_records = counted_load_records
+        try:
+            view = self.client.get("/api/client-views/blanga_austin")
+        finally:
+            main.regional_intel_service.history_store.load_records = original_load_records
+
+        self.assertEqual(view.status_code, 200)
+        self.assertEqual(calls, [14])
+
     def test_recent_feed_contract_for_sapphire_proxy(self) -> None:
         recent = self.client.get("/api/intel/recent", params={"region": "austin_tx", "limit": 5})
         self.assertEqual(recent.status_code, 200)

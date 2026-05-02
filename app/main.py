@@ -803,8 +803,15 @@ def _build_trends(regional_intel_service: RegionalIntelService, lookback_days: i
     return {"region": region, "series": series}
 
 
-def _build_source_history(regional_intel_service: RegionalIntelService, lookback_days: int, region: RegionId | None):
-    records = regional_intel_service.history_store.load_records(lookback_days=lookback_days)
+def _build_source_history(
+    regional_intel_service: RegionalIntelService,
+    lookback_days: int,
+    region: RegionId | None,
+    *,
+    records: list[dict] | None = None,
+):
+    if records is None:
+        records = regional_intel_service.history_store.load_records(lookback_days=lookback_days)
     sources: dict[str, dict] = {}
     for record in records:
         updated_at = record.get("updated_at")
@@ -852,7 +859,13 @@ def _build_source_history(regional_intel_service: RegionalIntelService, lookback
                 }
             )
     output = list(sources.values())
-    output.sort(key=lambda item: (item["category"], -(item["non_empty_runs"] + item["last_item_count"]), item["name"] or ""))
+    output.sort(
+        key=lambda item: (
+            item["category"],
+            -(item["non_empty_runs"] + item["last_item_count"]),
+            item["name"] or "",
+        )
+    )
     return {"region": region, "sources": output}
 
 
@@ -976,7 +989,12 @@ def _build_monitor_rules(snapshot, region: RegionId | None):
 def _build_client_view_payload(snapshot, view_id: str):
     _resolve_client_view_meta(view_id)
     history_records = regional_intel_service.history_store.load_records(lookback_days=14)
-    source_history = _build_source_history(regional_intel_service, lookback_days=14, region=None)["sources"]
+    source_history = _build_source_history(
+        regional_intel_service,
+        lookback_days=14,
+        region=None,
+        records=history_records,
+    )["sources"]
     try:
         view = build_client_view(
             view_id=view_id,
