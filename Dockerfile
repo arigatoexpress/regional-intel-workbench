@@ -20,7 +20,13 @@ RUN pip install --upgrade pip && pip install \
     "httpx>=0.28.0,<1.0.0" \
     "jinja2>=3.1.0,<4.0.0" \
     "uvicorn>=0.35.0,<1.0.0" \
-    "pydantic>=2.0.0,<3.0.0"
+    "pydantic>=2.0.0,<3.0.0" \
+    "playwright>=1.55.0,<2.0.0"
+# We install the playwright Python package so import-time wiring in
+# app/services/aggregator.py works, but we DO NOT run
+# `playwright install` (skips ~120MB Chromium) — the read-only admin
+# frontend never invokes the browser. A future scraper worker can use
+# a separate image with the full browser bundle.
 
 EXPOSE 8080
 
