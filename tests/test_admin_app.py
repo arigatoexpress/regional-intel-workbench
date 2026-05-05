@@ -38,9 +38,7 @@ class AdminAppTestCase(unittest.TestCase):
         )
         latest = RegionalIntelHistoryStore(history_path).load_latest_record()
         if latest is None:
-            raise RuntimeError(
-                "Expected at least one stored intel snapshot for tests"
-            )
+            raise RuntimeError("Expected at least one stored intel snapshot for tests")
         cls.fixture_snapshot = RegionalIntelSnapshot.model_validate(latest)
 
     def setUp(self) -> None:
@@ -114,12 +112,12 @@ class AdminAppTestCase(unittest.TestCase):
         body = response.text
         # Region selector + map + feed + source health + trends + rules
         for marker in (
-            "id=\"admin-region\"",
-            "id=\"admin-map\"",
-            "id=\"admin-feed\"",
-            "id=\"admin-source-health\"",
-            "id=\"admin-trends\"",
-            "id=\"admin-rules\"",
+            'id="admin-region"',
+            'id="admin-map"',
+            'id="admin-feed"',
+            'id="admin-source-health"',
+            'id="admin-trends"',
+            'id="admin-rules"',
             "/static/admin.js",
             "/static/admin.css",
             "leaflet",

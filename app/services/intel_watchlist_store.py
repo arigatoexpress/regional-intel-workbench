@@ -18,7 +18,9 @@ class IntelWatchlistStore:
         with self._lock:
             payload = self._read_unlocked()
         entries = [IntelWatchlistEntry.model_validate(item) for item in payload]
-        entries.sort(key=lambda item: (item.status != "active", item.updated_at), reverse=True)
+        entries.sort(
+            key=lambda item: (item.status != "active", item.updated_at), reverse=True
+        )
         return entries
 
     def save_entry(
@@ -35,7 +37,11 @@ class IntelWatchlistStore:
         with self._lock:
             payload = self._read_unlocked()
             for raw in payload:
-                if raw.get("kind") == kind and raw.get("item_id") == item_id and item_id:
+                if (
+                    raw.get("kind") == kind
+                    and raw.get("item_id") == item_id
+                    and item_id
+                ):
                     raw["updated_at"] = now
                     raw["label"] = label or raw.get("label") or "Saved item"
                     if region_id:

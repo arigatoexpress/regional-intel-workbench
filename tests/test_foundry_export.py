@@ -157,7 +157,11 @@ def _snapshot() -> RegionalIntelSnapshot:
 
 
 def _read_ndjson(path: Path) -> list[dict]:
-    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line]
+    return [
+        json.loads(line)
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if line
+    ]
 
 
 class FoundryExportTestCase(unittest.TestCase):
@@ -168,11 +172,17 @@ class FoundryExportTestCase(unittest.TestCase):
         items = intel_item_objects(snapshot)
         sources = source_health_objects(snapshot)
 
-        self.assertEqual([row["region_id"] for row in regions], ["austin_tx", "houston_tx"])
+        self.assertEqual(
+            [row["region_id"] for row in regions], ["austin_tx", "houston_tx"]
+        )
         self.assertEqual(len(items), 5)
-        self.assertEqual(items[0]["object_id"], "regional-intel:item:business:business-1")
+        self.assertEqual(
+            items[0]["object_id"], "regional-intel:item:business:business-1"
+        )
         self.assertTrue(items[0]["provenance"]["public_sources_only"])
-        self.assertEqual(sources[0]["object_id"], "regional-intel:source:austin_open_data_permits")
+        self.assertEqual(
+            sources[0]["object_id"], "regional-intel:source:austin_open_data_permits"
+        )
 
     def test_region_filter_limits_all_object_types(self) -> None:
         snapshot = _snapshot()
@@ -193,22 +203,33 @@ class FoundryExportTestCase(unittest.TestCase):
             self.assertEqual(manifest["object_types"]["IntelItem"]["rows"], 5)
             self.assertEqual(manifest["object_types"]["IntelSourceHealth"]["rows"], 1)
             self.assertEqual(manifest["dropped_rows"]["total"], 0)
-            self.assertEqual(manifest["source_health_summary"]["by_status"], {"live": 1})
-            self.assertEqual(manifest["source_health_summary"]["by_region"], {"austin_tx": 1})
+            self.assertEqual(
+                manifest["source_health_summary"]["by_status"], {"live": 1}
+            )
+            self.assertEqual(
+                manifest["source_health_summary"]["by_region"], {"austin_tx": 1}
+            )
             self.assertTrue((output_dir / "manifest.json").is_file())
 
             items = _read_ndjson(output_dir / "IntelItem.ndjson")
-            self.assertEqual({item["kind"] for item in items}, {"business", "contact", "news", "organization", "permit"})
+            self.assertEqual(
+                {item["kind"] for item in items},
+                {"business", "contact", "news", "organization", "permit"},
+            )
             self.assertEqual(items[0]["snapshot_updated_at"], "2026-04-27T16:00:00Z")
             item_info = manifest["object_types"]["IntelItem"]
             self.assertEqual(item_info["filename"], "IntelItem.ndjson")
             self.assertEqual(len(item_info["file_sha256"]), 64)
             self.assertEqual(
                 item_info["file_sha256"],
-                hashlib.sha256((output_dir / "IntelItem.ndjson").read_bytes()).hexdigest(),
+                hashlib.sha256(
+                    (output_dir / "IntelItem.ndjson").read_bytes()
+                ).hexdigest(),
             )
             self.assertEqual(len(item_info["row_hashes"]), 5)
-            self.assertTrue(all(len(row["sha256"]) == 64 for row in item_info["row_hashes"]))
+            self.assertTrue(
+                all(len(row["sha256"]) == 64 for row in item_info["row_hashes"])
+            )
             self.assertEqual(
                 item_info["row_hashes"][0]["object_id"],
                 "regional-intel:item:business:business-1",
@@ -224,7 +245,11 @@ class FoundryExportDeterminismTestCase(unittest.TestCase):
             export_snapshot(snapshot, Path(tmp_a), region="austin_tx")
             export_snapshot(snapshot, Path(tmp_b), region="austin_tx")
 
-            for filename in ("Region.ndjson", "IntelItem.ndjson", "IntelSourceHealth.ndjson"):
+            for filename in (
+                "Region.ndjson",
+                "IntelItem.ndjson",
+                "IntelSourceHealth.ndjson",
+            ):
                 bytes_a = (Path(tmp_a) / filename).read_bytes()
                 bytes_b = (Path(tmp_b) / filename).read_bytes()
                 self.assertEqual(
@@ -313,7 +338,9 @@ class FoundryExportProvenanceGuardTestCase(unittest.TestCase):
 
     def test_rows_without_provenance_are_dropped_and_logged(self) -> None:
         snapshot = self._snapshot_with_missing_provenance()
-        with self.assertLogs("app.services.foundry_export", level="WARNING") as captured:
+        with self.assertLogs(
+            "app.services.foundry_export", level="WARNING"
+        ) as captured:
             items = intel_item_objects(snapshot, region="austin_tx")
 
         item_ids = {row["item_id"] for row in items}
@@ -346,7 +373,9 @@ class FoundryExportProvenanceGuardTestCase(unittest.TestCase):
                 ("organization", "org-no-prov"),
             },
         )
-        self.assertTrue(all("source_name" in item["missing_fields"] for item in dropped["details"]))
+        self.assertTrue(
+            all("source_name" in item["missing_fields"] for item in dropped["details"])
+        )
 
     def test_business_and_contact_rows_are_not_provenance_guarded(self) -> None:
         # Pydantic already enforces source_name/source_url for those models
@@ -359,7 +388,9 @@ class FoundryExportProvenanceGuardTestCase(unittest.TestCase):
 
 
 class RegionalOodaPacketTestCase(unittest.TestCase):
-    def test_packet_contains_read_only_provenance_and_safe_act_recommendations(self) -> None:
+    def test_packet_contains_read_only_provenance_and_safe_act_recommendations(
+        self,
+    ) -> None:
         packet = build_regional_ooda_packet(_snapshot(), region="austin_tx")
 
         self.assertEqual(packet["packet_type"], "regional_ooda")
@@ -369,9 +400,16 @@ class RegionalOodaPacketTestCase(unittest.TestCase):
         self.assertFalse(packet["constraints"]["external_writes"])
         self.assertTrue(packet["constraints"]["safe_act_recommendations_only"])
         self.assertEqual(packet["observe"]["dropped_rows"]["total"], 0)
-        self.assertEqual(packet["observe"]["source_health_summary"]["by_status"], {"live": 1})
-        self.assertEqual(len(packet["observe"]["export_object_types"]["IntelItem"]["file_sha256"]), 64)
-        self.assertEqual(len(packet["observe"]["export_object_types"]["IntelItem"]["row_hashes"]), 5)
+        self.assertEqual(
+            packet["observe"]["source_health_summary"]["by_status"], {"live": 1}
+        )
+        self.assertEqual(
+            len(packet["observe"]["export_object_types"]["IntelItem"]["file_sha256"]),
+            64,
+        )
+        self.assertEqual(
+            len(packet["observe"]["export_object_types"]["IntelItem"]["row_hashes"]), 5
+        )
         self.assertEqual(packet["act"]["writes"], [])
         self.assertEqual(packet["act"]["external_calls"], [])
         self.assertTrue(packet["act"]["recommendations"])

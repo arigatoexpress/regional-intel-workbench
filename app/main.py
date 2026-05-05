@@ -261,7 +261,9 @@ async def api_admin_overview(
     source_health = {
         "source_health": _filter_region_snapshot(snapshot, region)["source_health"],
     }
-    trends = _build_trends(regional_intel_service, lookback_days=lookback, region=region)
+    trends = _build_trends(
+        regional_intel_service, lookback_days=lookback, region=region
+    )
     source_history = _build_source_history(
         regional_intel_service, lookback_days=lookback, region=region
     )
@@ -311,16 +313,26 @@ def _filter_region_snapshot(snapshot, region: RegionId | None):
         if not item["region_ids"] or region in item["region_ids"]
     ]
     payload["news"] = [item for item in payload["news"] if item["region_id"] == region]
-    payload["permits"] = [item for item in payload["permits"] if item["region_id"] == region]
-    payload["businesses"] = [item for item in payload["businesses"] if item["region_id"] == region]
-    payload["contacts"] = [item for item in payload["contacts"] if item["region_id"] == region]
-    payload["organizations"] = [item for item in payload["organizations"] if item["region_id"] == region]
+    payload["permits"] = [
+        item for item in payload["permits"] if item["region_id"] == region
+    ]
+    payload["businesses"] = [
+        item for item in payload["businesses"] if item["region_id"] == region
+    ]
+    payload["contacts"] = [
+        item for item in payload["contacts"] if item["region_id"] == region
+    ]
+    payload["organizations"] = [
+        item for item in payload["organizations"] if item["region_id"] == region
+    ]
     payload["source_health"] = [
         item
         for item in payload["source_health"]
         if not item["region_ids"] or region in item["region_ids"]
     ]
-    payload["briefs"] = [item for item in payload["briefs"] if item["region_id"] == region]
+    payload["briefs"] = [
+        item for item in payload["briefs"] if item["region_id"] == region
+    ]
     return payload
 
 
@@ -359,7 +371,9 @@ def _normalize_score(score) -> float:
     return round(value, 2)
 
 
-def _intel_url(kind: str, item_id: str | None, *, region_id: str | None = None) -> str | None:
+def _intel_url(
+    kind: str, item_id: str | None, *, region_id: str | None = None
+) -> str | None:
     if not item_id:
         return None
     region_qs = f"&region={region_id}" if region_id else ""
@@ -419,9 +433,14 @@ def _build_recent_items(snapshot, *, region: RegionId | None, limit: int) -> dic
                 summary=item.get("address_hint") or item.get("summary") or "",
                 score=float(item.get("signal_score") or 0),
                 timestamp=item.get("published_at"),
-                source_name=item.get("source_name") or item.get("publication") or "Public news",
+                source_name=item.get("source_name")
+                or item.get("publication")
+                or "Public news",
                 source_url=item.get("source_url"),
-                tags=[item.get("signal_type", ""), "actionable" if item.get("actionable") else ""],
+                tags=[
+                    item.get("signal_type", ""),
+                    "actionable" if item.get("actionable") else "",
+                ],
             )
         )
 
@@ -469,7 +488,8 @@ def _build_recent_items(snapshot, *, region: RegionId | None, limit: int) -> dic
                 ),
                 score=float(item.get("organization_score") or 0),
                 timestamp=item.get("latest_activity_at"),
-                source_name=", ".join(item.get("source_names", [])[:2]) or "Regional graph",
+                source_name=", ".join(item.get("source_names", [])[:2])
+                or "Regional graph",
                 source_url=item.get("website"),
                 tags=list(item.get("categories", [])[:4]),
             )
@@ -482,7 +502,9 @@ def _build_recent_items(snapshot, *, region: RegionId | None, limit: int) -> dic
                 item_id=item["item_id"],
                 region_id=item["region_id"],
                 title=item["name"],
-                summary=item.get("address") or item.get("category") or "Public business lead",
+                summary=item.get("address")
+                or item.get("category")
+                or "Public business lead",
                 score=float(item.get("lead_score") or 0),
                 timestamp=None,
                 source_name=item.get("source_name") or "Public business source",
@@ -500,7 +522,11 @@ def _build_recent_items(snapshot, *, region: RegionId | None, limit: int) -> dic
                 title=item["name"],
                 summary=" | ".join(
                     part
-                    for part in [item.get("title"), item.get("organization"), item.get("email") or item.get("phone")]
+                    for part in [
+                        item.get("title"),
+                        item.get("organization"),
+                        item.get("email") or item.get("phone"),
+                    ]
                     if part
                 ),
                 score=float(item.get("contact_score") or 0),
@@ -533,29 +559,38 @@ def _build_recent_items(snapshot, *, region: RegionId | None, limit: int) -> dic
 
 def _organization_detail(snapshot, item_id: str):
     payload = snapshot.model_dump()
-    target = next((item for item in payload["organizations"] if item["item_id"] == item_id), None)
+    target = next(
+        (item for item in payload["organizations"] if item["item_id"] == item_id), None
+    )
     if target is None:
         raise HTTPException(status_code=404, detail="Organization not found")
-    annotation = intel_analyst_store.get_annotation(target_kind="organization", target_id=item_id)
+    annotation = intel_analyst_store.get_annotation(
+        target_kind="organization", target_id=item_id
+    )
     region_id = target["region_id"]
     normalized_name = target["name"].lower()
     related_businesses = [
-        item for item in payload["businesses"] if item["region_id"] == region_id and item["name"].lower() == normalized_name
+        item
+        for item in payload["businesses"]
+        if item["region_id"] == region_id and item["name"].lower() == normalized_name
     ]
     related_contacts = [
         item
         for item in payload["contacts"]
-        if item["region_id"] == region_id and item["organization"].lower() == normalized_name
+        if item["region_id"] == region_id
+        and item["organization"].lower() == normalized_name
     ]
     related_news = [
         item
         for item in payload["news"]
-        if item["region_id"] == region_id and normalized_name in [org.lower() for org in item.get("organizations", [])]
+        if item["region_id"] == region_id
+        and normalized_name in [org.lower() for org in item.get("organizations", [])]
     ]
     related_permits = [
         item
         for item in payload["permits"]
-        if item["region_id"] == region_id and any(normalized_name in note.lower() for note in item.get("notes", []))
+        if item["region_id"] == region_id
+        and any(normalized_name in note.lower() for note in item.get("notes", []))
     ]
     return {
         "organization": target,
@@ -587,7 +622,9 @@ def _item_detail(snapshot, kind: str, item_id: str):
     if normalized_kind == "organization":
         return _organization_detail(snapshot, item_id)
 
-    target = next((item for item in payload[collection_name] if item["item_id"] == item_id), None)
+    target = next(
+        (item for item in payload[collection_name] if item["item_id"] == item_id), None
+    )
     if target is None:
         raise HTTPException(status_code=404, detail="Item not found")
 
@@ -605,7 +642,9 @@ def _item_detail(snapshot, kind: str, item_id: str):
         ]
         if value
     ).lower()
-    target_address = clean_text(target.get("address") or target.get("address_hint") or "").lower()
+    target_address = clean_text(
+        target.get("address") or target.get("address_hint") or ""
+    ).lower()
 
     related_organizations = [
         item
@@ -613,14 +652,18 @@ def _item_detail(snapshot, kind: str, item_id: str):
         if item["region_id"] == region_id
         and (
             item["name"].lower() in target_text
-            or (target_address and clean_text(item.get("address") or "").lower() == target_address)
+            or (
+                target_address
+                and clean_text(item.get("address") or "").lower() == target_address
+            )
             or (
                 normalized_kind == "business"
                 and item["name"].lower() == clean_text(target.get("name")).lower()
             )
             or (
                 normalized_kind == "contact"
-                and item["name"].lower() == clean_text(target.get("organization")).lower()
+                and item["name"].lower()
+                == clean_text(target.get("organization")).lower()
             )
         )
     ][:8]
@@ -633,7 +676,8 @@ def _item_detail(snapshot, kind: str, item_id: str):
             item["organization"].lower() in target_text
             or (
                 normalized_kind == "business"
-                and item["organization"].lower() == clean_text(target.get("name")).lower()
+                and item["organization"].lower()
+                == clean_text(target.get("name")).lower()
             )
         )
     ][:8]
@@ -644,10 +688,14 @@ def _item_detail(snapshot, kind: str, item_id: str):
         if item["region_id"] == region_id
         and (
             item["name"].lower() in target_text
-            or (target_address and clean_text(item.get("address") or "").lower() == target_address)
+            or (
+                target_address
+                and clean_text(item.get("address") or "").lower() == target_address
+            )
             or (
                 normalized_kind == "contact"
-                and item["name"].lower() == clean_text(target.get("organization")).lower()
+                and item["name"].lower()
+                == clean_text(target.get("organization")).lower()
             )
         )
     ][:8]
@@ -658,9 +706,14 @@ def _item_detail(snapshot, kind: str, item_id: str):
         if item["region_id"] == region_id
         and item["item_id"] != item_id
         and (
-            target.get("name", "").lower() in " ".join(item.get("organizations", [])).lower()
-            or target.get("organization", "").lower() in " ".join(item.get("organizations", [])).lower()
-            or (target_address and clean_text(item.get("address_hint") or "").lower() == target_address)
+            target.get("name", "").lower()
+            in " ".join(item.get("organizations", [])).lower()
+            or target.get("organization", "").lower()
+            in " ".join(item.get("organizations", [])).lower()
+            or (
+                target_address
+                and clean_text(item.get("address_hint") or "").lower() == target_address
+            )
         )
     ][:8]
 
@@ -671,8 +724,12 @@ def _item_detail(snapshot, kind: str, item_id: str):
         and item["item_id"] != item_id
         and (
             target.get("name", "").lower() in " ".join(item.get("notes", [])).lower()
-            or target.get("organization", "").lower() in " ".join(item.get("notes", [])).lower()
-            or (target_address and clean_text(item.get("address") or "").lower() == target_address)
+            or target.get("organization", "").lower()
+            in " ".join(item.get("notes", [])).lower()
+            or (
+                target_address
+                and clean_text(item.get("address") or "").lower() == target_address
+            )
         )
     ][:8]
 
@@ -748,7 +805,11 @@ def _search_snapshot(snapshot, query: str, region: RegionId | None):
                 "region_id": item["region_id"],
                 "title": item["address"],
                 "subtitle": f"{item.get('county', '')} | {item.get('permit_type', '')}",
-                "detail": " | ".join(part for part in [item.get("permit_number", ""), item.get("status", "")] if part),
+                "detail": " | ".join(
+                    part
+                    for part in [item.get("permit_number", ""), item.get("status", "")]
+                    if part
+                ),
                 "url": item.get("source_url"),
             }
         )
@@ -769,7 +830,10 @@ def _search_snapshot(snapshot, query: str, region: RegionId | None):
                 "region_id": item["region_id"],
                 "title": item["name"],
                 "subtitle": item.get("category", ""),
-                "detail": item.get("address") or item.get("website") or item.get("phone") or "",
+                "detail": item.get("address")
+                or item.get("website")
+                or item.get("phone")
+                or "",
                 "url": item.get("website") or item.get("source_url"),
             }
         )
@@ -790,8 +854,20 @@ def _search_snapshot(snapshot, query: str, region: RegionId | None):
                 "item_id": item.get("item_id"),
                 "region_id": item["region_id"],
                 "title": item["name"],
-                "subtitle": " | ".join(part for part in [item.get("title", ""), item.get("organization", "")] if part),
-                "detail": " | ".join(part for part in [item.get("email", ""), item.get("phone", ""), item.get("address", "")] if part),
+                "subtitle": " | ".join(
+                    part
+                    for part in [item.get("title", ""), item.get("organization", "")]
+                    if part
+                ),
+                "detail": " | ".join(
+                    part
+                    for part in [
+                        item.get("email", ""),
+                        item.get("phone", ""),
+                        item.get("address", ""),
+                    ]
+                    if part
+                ),
                 "url": item.get("website") or item.get("source_url"),
             }
         )
@@ -826,7 +902,14 @@ def _search_snapshot(snapshot, query: str, region: RegionId | None):
             }
         )
 
-    results.sort(key=lambda item: (-item["score"], item["region_id"], item["kind"], item["title"].lower()))
+    results.sort(
+        key=lambda item: (
+            -item["score"],
+            item["region_id"],
+            item["kind"],
+            item["title"].lower(),
+        )
+    )
     return {"query": trimmed, "region": region, "results": results[:60]}
 
 
@@ -884,17 +967,33 @@ def _build_watchlist(snapshot, region: RegionId | None):
                 "score": item.get("contact_score", 0),
                 "title": item["name"],
                 "subtitle": item.get("organization", ""),
-                "detail": item.get("title") or item.get("email") or item.get("phone") or "",
+                "detail": item.get("title")
+                or item.get("email")
+                or item.get("phone")
+                or "",
                 "reason": "Public professional contact with verifiable source.",
                 "url": item.get("website") or item.get("source_url"),
             }
         )
-    items.sort(key=lambda item: (-item["score"], item["region_id"], item["kind"], item["title"].lower()))
+    items.sort(
+        key=lambda item: (
+            -item["score"],
+            item["region_id"],
+            item["kind"],
+            item["title"].lower(),
+        )
+    )
     return {"region": region, "watchlist": items[:20]}
 
 
-def _build_trends(regional_intel_service: RegionalIntelService, lookback_days: int, region: RegionId | None):
-    records = regional_intel_service.history_store.load_records(lookback_days=lookback_days)
+def _build_trends(
+    regional_intel_service: RegionalIntelService,
+    lookback_days: int,
+    region: RegionId | None,
+):
+    records = regional_intel_service.history_store.load_records(
+        lookback_days=lookback_days
+    )
     series = []
     for record in records:
         row: dict[str, Any] = {
@@ -908,11 +1007,41 @@ def _build_trends(regional_intel_service: RegionalIntelService, lookback_days: i
             row["regions"].append(
                 {
                     "region_id": region_id,
-                    "news": len([x for x in record.get("news", []) if x.get("region_id") == region_id]),
-                    "permits": len([x for x in record.get("permits", []) if x.get("region_id") == region_id]),
-                    "businesses": len([x for x in record.get("businesses", []) if x.get("region_id") == region_id]),
-                    "contacts": len([x for x in record.get("contacts", []) if x.get("region_id") == region_id]),
-                    "organizations": len([x for x in record.get("organizations", []) if x.get("region_id") == region_id]),
+                    "news": len(
+                        [
+                            x
+                            for x in record.get("news", [])
+                            if x.get("region_id") == region_id
+                        ]
+                    ),
+                    "permits": len(
+                        [
+                            x
+                            for x in record.get("permits", [])
+                            if x.get("region_id") == region_id
+                        ]
+                    ),
+                    "businesses": len(
+                        [
+                            x
+                            for x in record.get("businesses", [])
+                            if x.get("region_id") == region_id
+                        ]
+                    ),
+                    "contacts": len(
+                        [
+                            x
+                            for x in record.get("contacts", [])
+                            if x.get("region_id") == region_id
+                        ]
+                    ),
+                    "organizations": len(
+                        [
+                            x
+                            for x in record.get("organizations", [])
+                            if x.get("region_id") == region_id
+                        ]
+                    ),
                 }
             )
         if row["regions"]:
@@ -928,7 +1057,9 @@ def _build_source_history(
     records: list[dict] | None = None,
 ):
     if records is None:
-        records = regional_intel_service.history_store.load_records(lookback_days=lookback_days)
+        records = regional_intel_service.history_store.load_records(
+            lookback_days=lookback_days
+        )
     sources: dict[str, dict] = {}
     for record in records:
         updated_at = record.get("updated_at")
@@ -987,45 +1118,71 @@ def _build_source_history(
 
 
 def _build_operational_alerts(snapshot, region: RegionId | None):
-    source_history = _build_source_history(regional_intel_service, lookback_days=14, region=region)["sources"]
+    source_history = _build_source_history(
+        regional_intel_service, lookback_days=14, region=region
+    )["sources"]
     return {
         "region": region,
-        "alerts": [item.model_dump() for item in build_operational_alerts(snapshot, source_history=source_history, region=region)],
+        "alerts": [
+            item.model_dump()
+            for item in build_operational_alerts(
+                snapshot, source_history=source_history, region=region
+            )
+        ],
     }
 
 
 def _build_source_incidents(region: RegionId | None):
-    source_history = _build_source_history(regional_intel_service, lookback_days=14, region=region)["sources"]
+    source_history = _build_source_history(
+        regional_intel_service, lookback_days=14, region=region
+    )["sources"]
     return {
         "region": region,
-        "incidents": [item.model_dump() for item in build_source_incidents(source_history, region=region)],
+        "incidents": [
+            item.model_dump()
+            for item in build_source_incidents(source_history, region=region)
+        ],
     }
 
 
 def _build_region_changes(lookback_days: int, region: RegionId | None):
-    records = regional_intel_service.history_store.load_records(lookback_days=lookback_days)
+    records = regional_intel_service.history_store.load_records(
+        lookback_days=lookback_days
+    )
     return {
         "region": region,
-        "changes": [item.model_dump() for item in build_region_changes(records, region=region)],
+        "changes": [
+            item.model_dump() for item in build_region_changes(records, region=region)
+        ],
     }
 
 
-def _build_entity_changes(lookback_days: int, region: RegionId | None, kind: str | None, item_id: str | None):
-    records = regional_intel_service.history_store.load_records(lookback_days=lookback_days)
+def _build_entity_changes(
+    lookback_days: int, region: RegionId | None, kind: str | None, item_id: str | None
+):
+    records = regional_intel_service.history_store.load_records(
+        lookback_days=lookback_days
+    )
     return {
         "region": region,
         "kind": kind,
         "item_id": item_id,
         "changes": [
             item.model_dump()
-            for item in build_entity_changes(records, region=region, kind=kind, item_id=item_id)
+            for item in build_entity_changes(
+                records, region=region, kind=kind, item_id=item_id
+            )
         ],
     }
 
 
 def _build_region_briefing(snapshot, region: RegionId):
-    source_history = _build_source_history(regional_intel_service, lookback_days=14, region=region)["sources"]
-    alerts = build_operational_alerts(snapshot, source_history=source_history, region=region)
+    source_history = _build_source_history(
+        regional_intel_service, lookback_days=14, region=region
+    )["sources"]
+    alerts = build_operational_alerts(
+        snapshot, source_history=source_history, region=region
+    )
     watchlist_items = resolve_watchlist(snapshot, intel_watchlist_store.list_entries())
     pack = build_region_briefing_pack(
         snapshot,
@@ -1041,20 +1198,25 @@ def _build_collection_briefing(snapshot, collection_id: str):
     collection = intel_collection_store.get_collection(collection_id)
     if collection is None:
         raise HTTPException(status_code=404, detail="Collection not found")
-    source_history = _build_source_history(regional_intel_service, lookback_days=14, region=collection.region_id)["sources"]
+    source_history = _build_source_history(
+        regional_intel_service, lookback_days=14, region=collection.region_id
+    )["sources"]
     annotation_lookup = {
         item.get("resolved", {}).get("item_id"): intel_analyst_store.get_annotation(
             target_kind="organization",
             target_id=item.get("resolved", {}).get("item_id"),
         )
         for item in resolve_collection_items(snapshot, collection)
-        if item.get("ref", {}).get("kind") == "organization" and item.get("resolved", {}).get("item_id")
+        if item.get("ref", {}).get("kind") == "organization"
+        and item.get("resolved", {}).get("item_id")
     }
     return build_collection_briefing_pack(
         snapshot,
         collection=collection,
         source_history=source_history,
-        annotation_lookup={key: value for key, value in annotation_lookup.items() if value is not None},
+        annotation_lookup={
+            key: value for key, value in annotation_lookup.items() if value is not None
+        },
     )
 
 
@@ -1067,14 +1229,20 @@ def _build_bundle_briefing(snapshot, bundle_id: str):
         collection = intel_collection_store.get_collection(ref.collection_id)
         if collection is not None:
             collections.append(collection)
-    source_history = _build_source_history(regional_intel_service, lookback_days=14, region=bundle.region_id)["sources"]
+    source_history = _build_source_history(
+        regional_intel_service, lookback_days=14, region=bundle.region_id
+    )["sources"]
     annotation_lookup: dict[str, IntelAnalystAnnotation] = {}
     for collection in collections:
         for item in resolve_collection_items(snapshot, collection):
-            if item.get("ref", {}).get("kind") != "organization" or not item.get("resolved", {}).get("item_id"):
+            if item.get("ref", {}).get("kind") != "organization" or not item.get(
+                "resolved", {}
+            ).get("item_id"):
                 continue
             target_id = item["resolved"]["item_id"]
-            annotation = intel_analyst_store.get_annotation(target_kind="organization", target_id=target_id)
+            annotation = intel_analyst_store.get_annotation(
+                target_kind="organization", target_id=target_id
+            )
             if annotation is not None:
                 annotation_lookup[target_id] = annotation
     return build_bundle_briefing_pack(
@@ -1088,7 +1256,9 @@ def _build_bundle_briefing(snapshot, bundle_id: str):
 
 def _build_monitor_rules(snapshot, region: RegionId | None):
     records = regional_intel_service.history_store.load_records(lookback_days=14)
-    source_history = _build_source_history(regional_intel_service, lookback_days=14, region=region)["sources"]
+    source_history = _build_source_history(
+        regional_intel_service, lookback_days=14, region=region
+    )["sources"]
     rules = [
         rule
         for rule in intel_monitor_store.list_rules()
@@ -1098,14 +1268,21 @@ def _build_monitor_rules(snapshot, region: RegionId | None):
         "region": region,
         "rules": [
             item.model_dump()
-            for item in build_monitor_evaluations(snapshot, rules=rules, history_records=records, source_history=source_history)
+            for item in build_monitor_evaluations(
+                snapshot,
+                rules=rules,
+                history_records=records,
+                source_history=source_history,
+            )
         ],
     }
 
 
 def _build_client_view_payload(snapshot, view_id: str):
     _resolve_client_view_meta(view_id)
-    history_records = regional_intel_service.history_store.load_records(lookback_days=14)
+    history_records = regional_intel_service.history_store.load_records(
+        lookback_days=14
+    )
     source_history = _build_source_history(
         regional_intel_service,
         lookback_days=14,
@@ -1136,7 +1313,9 @@ async def api_client_views():
                 "page_url": f"/client-views/{item['view_id']}",
                 "api_url": f"/api/client-views/{item['view_id']}",
                 "alias_url": alias_url,
-                "intel_url": f"/intel?region={item.get('region_id')}" if item.get("region_id") else "/intel",
+                "intel_url": f"/intel?region={item.get('region_id')}"
+                if item.get("region_id")
+                else "/intel",
             }
         )
     return {"views": views}
@@ -1156,7 +1335,9 @@ async def api_intel_snapshot(force: bool = False, region: RegionId | None = None
 
 
 @app.get("/api/intel/recent")
-async def api_intel_recent(force: bool = False, region: RegionId | None = None, limit: int = 10):
+async def api_intel_recent(
+    force: bool = False, region: RegionId | None = None, limit: int = 10
+):
     snapshot = await regional_intel_service.get_snapshot(force_refresh=force)
     return _build_recent_items(snapshot, region=region, limit=limit)
 
@@ -1178,7 +1359,9 @@ async def api_intel_source_health(force: bool = False, region: RegionId | None =
 async def api_intel_ooda_packet(region: RegionId | None = None):
     latest_record = regional_intel_service.history_store.load_latest_record()
     if latest_record is None:
-        raise HTTPException(status_code=404, detail="No stored regional intel snapshot found")
+        raise HTTPException(
+            status_code=404, detail="No stored regional intel snapshot found"
+        )
     snapshot = RegionalIntelSnapshot.model_validate(latest_record)
     return build_regional_ooda_packet(snapshot, region=region)
 
@@ -1203,15 +1386,25 @@ async def api_intel_item_detail(kind: str, item_id: str, force: bool = False):
 
 
 @app.get("/api/intel/graph")
-async def api_intel_graph(force: bool = False, region: RegionId | None = None, focus_node_id: str | None = None):
+async def api_intel_graph(
+    force: bool = False,
+    region: RegionId | None = None,
+    focus_node_id: str | None = None,
+):
     snapshot = await regional_intel_service.get_snapshot(force_refresh=force)
-    return build_intel_graph(snapshot, region=region, focus_node_id=focus_node_id).model_dump()
+    return build_intel_graph(
+        snapshot, region=region, focus_node_id=focus_node_id
+    ).model_dump()
 
 
 @app.get("/api/intel/opportunities")
 async def api_intel_opportunities(force: bool = False, region: RegionId | None = None):
     snapshot = await regional_intel_service.get_snapshot(force_refresh=force)
-    return {"opportunities": [item.model_dump() for item in build_opportunities(snapshot, region=region)]}
+    return {
+        "opportunities": [
+            item.model_dump() for item in build_opportunities(snapshot, region=region)
+        ]
+    }
 
 
 @app.get("/api/intel/alerts")
@@ -1222,16 +1415,24 @@ async def api_intel_alerts(force: bool = False, region: RegionId | None = None):
 
 @app.get("/api/intel/source-incidents")
 async def api_intel_source_incidents(days: int = 14, region: RegionId | None = None):
-    return _build_source_incidents(region=region if region is not None else None) if days == 14 else {
-        "region": region,
-        "incidents": [
-            item.model_dump()
-            for item in build_source_incidents(
-                _build_source_history(regional_intel_service, lookback_days=max(1, min(days, 30)), region=region)["sources"],
-                region=region,
-            )
-        ],
-    }
+    return (
+        _build_source_incidents(region=region if region is not None else None)
+        if days == 14
+        else {
+            "region": region,
+            "incidents": [
+                item.model_dump()
+                for item in build_source_incidents(
+                    _build_source_history(
+                        regional_intel_service,
+                        lookback_days=max(1, min(days, 30)),
+                        region=region,
+                    )["sources"],
+                    region=region,
+                )
+            ],
+        }
+    )
 
 
 @app.get("/api/intel/region-changes")
@@ -1246,7 +1447,9 @@ async def api_intel_entity_changes(
     kind: str | None = None,
     item_id: str | None = None,
 ):
-    return _build_entity_changes(lookback_days=max(2, min(days, 30)), region=region, kind=kind, item_id=item_id)
+    return _build_entity_changes(
+        lookback_days=max(2, min(days, 30)), region=region, kind=kind, item_id=item_id
+    )
 
 
 @app.get("/api/intel/region-briefing/{region_id}")
@@ -1294,7 +1497,9 @@ async def api_intel_monitor_rule_delete(rule_id: str):
 @app.get("/api/intel/briefing/{item_id}")
 async def api_intel_briefing(item_id: str, force: bool = False):
     snapshot = await regional_intel_service.get_snapshot(force_refresh=force)
-    annotation = intel_analyst_store.get_annotation(target_kind="organization", target_id=item_id)
+    annotation = intel_analyst_store.get_annotation(
+        target_kind="organization", target_id=item_id
+    )
     briefing = build_briefing_pack(snapshot, item_id, annotation=annotation)
     if briefing is None:
         raise HTTPException(status_code=404, detail="Briefing target not found")
@@ -1304,7 +1509,9 @@ async def api_intel_briefing(item_id: str, force: bool = False):
 @app.get("/api/intel/briefing/{item_id}/markdown")
 async def api_intel_briefing_markdown(item_id: str, force: bool = False):
     snapshot = await regional_intel_service.get_snapshot(force_refresh=force)
-    annotation = intel_analyst_store.get_annotation(target_kind="organization", target_id=item_id)
+    annotation = intel_analyst_store.get_annotation(
+        target_kind="organization", target_id=item_id
+    )
     briefing = build_briefing_pack(snapshot, item_id, annotation=annotation)
     if briefing is None:
         raise HTTPException(status_code=404, detail="Briefing target not found")
@@ -1322,7 +1529,9 @@ async def api_intel_timeline(item_id: str, force: bool = False):
 
 @app.get("/api/intel/annotations/{target_kind}/{target_id}")
 async def api_intel_annotation_get(target_kind: str, target_id: str):
-    annotation = intel_analyst_store.get_annotation(target_kind=target_kind, target_id=target_id)
+    annotation = intel_analyst_store.get_annotation(
+        target_kind=target_kind, target_id=target_id
+    )
     if annotation is None:
         return {"annotation": None}
     return {"annotation": annotation.model_dump()}
@@ -1341,7 +1550,9 @@ async def api_intel_annotation_save(payload: AnalystAnnotationRequest):
 
 @app.delete("/api/intel/annotations/{target_kind}/{target_id}")
 async def api_intel_annotation_delete(target_kind: str, target_id: str):
-    if not intel_analyst_store.delete_annotation(target_kind=target_kind, target_id=target_id):
+    if not intel_analyst_store.delete_annotation(
+        target_kind=target_kind, target_id=target_id
+    ):
         raise HTTPException(status_code=404, detail="Annotation not found")
     return {"status": "deleted", "target_kind": target_kind, "target_id": target_id}
 
@@ -1356,7 +1567,9 @@ async def api_intel_watchlist_items(force: bool = False):
         target_kind = entry.get("kind")
         target_id = entry.get("item_id")
         annotation = (
-            intel_analyst_store.get_annotation(target_kind=target_kind, target_id=target_id)
+            intel_analyst_store.get_annotation(
+                target_kind=target_kind, target_id=target_id
+            )
             if target_kind and target_id
             else None
         )
@@ -1370,12 +1583,27 @@ async def api_intel_watchlist_save(payload: WatchlistSaveRequest, force: bool = 
     resolved_label = payload.label
     resolved_url = payload.source_url
     if payload.item_id:
-        for collection_name in ["organizations", "businesses", "contacts", "news", "permits"]:
+        for collection_name in [
+            "organizations",
+            "businesses",
+            "contacts",
+            "news",
+            "permits",
+        ]:
             for item in getattr(snapshot, collection_name):
                 if item.item_id != payload.item_id:
                     continue
-                resolved_label = resolved_label or getattr(item, "name", None) or getattr(item, "title", None) or getattr(item, "address", None)
-                resolved_url = resolved_url or getattr(item, "website", None) or getattr(item, "source_url", None)
+                resolved_label = (
+                    resolved_label
+                    or getattr(item, "name", None)
+                    or getattr(item, "title", None)
+                    or getattr(item, "address", None)
+                )
+                resolved_url = (
+                    resolved_url
+                    or getattr(item, "website", None)
+                    or getattr(item, "source_url", None)
+                )
                 break
             if resolved_label:
                 break
@@ -1414,7 +1642,9 @@ async def api_intel_collections(force: bool = False):
             {
                 "collection": collection.model_dump(),
                 "items": resolved_items,
-                "live_count": len([item for item in resolved_items if item.get("is_live")]),
+                "live_count": len(
+                    [item for item in resolved_items if item.get("is_live")]
+                ),
             }
         )
     return {"collections": items}
@@ -1439,17 +1669,34 @@ async def api_intel_collection_delete(collection_id: str):
 
 
 @app.post("/api/intel/collections/{collection_id}/items")
-async def api_intel_collection_item_save(collection_id: str, payload: CollectionItemSaveRequest, force: bool = False):
+async def api_intel_collection_item_save(
+    collection_id: str, payload: CollectionItemSaveRequest, force: bool = False
+):
     snapshot = await regional_intel_service.get_snapshot(force_refresh=force)
     resolved_label = payload.label
     resolved_url = payload.source_url
     if payload.item_id:
-        for collection_name in ["organizations", "businesses", "contacts", "news", "permits"]:
+        for collection_name in [
+            "organizations",
+            "businesses",
+            "contacts",
+            "news",
+            "permits",
+        ]:
             for item in getattr(snapshot, collection_name):
                 if item.item_id != payload.item_id:
                     continue
-                resolved_label = resolved_label or getattr(item, "name", None) or getattr(item, "title", None) or getattr(item, "address", None)
-                resolved_url = resolved_url or getattr(item, "website", None) or getattr(item, "source_url", None)
+                resolved_label = (
+                    resolved_label
+                    or getattr(item, "name", None)
+                    or getattr(item, "title", None)
+                    or getattr(item, "address", None)
+                )
+                resolved_url = (
+                    resolved_url
+                    or getattr(item, "website", None)
+                    or getattr(item, "source_url", None)
+                )
                 break
             if resolved_label:
                 break
@@ -1482,9 +1729,13 @@ async def api_intel_collection_briefing(collection_id: str, force: bool = False)
 
 
 @app.get("/api/intel/collections/{collection_id}/briefing/markdown")
-async def api_intel_collection_briefing_markdown(collection_id: str, force: bool = False):
+async def api_intel_collection_briefing_markdown(
+    collection_id: str, force: bool = False
+):
     snapshot = await regional_intel_service.get_snapshot(force_refresh=force)
-    return PlainTextResponse(_build_collection_briefing(snapshot, collection_id).markdown)
+    return PlainTextResponse(
+        _build_collection_briefing(snapshot, collection_id).markdown
+    )
 
 
 @app.get("/api/intel/bundles")
@@ -1497,7 +1748,9 @@ async def api_intel_bundles(force: bool = False):
         for ref in bundle.collections:
             collection = intel_collection_store.get_collection(ref.collection_id)
             if collection is None:
-                resolved_collections.append({"ref": ref.model_dump(), "collection": None, "is_live": False})
+                resolved_collections.append(
+                    {"ref": ref.model_dump(), "collection": None, "is_live": False}
+                )
                 continue
             resolved_items = resolve_collection_items(snapshot, collection)
             live_count += len([item for item in resolved_items if item.get("is_live")])
@@ -1507,10 +1760,18 @@ async def api_intel_bundles(force: bool = False):
                     "collection": collection.model_dump(),
                     "is_live": True,
                     "item_count": len(collection.items),
-                    "live_count": len([item for item in resolved_items if item.get("is_live")]),
+                    "live_count": len(
+                        [item for item in resolved_items if item.get("is_live")]
+                    ),
                 }  # type: ignore[dict-item]
             )
-        bundles.append({"bundle": bundle.model_dump(), "collections": resolved_collections, "live_count": live_count})
+        bundles.append(
+            {
+                "bundle": bundle.model_dump(),
+                "collections": resolved_collections,
+                "live_count": live_count,
+            }
+        )
     return {"bundles": bundles}
 
 
@@ -1533,7 +1794,9 @@ async def api_intel_bundle_delete(bundle_id: str):
 
 
 @app.post("/api/intel/bundles/{bundle_id}/collections")
-async def api_intel_bundle_collection_save(bundle_id: str, payload: BundleCollectionSaveRequest):
+async def api_intel_bundle_collection_save(
+    bundle_id: str, payload: BundleCollectionSaveRequest
+):
     collection = intel_collection_store.get_collection(payload.collection_id)
     if collection is None:
         raise HTTPException(status_code=404, detail="Collection not found")
@@ -1569,24 +1832,36 @@ async def api_intel_bundle_briefing_markdown(bundle_id: str, force: bool = False
 
 @app.get("/api/intel/trends")
 async def api_intel_trends(days: int = 7, region: RegionId | None = None):
-    return _build_trends(regional_intel_service, lookback_days=max(1, min(days, 30)), region=region)
+    return _build_trends(
+        regional_intel_service, lookback_days=max(1, min(days, 30)), region=region
+    )
 
 
 @app.get("/api/intel/source-history")
 async def api_intel_source_history(days: int = 14, region: RegionId | None = None):
-    return _build_source_history(regional_intel_service, lookback_days=max(1, min(days, 30)), region=region)
+    return _build_source_history(
+        regional_intel_service, lookback_days=max(1, min(days, 30)), region=region
+    )
 
 
 @app.get("/api/intel/regions")
 async def api_intel_regions():
-    return {"regions": [item.model_dump() for item in regional_intel_service.region_catalog()]}
+    return {
+        "regions": [
+            item.model_dump() for item in regional_intel_service.region_catalog()
+        ]
+    }
 
 
 @app.get("/api/intel/sources")
 async def api_intel_sources():
     return {
-        "ethics_rules": [item.model_dump() for item in regional_intel_service.ethics_catalog()],
-        "sources": [item.model_dump() for item in regional_intel_service.source_catalog()],
+        "ethics_rules": [
+            item.model_dump() for item in regional_intel_service.ethics_catalog()
+        ],
+        "sources": [
+            item.model_dump() for item in regional_intel_service.source_catalog()
+        ],
     }
 
 
@@ -1628,7 +1903,9 @@ async def api_digest(
             settings=settings,
         ),
     )
-    payload = build_digest_payload(snapshot, strategy, timezone=settings.timezone, style=format)
+    payload = build_digest_payload(
+        snapshot, strategy, timezone=settings.timezone, style=format
+    )
     if format in {"text", "telegram"}:
         return PlainTextResponse(str(payload["message"]))
     return payload

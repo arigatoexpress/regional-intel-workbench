@@ -3,7 +3,14 @@ from __future__ import annotations
 from datetime import datetime
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from app.models import DashboardSnapshot, PoolOpportunity, ProtocolSnapshot, ProtocolStrategy, StrategyAllocation, StrategySnapshot
+from app.models import (
+    DashboardSnapshot,
+    PoolOpportunity,
+    ProtocolSnapshot,
+    ProtocolStrategy,
+    StrategyAllocation,
+    StrategySnapshot,
+)
 from app.utils import format_number_compact, format_usd_compact
 
 
@@ -97,7 +104,10 @@ def _build_prediction_section(
         f"Forecast band {format_usd_compact(allocation.prediction_range_low_usd)} to {format_usd_compact(allocation.prediction_range_high_usd)}.",
         f"Expected capture {format_usd_compact(strategy.expected_weekly_payout_usd)} per epoch at {format_number_compact(strategy.vote_power, 1)} {protocol.vote_power_symbol}.",
     ]
-    if strategy.best_single_pool_name and strategy.best_single_pool_name != allocation.name:
+    if (
+        strategy.best_single_pool_name
+        and strategy.best_single_pool_name != allocation.name
+    ):
         details.append(f"Unrestricted leader {strategy.best_single_pool_name}.")
     elif leader:
         details.append(f"Current leader {leader.name}.")
@@ -131,7 +141,11 @@ def _build_watch_section(
             action = "No Full Sail watchlist available."
             details = ["Refresh the snapshot once the source API is reachable."]
     else:
-        top_names = ", ".join(pool.name for pool in protocol.pools[:3]) if protocol.pools else "No pools"
+        top_names = (
+            ", ".join(pool.name for pool in protocol.pools[:3])
+            if protocol.pools
+            else "No pools"
+        )
         if leader:
             action = f"Watch {leader.name}."
             details = [
@@ -160,7 +174,10 @@ def _preferred_fullsail_watch(pools: list[PoolOpportunity]) -> PoolOpportunity |
 
 
 def _format_split(allocations: list[StrategyAllocation]) -> str:
-    return ", ".join(f"{allocation.allocation_pct:.1f}% {allocation.name}" for allocation in allocations)
+    return ", ".join(
+        f"{allocation.allocation_pct:.1f}% {allocation.name}"
+        for allocation in allocations
+    )
 
 
 def _format_percent(value: float | None) -> str:

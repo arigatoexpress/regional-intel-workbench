@@ -7,6 +7,7 @@ connection blip does not silently drop a source for an entire snapshot.
 These tests mock the source factories directly (no real network) to keep the
 suite hermetic and fast.
 """
+
 from __future__ import annotations
 
 import asyncio

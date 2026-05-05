@@ -46,19 +46,31 @@ _TRANSIENT_RETRY_EXCEPTIONS: tuple[type[BaseException], ...] = (
 )
 
 
-GOOGLE_NEWS_RSS = "https://news.google.com/rss/search?q={query}&hl=en-US&gl=US&ceid=US:en"
+GOOGLE_NEWS_RSS = (
+    "https://news.google.com/rss/search?q={query}&hl=en-US&gl=US&ceid=US:en"
+)
 AUSTIN_PERMITS_URL = "https://data.austintexas.gov/resource/3syk-w9eu.json"
-HAYS_PERMITS_URL = "https://www.hayscountypermits.com/api/v1/permits/datatables/list/public"
+HAYS_PERMITS_URL = (
+    "https://www.hayscountypermits.com/api/v1/permits/datatables/list/public"
+)
 WILCO_PERMITS_URL = "https://www.wilcopermits.com/api/v1/permits/datatables/list/public"
 OVERPASS_URL = "https://overpass-api.de/api/interpreter"
-AUSTIN_CONTACTS_URL = "https://www.austintexas.gov/economic-development/divisions/small-business-division"
+AUSTIN_CONTACTS_URL = (
+    "https://www.austintexas.gov/economic-development/divisions/small-business-division"
+)
 AUSTIN_RALLY_URL = "https://www.austintexas.gov/economic-development/news/council-approves-global-genomics-company-expansion-austin-81m-investment"
 HOUSTON_ECODEV_CONTACT_URL = "https://www.houstontx.gov/ecodev/contactus.html"
 HOUSTON_INNOVATION_URL = "https://innovation.houstontx.gov/"
-HOUSTON_DEV_REPORTS_URL = "https://www.houstontx.gov/planning/DevelopRegs/dev_reports.html"
-GUNNISON_COMMUNITY_DEV_URL = "https://www.gunnisoncounty.org/144/Community-and-Economic-Development"
+HOUSTON_DEV_REPORTS_URL = (
+    "https://www.houstontx.gov/planning/DevelopRegs/dev_reports.html"
+)
+GUNNISON_COMMUNITY_DEV_URL = (
+    "https://www.gunnisoncounty.org/144/Community-and-Economic-Development"
+)
 GUNNISON_PERMIT_DATABASE_URL = "https://www.gunnisoncounty.org/436/Permit-Database"
-CRESTED_BUTTE_PERMITTING_URL = "https://townofcrestedbutte.colorado.gov/planning-permitting/licensing-permitting"
+CRESTED_BUTTE_PERMITTING_URL = (
+    "https://townofcrestedbutte.colorado.gov/planning-permitting/licensing-permitting"
+)
 
 ADDRESS_RE = re.compile(
     r"\b\d{1,6}\s+[a-z0-9#.\- ]+?\s(?:st|street|ave|avenue|blvd|boulevard|rd|road|dr|drive|ln|lane|way|pkwy|parkway|hwy|highway|trl|trail|rr)\b",
@@ -98,7 +110,14 @@ REGIONS: list[RegionProfile] = [
         name="Austin, Texas",
         summary="Central Texas growth intelligence across Austin and the nearby development corridor.",
         bbox=[30.05, -98.10, 30.65, -97.40],
-        focus_keywords=["Austin", "Round Rock", "Pflugerville", "Cedar Park", "South Austin", "Domain"],
+        focus_keywords=[
+            "Austin",
+            "Round Rock",
+            "Pflugerville",
+            "Cedar Park",
+            "South Austin",
+            "Domain",
+        ],
         notes=[
             "Permit coverage is live for Austin Open Data plus public Hays and Williamson permit portals.",
             "Subscription local business outlets remain manual-reference only.",
@@ -118,7 +137,14 @@ REGIONS: list[RegionProfile] = [
         name="Houston, Texas",
         summary="Houston metro business and development intelligence with public news and open business discovery.",
         bbox=[29.50, -95.90, 30.20, -95.00],
-        focus_keywords=["Houston", "The Heights", "Sugar Land", "Katy", "The Woodlands", "Midtown Houston"],
+        focus_keywords=[
+            "Houston",
+            "The Heights",
+            "Sugar Land",
+            "Katy",
+            "The Woodlands",
+            "Midtown Houston",
+        ],
         notes=[
             "Houston official development activity is live through public planning agenda spreadsheets.",
             "The general Houston permitting portal stays in the source catalog, but live extraction is limited to anonymous public planning artifacts for now.",
@@ -140,7 +166,12 @@ REGIONS: list[RegionProfile] = [
         name="Gunnison / Crested Butte Valley, Colorado",
         summary="Mountain valley business, permitting, and local development intelligence for Gunnison and Crested Butte.",
         bbox=[38.55, -107.15, 39.05, -106.75],
-        focus_keywords=["Gunnison", "Crested Butte", "Mt. Crested Butte", "Gunnison Valley"],
+        focus_keywords=[
+            "Gunnison",
+            "Crested Butte",
+            "Mt. Crested Butte",
+            "Gunnison Valley",
+        ],
         notes=[
             "Official Gunnison County and Town of Crested Butte permit/business pages are in scope.",
             "Live permit extraction for Gunnison/Crested Butte still needs a public-access adapter.",
@@ -454,13 +485,38 @@ def _extract_address_hint(text: str) -> str | None:
 
 def _signal_type_from_text(text: str) -> str:
     lowered = clean_text(text).lower()
-    if any(term in lowered for term in ["vacant", "vacate", "vacated", "closure", "closing", "closed"]):
+    if any(
+        term in lowered
+        for term in ["vacant", "vacate", "vacated", "closure", "closing", "closed"]
+    ):
         return "vacancy_or_closure"
-    if any(term in lowered for term in ["opening", "opens", "opened", "grand opening", "new location"]):
+    if any(
+        term in lowered
+        for term in ["opening", "opens", "opened", "grand opening", "new location"]
+    ):
         return "opening"
-    if any(term in lowered for term in ["construction", "groundbreaking", "build", "building permit", "site prep"]):
+    if any(
+        term in lowered
+        for term in [
+            "construction",
+            "groundbreaking",
+            "build",
+            "building permit",
+            "site prep",
+        ]
+    ):
         return "construction"
-    if any(term in lowered for term in ["expands", "expansion", "headquarters", "hq", "relocate", "relocation"]):
+    if any(
+        term in lowered
+        for term in [
+            "expands",
+            "expansion",
+            "headquarters",
+            "hq",
+            "relocate",
+            "relocation",
+        ]
+    ):
         return "expansion"
     if any(term in lowered for term in ["hiring", "layoff", "job", "jobs"]):
         return "employment"
@@ -469,7 +525,17 @@ def _signal_type_from_text(text: str) -> str:
 
 def _possible_orgs_from_title(title: str) -> list[str]:
     lowered = title.lower()
-    verbs = [" opens ", " opening ", " opened ", " closes ", " closing ", " expands ", " expansion ", " builds ", " plans "]
+    verbs = [
+        " opens ",
+        " opening ",
+        " opened ",
+        " closes ",
+        " closing ",
+        " expands ",
+        " expansion ",
+        " builds ",
+        " plans ",
+    ]
     candidates: list[str] = []
     for verb in verbs:
         idx = lowered.find(verb)
@@ -506,7 +572,9 @@ def _extract_link(item: ET.Element) -> str:
 
 
 def _extract_summary(item: ET.Element) -> str:
-    return clean_text(item.findtext("description", default="") or item.findtext("summary", default=""))
+    return clean_text(
+        item.findtext("description", default="") or item.findtext("summary", default="")
+    )
 
 
 def _preferred_source(publication: str, allowed_fragments: list[str]) -> bool:
@@ -518,7 +586,18 @@ def _preferred_source(publication: str, allowed_fragments: list[str]) -> bool:
 
 def _austin_permit_signal_type(permit_type: str, description: str) -> str:
     text = f"{permit_type} {description}".lower()
-    if any(term in text for term in ["restaurant", "driveway", "walkway", "shell", "foundation", "site work", "drive-thru"]):
+    if any(
+        term in text
+        for term in [
+            "restaurant",
+            "driveway",
+            "walkway",
+            "shell",
+            "foundation",
+            "site work",
+            "drive-thru",
+        ]
+    ):
         return "construction"
     if any(term in text for term in ["tenant", "fit-out", "interior"]):
         return "tenant_improvement"
@@ -570,7 +649,9 @@ def _xlsx_rows(data: bytes) -> list[dict[str, str]]:
         if "xl/sharedStrings.xml" in archive.namelist():
             root = ET.fromstring(archive.read("xl/sharedStrings.xml"))
             for item in root.findall("a:si", ns):
-                shared_strings.append("".join((node.text or "") for node in item.findall(".//a:t", ns)))
+                shared_strings.append(
+                    "".join((node.text or "") for node in item.findall(".//a:t", ns))
+                )
 
         sheet = ET.fromstring(archive.read("xl/worksheets/sheet1.xml"))
 
@@ -579,7 +660,9 @@ def _xlsx_rows(data: bytes) -> list[dict[str, str]]:
         value_node = cell.find("a:v", ns)
         inline_node = cell.find("a:is", ns)
         if inline_node is not None:
-            return clean_text("".join((node.text or "") for node in inline_node.findall(".//a:t", ns)))
+            return clean_text(
+                "".join((node.text or "") for node in inline_node.findall(".//a:t", ns))
+            )
         if value_node is None or value_node.text is None:
             return ""
         raw = value_node.text
@@ -606,7 +689,9 @@ def _xlsx_rows(data: bytes) -> list[dict[str, str]]:
     headers = {index: value for index, value in matrix[0].items() if value}
     rows: list[dict[str, str]] = []
     for mrow in matrix[1:]:
-        mapped = {header: clean_text(mrow.get(index, "")) for index, header in headers.items()}
+        mapped = {
+            header: clean_text(mrow.get(index, "")) for index, header in headers.items()
+        }
         if any(mapped.values()):
             rows.append(mapped)
     return rows
@@ -623,11 +708,26 @@ def _excel_serial_to_iso(value: str | None) -> str:
         return _parse_pubdate(value)
 
 
-def _houston_development_signal_type(application_type: str, land_use: str, title: str) -> str:
+def _houston_development_signal_type(
+    application_type: str, land_use: str, title: str
+) -> str:
     text = clean_text(f"{application_type} {land_use} {title}").lower()
     if "commercial" in text or "unrestricted" in text:
         return "commercial_development"
-    if any(term in text for term in ["restaurant", "retail", "bank", "branch", "plaza", "yard", "diesel", "hotel", "office"]):
+    if any(
+        term in text
+        for term in [
+            "restaurant",
+            "retail",
+            "bank",
+            "branch",
+            "plaza",
+            "yard",
+            "diesel",
+            "hotel",
+            "office",
+        ]
+    ):
         return "commercial_development"
     if "single family" in text or "residential" in text:
         return "residential_development"
@@ -649,7 +749,11 @@ def _houston_location_label(row: dict[str, str]) -> str:
             continue
         cleaned.append(text)
     if not cleaned:
-        cleaned.append(clean_text(row.get("Subdivision Name", "")) or clean_text(row.get("App No.", "")) or "Houston development item")
+        cleaned.append(
+            clean_text(row.get("Subdivision Name", ""))
+            or clean_text(row.get("App No.", ""))
+            or "Houston development item"
+        )
     zipcode = clean_text(row.get("Zipcode", ""))
     label = cleaned[0]
     if zipcode and zipcode not in label:
@@ -790,7 +894,11 @@ def _build_organization_profiles(
         profile.business_lead_count += 1
         if biz.category and biz.category not in profile.categories:
             profile.categories.append(biz.category)
-        if biz.address and biz.address != "Address not provided" and not profile.address:
+        if (
+            biz.address
+            and biz.address != "Address not provided"
+            and not profile.address
+        ):
             profile.address = biz.address
         if biz.website and not profile.website:
             profile.website = biz.website
@@ -841,7 +949,12 @@ def _build_organization_profiles(
     output.sort(
         key=lambda item: (
             item.region_id,
-            -(item.business_lead_count + item.news_signal_count + item.contact_count + item.permit_signal_count),
+            -(
+                item.business_lead_count
+                + item.news_signal_count
+                + item.contact_count
+                + item.permit_signal_count
+            ),
             item.name.lower(),
         )
     )
@@ -852,7 +965,9 @@ def _hours_since(iso_string: str | None) -> float | None:
     if not iso_string:
         return None
     try:
-        delta = _now_utc() - datetime.fromisoformat(iso_string.replace("Z", "+00:00")).astimezone(UTC)
+        delta = _now_utc() - datetime.fromisoformat(
+            iso_string.replace("Z", "+00:00")
+        ).astimezone(UTC)
     except ValueError:
         return None
     return max(delta.total_seconds() / 3600, 0.0)
@@ -940,14 +1055,20 @@ def _organization_score(item: OrganizationProfile) -> float:
     return round(score, 2)
 
 
-def _source_matches_name(source: IntelSource, candidate_name: str, candidate_url: str | None = None) -> bool:
+def _source_matches_name(
+    source: IntelSource, candidate_name: str, candidate_url: str | None = None
+) -> bool:
     source_name = source.name.lower()
     candidate = clean_text(candidate_name).lower()
     if source_name in candidate or candidate in source_name:
         return True
     if candidate_url and source.url and source.url in candidate_url:
         return True
-    if source.url and candidate_url and source.url.split("://", 1)[-1].split("/", 1)[0] in candidate_url:
+    if (
+        source.url
+        and candidate_url
+        and source.url.split("://", 1)[-1].split("/", 1)[0] in candidate_url
+    ):
         return True
     return False
 
@@ -962,19 +1083,35 @@ def _build_source_health(
         last_seen_at: str | None = None
         item_count = 0
         if source.category == "news":
-            news_matches = [n for n in snapshot.news if _source_matches_name(source, n.source_name, n.source_url)]
+            news_matches = [
+                n
+                for n in snapshot.news
+                if _source_matches_name(source, n.source_name, n.source_url)
+            ]
             item_count = len(news_matches)
             last_seen_at = news_matches[0].published_at if news_matches else None
         elif source.category == "permit":
-            permit_matches = [p for p in snapshot.permits if _source_matches_name(source, p.source_name, p.source_url)]
+            permit_matches = [
+                p
+                for p in snapshot.permits
+                if _source_matches_name(source, p.source_name, p.source_url)
+            ]
             item_count = len(permit_matches)
             last_seen_at = permit_matches[0].status_date if permit_matches else None
         elif source.category == "business":
-            biz_matches = [b for b in snapshot.businesses if _source_matches_name(source, b.source_name, b.source_url)]
+            biz_matches = [
+                b
+                for b in snapshot.businesses
+                if _source_matches_name(source, b.source_name, b.source_url)
+            ]
             item_count = len(biz_matches)
             last_seen_at = snapshot.updated_at if biz_matches else None
         else:
-            con_matches = [c for c in snapshot.contacts if _source_matches_name(source, c.source_name, c.source_url)]
+            con_matches = [
+                c
+                for c in snapshot.contacts
+                if _source_matches_name(source, c.source_name, c.source_url)
+            ]
             item_count = len(con_matches)
             last_seen_at = snapshot.updated_at if con_matches else None
 
@@ -1016,10 +1153,26 @@ def _build_source_health(
 def _build_region_briefs(snapshot: RegionalIntelSnapshot) -> list[RegionBrief]:
     briefs: list[RegionBrief] = []
     for region in snapshot.regions:
-        news = sorted([item for item in snapshot.news if item.region_id == region.id], key=lambda item: item.signal_score, reverse=True)
-        permits = sorted([item for item in snapshot.permits if item.region_id == region.id], key=lambda item: item.signal_score, reverse=True)
-        orgs = sorted([item for item in snapshot.organizations if item.region_id == region.id], key=lambda item: item.organization_score, reverse=True)
-        contacts = sorted([item for item in snapshot.contacts if item.region_id == region.id], key=lambda item: item.contact_score, reverse=True)
+        news = sorted(
+            [item for item in snapshot.news if item.region_id == region.id],
+            key=lambda item: item.signal_score,
+            reverse=True,
+        )
+        permits = sorted(
+            [item for item in snapshot.permits if item.region_id == region.id],
+            key=lambda item: item.signal_score,
+            reverse=True,
+        )
+        orgs = sorted(
+            [item for item in snapshot.organizations if item.region_id == region.id],
+            key=lambda item: item.organization_score,
+            reverse=True,
+        )
+        contacts = sorted(
+            [item for item in snapshot.contacts if item.region_id == region.id],
+            key=lambda item: item.contact_score,
+            reverse=True,
+        )
         headline_bits = [
             f"{len(news)} news",
             f"{len(permits)} permits",
@@ -1030,7 +1183,9 @@ def _build_region_briefs(snapshot: RegionalIntelSnapshot) -> list[RegionBrief]:
         if news[:1]:
             notes.append(f"Top news signal: {news[0].title}")
         if permits[:1]:
-            notes.append(f"Top permit signal: {permits[0].address} ({permits[0].permit_type})")
+            notes.append(
+                f"Top permit signal: {permits[0].address} ({permits[0].permit_type})"
+            )
         if orgs[:1]:
             notes.append(f"Top organization watch: {orgs[0].name}")
         if contacts[:1]:
@@ -1097,12 +1252,16 @@ def _is_useful_business(tags: dict[str, Any], name: str) -> bool:
 
 
 def _business_sort_key(item: BusinessLead) -> tuple[int, int, str]:
-    contact_score = int(bool(item.email)) + int(bool(item.phone)) + int(bool(item.website))
+    contact_score = (
+        int(bool(item.email)) + int(bool(item.phone)) + int(bool(item.website))
+    )
     address_score = 0 if item.address == "Address not provided" else 1
     return (-contact_score, -address_score, item.name.lower())
 
 
-def _business_query_for_bbox(south: float, west: float, north: float, east: float) -> str:
+def _business_query_for_bbox(
+    south: float, west: float, north: float, east: float
+) -> str:
     return f"""
 [out:json][timeout:25];
 (
@@ -1171,8 +1330,16 @@ class RegionalIntelService:
         so :func:`_build_source_health` can surface it.
         """
         settings = get_settings()
-        attempts = retry_limit if retry_limit is not None else settings.regional_intel_retry_limit
-        base = backoff_base if backoff_base is not None else settings.regional_intel_retry_backoff_base
+        attempts = (
+            retry_limit
+            if retry_limit is not None
+            else settings.regional_intel_retry_limit
+        )
+        base = (
+            backoff_base
+            if backoff_base is not None
+            else settings.regional_intel_retry_backoff_base
+        )
         sleeper = sleep if sleep is not None else asyncio.sleep
         last_exc: BaseException | None = None
         # attempts is the number of retries; total tries == attempts + 1.
@@ -1186,10 +1353,12 @@ class RegionalIntelService:
                 # Bounded exponential backoff: base * 2**attempt, capped so the
                 # tail of any retry chain cannot exceed the per-source timeout.
                 cap = max(get_settings().regional_intel_source_timeout, base)
-                delay = min(base * (2 ** attempt), cap)
+                delay = min(base * (2**attempt), cap)
                 await sleeper(delay)
             except Exception as exc:  # non-transient: fail fast.
-                self._record_source_failure(source_label, exc, transient=False, attempts=attempt + 1)
+                self._record_source_failure(
+                    source_label, exc, transient=False, attempts=attempt + 1
+                )
                 return None
         self._record_source_failure(
             source_label,
@@ -1227,19 +1396,27 @@ class RegionalIntelService:
                 return self._snapshot
         async with self._lock:
             now = time.monotonic()
-            if not force_refresh and self._snapshot is not None and now < self._expires_at:
+            if (
+                not force_refresh
+                and self._snapshot is not None
+                and now < self._expires_at
+            ):
                 return self._snapshot
             snapshot = await self._build_snapshot(force_history_append=force_refresh)
             self._snapshot = snapshot
             self._expires_at = time.monotonic() + self.ttl_seconds
             return snapshot
 
-    async def _build_snapshot(self, *, force_history_append: bool = False) -> RegionalIntelSnapshot:
+    async def _build_snapshot(
+        self, *, force_history_append: bool = False
+    ) -> RegionalIntelSnapshot:
         # Reset per-snapshot failure ledger so source-health only reflects this
         # collection cycle.
         self._failed_sources = {}
         timeout = get_settings().regional_intel_source_timeout
-        async with httpx.AsyncClient(timeout=timeout, headers={"User-Agent": "regional-intel-bot/0.1"}) as client:
+        async with httpx.AsyncClient(
+            timeout=timeout, headers={"User-Agent": "regional-intel-bot/0.1"}
+        ) as client:
             news_task = asyncio.create_task(self._collect_news(client))
             permit_task = asyncio.create_task(self._collect_permits(client))
             business_task = asyncio.create_task(self._collect_businesses(client))
@@ -1262,20 +1439,35 @@ class RegionalIntelService:
             latest = history_records[-1]
             news, news_backfills = self._backfill_news(news, latest)
             permits, permit_backfills = self._backfill_permits(permits, latest)
-            businesses, business_backfills = self._backfill_businesses(businesses, latest)
+            businesses, business_backfills = self._backfill_businesses(
+                businesses, latest
+            )
             contacts, contact_backfills = self._backfill_contacts(contacts, latest)
-            if news_backfills or permit_backfills or business_backfills or contact_backfills:
+            if (
+                news_backfills
+                or permit_backfills
+                or business_backfills
+                or contact_backfills
+            ):
                 notes.append(
                     "One or more categories were backfilled from the last successful snapshot because a live public source returned empty data."
                 )
                 if news_backfills:
-                    notes.append(f"News backfill applied for: {', '.join(news_backfills)}.")
+                    notes.append(
+                        f"News backfill applied for: {', '.join(news_backfills)}."
+                    )
                 if permit_backfills:
-                    notes.append(f"Permit backfill applied for: {', '.join(permit_backfills)}.")
+                    notes.append(
+                        f"Permit backfill applied for: {', '.join(permit_backfills)}."
+                    )
                 if business_backfills:
-                    notes.append(f"Business lead backfill applied for: {', '.join(business_backfills)}.")
+                    notes.append(
+                        f"Business lead backfill applied for: {', '.join(business_backfills)}."
+                    )
                 if contact_backfills:
-                    notes.append(f"Contact backfill applied for: {', '.join(contact_backfills)}.")
+                    notes.append(
+                        f"Contact backfill applied for: {', '.join(contact_backfills)}."
+                    )
 
         organization_keywords = _derive_org_keywords(businesses, contacts, permits)
         for item in news:
@@ -1293,12 +1485,16 @@ class RegionalIntelService:
             item.signal_score = _news_signal_score(item)
         news.sort(key=lambda item: (item.signal_score, item.published_at), reverse=True)
 
-        organizations = _build_organization_profiles(news=news, permits=permits, businesses=businesses, contacts=contacts)
+        organizations = _build_organization_profiles(
+            news=news, permits=permits, businesses=businesses, contacts=contacts
+        )
         for con in contacts:
             con.contact_score = _contact_score(con)
         for org in organizations:
             org.organization_score = _organization_score(org)
-        organizations.sort(key=lambda o: (o.region_id, -o.organization_score, o.name.lower()))
+        organizations.sort(
+            key=lambda o: (o.region_id, -o.organization_score, o.name.lower())
+        )
         source_health = _build_source_health(
             RegionalIntelSnapshot(
                 updated_at=utc_now_iso(),
@@ -1393,10 +1589,25 @@ class RegionalIntelService:
                     summary = _extract_summary(item)
                     signal_type = _signal_type_from_text(f"{title} {summary}")
                     address_hint = _extract_address_hint(f"{title} {summary}")
-                    actionable = bool(address_hint and signal_type in {"vacancy_or_closure", "opening", "construction", "expansion"})
+                    actionable = bool(
+                        address_hint
+                        and signal_type
+                        in {
+                            "vacancy_or_closure",
+                            "opening",
+                            "construction",
+                            "expansion",
+                        }
+                    )
                     notes: list[str] = []
-                    if not actionable and signal_type in {"vacancy_or_closure", "opening", "construction"}:
-                        notes.append("Address missing; treat as research queue until linked.")
+                    if not actionable and signal_type in {
+                        "vacancy_or_closure",
+                        "opening",
+                        "construction",
+                    }:
+                        notes.append(
+                            "Address missing; treat as research queue until linked."
+                        )
                     items.append(
                         NewsSignal(
                             item_id=item_key,
@@ -1405,7 +1616,9 @@ class RegionalIntelService:
                             summary=summary,
                             source_name=publication,
                             source_url=link,
-                            published_at=_parse_pubdate(item.findtext("pubDate", default="")),
+                            published_at=_parse_pubdate(
+                                item.findtext("pubDate", default="")
+                            ),
                             publication=publication,
                             signal_type=signal_type,
                             address_hint=address_hint,
@@ -1424,9 +1637,15 @@ class RegionalIntelService:
         permits.extend(await self._collect_houston_region_development_reports(client))
         for item in permits:
             item.signal_score = _permit_signal_score(item)
-        return sorted(permits, key=lambda item: (item.signal_score, item.status_date), reverse=True)[:120]
+        return sorted(
+            permits,
+            key=lambda item: (item.signal_score, item.status_date),
+            reverse=True,
+        )[:120]
 
-    async def _collect_austin_region_permits(self, client: httpx.AsyncClient) -> list[PermitSignal]:
+    async def _collect_austin_region_permits(
+        self, client: httpx.AsyncClient
+    ) -> list[PermitSignal]:
         output: list[PermitSignal] = []
 
         async def _fetch_austin():
@@ -1454,18 +1673,32 @@ class RegionalIntelService:
             )
             if not address:
                 continue
-            permit_type = clean_text(str(row.get("permit_class_mapped") or row.get("work_class") or "Permit"))
+            permit_type = clean_text(
+                str(row.get("permit_class_mapped") or row.get("work_class") or "Permit")
+            )
             description = clean_text(str(row.get("description") or ""))
             output.append(
                 PermitSignal(
-                    item_id=_stable_id("austin_tx", address, str(row.get("permit_number") or "")),
+                    item_id=_stable_id(
+                        "austin_tx", address, str(row.get("permit_number") or "")
+                    ),
                     region_id="austin_tx",
                     county="Travis",
                     address=address,
-                    permit_number=clean_text(str(row.get("permit_number") or row.get("permitnum") or "")),
+                    permit_number=clean_text(
+                        str(row.get("permit_number") or row.get("permitnum") or "")
+                    ),
                     permit_type=permit_type,
-                    status=clean_text(str(row.get("status_current") or row.get("permit_status") or "Issued")),
-                    status_date=_parse_isoish(str(row.get("issue_date") or row.get("issued_date") or "")),
+                    status=clean_text(
+                        str(
+                            row.get("status_current")
+                            or row.get("permit_status")
+                            or "Issued"
+                        )
+                    ),
+                    status_date=_parse_isoish(
+                        str(row.get("issue_date") or row.get("issued_date") or "")
+                    ),
                     source_name="City of Austin Open Data",
                     source_url="https://data.austintexas.gov/Building-and-Development/Issued-Construction-Permits/3syk-w9eu",
                     signal_type=_austin_permit_signal_type(permit_type, description),
@@ -1480,11 +1713,15 @@ class RegionalIntelService:
         for county, url in county_specs:
 
             async def _fetch_county(url=url):
-                response = await client.post(url, data=_county_portal_datatables_payload(start=0, length=15))
+                response = await client.post(
+                    url, data=_county_portal_datatables_payload(start=0, length=15)
+                )
                 response.raise_for_status()
                 return response.json()
 
-            payload = await self._retry_fetch(f"county_public_permits:{county}", _fetch_county)
+            payload = await self._retry_fetch(
+                f"county_public_permits:{county}", _fetch_county
+            )
             if payload is None:
                 rows = []
             else:
@@ -1496,10 +1733,17 @@ class RegionalIntelService:
                 if not address:
                     continue
                 permit_type = clean_text(str(row.get("permitType") or "Permit"))
-                signal_type = _signal_type_from_text(f"{permit_type} {row.get('name') or ''}")
+                signal_type = _signal_type_from_text(
+                    f"{permit_type} {row.get('name') or ''}"
+                )
                 output.append(
                     PermitSignal(
-                        item_id=_stable_id("austin_tx", county, address, str(row.get("permitNumber") or "")),
+                        item_id=_stable_id(
+                            "austin_tx",
+                            county,
+                            address,
+                            str(row.get("permitNumber") or ""),
+                        ),
                         region_id="austin_tx",
                         county=county,
                         address=address,
@@ -1508,14 +1752,21 @@ class RegionalIntelService:
                         status=clean_text(str(row.get("status") or "")),
                         status_date=_parse_pubdate(str(row.get("statusDate") or "")),
                         source_name=f"{county} County Public Permits",
-                        source_url=url.replace("/api/v1/permits/datatables/list/public", "/public/permits/list"),
+                        source_url=url.replace(
+                            "/api/v1/permits/datatables/list/public",
+                            "/public/permits/list",
+                        ),
                         signal_type=signal_type,
-                        notes=[clean_text(str(row.get("name") or ""))] if clean_text(str(row.get("name") or "")) else [],
+                        notes=[clean_text(str(row.get("name") or ""))]
+                        if clean_text(str(row.get("name") or ""))
+                        else [],
                     )
                 )
         return output
 
-    async def _collect_houston_region_development_reports(self, client: httpx.AsyncClient) -> list[PermitSignal]:
+    async def _collect_houston_region_development_reports(
+        self, client: httpx.AsyncClient
+    ) -> list[PermitSignal]:
         async def _fetch_index():
             response = await client.get(HOUSTON_DEV_REPORTS_URL)
             response.raise_for_status()
@@ -1525,7 +1776,9 @@ class RegionalIntelService:
         if response is None:
             return []
 
-        links = re.findall(r'href=["\']([^"\']+\.xlsx)["\']', response.text, re.IGNORECASE)
+        links = re.findall(
+            r'href=["\']([^"\']+\.xlsx)["\']', response.text, re.IGNORECASE
+        )
         seen_urls: set[str] = set()
         report_urls: list[str] = []
         for href in links:
@@ -1547,7 +1800,9 @@ class RegionalIntelService:
                 report_response.raise_for_status()
                 return report_response.content
 
-            content = await self._retry_fetch(f"houston_planning_report:{report_url}", _fetch_report)
+            content = await self._retry_fetch(
+                f"houston_planning_report:{report_url}", _fetch_report
+            )
             if content is None:
                 continue
             try:
@@ -1563,7 +1818,10 @@ class RegionalIntelService:
                 if item_key in seen_rows:
                     continue
                 seen_rows.add(item_key)
-                application_type = clean_text(row.get("Application Type", "")) or "Planning agenda item"
+                application_type = (
+                    clean_text(row.get("Application Type", ""))
+                    or "Planning agenda item"
+                )
                 land_use = clean_text(row.get("Land Use", ""))
                 location_label = _houston_location_label(row)
                 major_throughfare = clean_text(row.get("Major Throughfare", ""))
@@ -1589,7 +1847,9 @@ class RegionalIntelService:
                     notes.append(f"Plat PDF: {pdf_url}")
                 actionable = bool(ADDRESS_RE.search(location_label))
                 if not actionable:
-                    notes.append("Street address not present in official report; treat as research queue until matched to a parcel or site.")
+                    notes.append(
+                        "Street address not present in official report; treat as research queue until matched to a parcel or site."
+                    )
                 output.append(
                     PermitSignal(
                         item_id=item_key,
@@ -1599,29 +1859,46 @@ class RegionalIntelService:
                         permit_number=application_number,
                         permit_type=application_type,
                         status="Agenda report",
-                        status_date=_excel_serial_to_iso(row.get("Date Submitted") or row.get("PC Date (Cycle)") or ""),
+                        status_date=_excel_serial_to_iso(
+                            row.get("Date Submitted")
+                            or row.get("PC Date (Cycle)")
+                            or ""
+                        ),
                         source_name="Houston Planning Plat Activity Reports",
                         source_url=report_url,
-                        signal_type=_houston_development_signal_type(application_type, land_use, subdivision_name),
+                        signal_type=_houston_development_signal_type(
+                            application_type, land_use, subdivision_name
+                        ),
                         actionable=actionable,
                         notes=notes,
                     )
                 )
         return output
 
-    async def _collect_businesses(self, client: httpx.AsyncClient) -> list[BusinessLead]:
+    async def _collect_businesses(
+        self, client: httpx.AsyncClient
+    ) -> list[BusinessLead]:
         businesses: list[BusinessLead] = []
         for region in REGIONS:
             businesses.extend(await self._collect_region_businesses(client, region))
         businesses.sort(key=lambda item: (item.region_id, *_business_sort_key(item)))
         return businesses[:240]
 
-    async def _collect_region_businesses(self, client: httpx.AsyncClient, region: RegionProfile) -> list[BusinessLead]:
-        async def fetch_elements(bbox: tuple[float, float, float, float]) -> list[dict[str, Any]]:
+    async def _collect_region_businesses(
+        self, client: httpx.AsyncClient, region: RegionProfile
+    ) -> list[BusinessLead]:
+        async def fetch_elements(
+            bbox: tuple[float, float, float, float],
+        ) -> list[dict[str, Any]]:
             south, west, north, east = bbox
 
             async def _fetch_overpass():
-                response = await client.post(OVERPASS_URL, content=_business_query_for_bbox(south, west, north, east).encode("utf-8"))
+                response = await client.post(
+                    OVERPASS_URL,
+                    content=_business_query_for_bbox(south, west, north, east).encode(
+                        "utf-8"
+                    ),
+                )
                 response.raise_for_status()
                 return response.json()
 
@@ -1633,7 +1910,9 @@ class RegionalIntelService:
             raw = payload.get("elements", []) if isinstance(payload, dict) else []
             return [item for item in raw if isinstance(item, dict)]
 
-        elements = await fetch_elements((region.bbox[0], region.bbox[1], region.bbox[2], region.bbox[3]))
+        elements = await fetch_elements(
+            (region.bbox[0], region.bbox[1], region.bbox[2], region.bbox[3])
+        )
         if not elements:
             tiled: list[dict[str, Any]] = []
             for bbox in _bbox_tiles(region.bbox):
@@ -1673,31 +1952,49 @@ class RegionalIntelService:
                 lon_value = float(center_lon)
             elif lon is not None:
                 lon_value = float(lon)
-            website = clean_text(str(tags.get("website") or tags.get("contact:website") or "")) or None
-            phone = clean_text(str(tags.get("phone") or tags.get("contact:phone") or "")) or None
-            email = clean_text(str(tags.get("email") or tags.get("contact:email") or "")) or None
+            website = (
+                clean_text(
+                    str(tags.get("website") or tags.get("contact:website") or "")
+                )
+                or None
+            )
+            phone = (
+                clean_text(str(tags.get("phone") or tags.get("contact:phone") or ""))
+                or None
+            )
+            email = (
+                clean_text(str(tags.get("email") or tags.get("contact:email") or ""))
+                or None
+            )
             housenumber = clean_text(str(tags.get("addr:housenumber") or ""))
             street = clean_text(str(tags.get("addr:street") or ""))
             city = clean_text(str(tags.get("addr:city") or ""))
             address = " ".join(part for part in [housenumber, street, city] if part)
             if not address:
-                address = clean_text(str(tags.get("addr:full") or "")) or "Address not provided"
-            lead = BusinessLead(
-                    item_id=key,
-                    region_id=region.id,
-                    name=name,
-                    category=_business_category(tags),
-                    address=address,
-                    website=website,
-                    phone=phone,
-                    email=email,
-                    lat=lat_value,
-                    lon=lon_value,
-                    source_name="OpenStreetMap / Overpass",
-                    source_url="https://overpass-api.de/api/interpreter",
-                    tags={str(k): clean_text(str(v)) for k, v in tags.items() if str(v).strip()},
-                    notes=["Public organization-level contact point from open map data."],
+                address = (
+                    clean_text(str(tags.get("addr:full") or ""))
+                    or "Address not provided"
                 )
+            lead = BusinessLead(
+                item_id=key,
+                region_id=region.id,
+                name=name,
+                category=_business_category(tags),
+                address=address,
+                website=website,
+                phone=phone,
+                email=email,
+                lat=lat_value,
+                lon=lon_value,
+                source_name="OpenStreetMap / Overpass",
+                source_url="https://overpass-api.de/api/interpreter",
+                tags={
+                    str(k): clean_text(str(v))
+                    for k, v in tags.items()
+                    if str(v).strip()
+                },
+                notes=["Public organization-level contact point from open map data."],
+            )
             lead.lead_score = _business_lead_score(lead)
             output.append(lead)
         output.sort(key=_business_sort_key)
@@ -1712,9 +2009,19 @@ class RegionalIntelService:
         for item in contacts:
             item.contact_score = _contact_score(item)
             deduped[item.item_id] = item
-        return sorted(deduped.values(), key=lambda item: (item.region_id, -item.contact_score, item.organization.lower(), item.name.lower()))[:120]
+        return sorted(
+            deduped.values(),
+            key=lambda item: (
+                item.region_id,
+                -item.contact_score,
+                item.organization.lower(),
+                item.name.lower(),
+            ),
+        )[:120]
 
-    async def _collect_austin_contacts(self, client: httpx.AsyncClient) -> list[PublicContact]:
+    async def _collect_austin_contacts(
+        self, client: httpx.AsyncClient
+    ) -> list[PublicContact]:
         contacts: list[PublicContact] = []
 
         async def _fetch_contacts():
@@ -1722,7 +2029,9 @@ class RegionalIntelService:
             response.raise_for_status()
             return response
 
-        response = await self._retry_fetch("austin_economic_development_contacts", _fetch_contacts)
+        response = await self._retry_fetch(
+            "austin_economic_development_contacts", _fetch_contacts
+        )
         plain = _html_to_text(response.text) if response is not None else ""
         if plain:
             phone = _extract_first_phone(plain)
@@ -1737,15 +2046,20 @@ class RegionalIntelService:
                     website=AUSTIN_CONTACTS_URL,
                     source_name="Austin Economic Development",
                     source_url=AUSTIN_CONTACTS_URL,
-                    notes=["Public department page for Austin small business and economic development programs."],
+                    notes=[
+                        "Public department page for Austin small business and economic development programs."
+                    ],
                 )
             )
+
         async def _fetch_rally():
             response = await client.get(AUSTIN_RALLY_URL)
             response.raise_for_status()
             return response
 
-        rally_response = await self._retry_fetch("austin_economic_development_news", _fetch_rally)
+        rally_response = await self._retry_fetch(
+            "austin_economic_development_news", _fetch_rally
+        )
         if rally_response is not None:
             text = _html_to_text(rally_response.text)
             for name, title in [
@@ -1760,18 +2074,26 @@ class RegionalIntelService:
                         region_id="austin_tx",
                         name=name,
                         title=title,
-                        organization="Austin Economic Development" if "Austin Economic Development" in title else "3billion",
-                        address="13620 Ranch to Market Road 620, Austin, TX" if name == "Changwon Keum" else None,
+                        organization="Austin Economic Development"
+                        if "Austin Economic Development" in title
+                        else "3billion",
+                        address="13620 Ranch to Market Road 620, Austin, TX"
+                        if name == "Changwon Keum"
+                        else None,
                         website=AUSTIN_RALLY_URL,
                         source_name="Austin Economic Development News",
                         source_url=AUSTIN_RALLY_URL,
                         contact_type="public_news_figure",
-                        notes=["Named in an official Austin Economic Development release."],
+                        notes=[
+                            "Named in an official Austin Economic Development release."
+                        ],
                     )
                 )
         return contacts
 
-    async def _collect_houston_contacts(self, client: httpx.AsyncClient) -> list[PublicContact]:
+    async def _collect_houston_contacts(
+        self, client: httpx.AsyncClient
+    ) -> list[PublicContact]:
         contacts: list[PublicContact] = []
 
         async def _fetch_ecodev():
@@ -1779,13 +2101,17 @@ class RegionalIntelService:
             response.raise_for_status()
             return response
 
-        eco_response = await self._retry_fetch("houston_economic_development", _fetch_ecodev)
+        eco_response = await self._retry_fetch(
+            "houston_economic_development", _fetch_ecodev
+        )
         if eco_response is not None:
             plain = _html_to_text(eco_response.text)
             if "Mayor's Office of Economic Development" in plain:
                 contacts.append(
                     PublicContact(
-                        item_id=_stable_id("houston_tx", "Mayor's Office of Economic Development"),
+                        item_id=_stable_id(
+                            "houston_tx", "Mayor's Office of Economic Development"
+                        ),
                         region_id="houston_tx",
                         name="Mayor's Office of Economic Development",
                         title="Office contact",
@@ -1794,7 +2120,9 @@ class RegionalIntelService:
                         website=HOUSTON_ECODEV_CONTACT_URL,
                         source_name="City of Houston Economic Development",
                         source_url=HOUSTON_ECODEV_CONTACT_URL,
-                        notes=["Public office contact page for Houston economic development."],
+                        notes=[
+                            "Public office contact page for Houston economic development."
+                        ],
                     )
                 )
 
@@ -1824,12 +2152,26 @@ class RegionalIntelService:
                 )
         return contacts
 
-    async def _collect_gunnison_contacts(self, client: httpx.AsyncClient) -> list[PublicContact]:
+    async def _collect_gunnison_contacts(
+        self, client: httpx.AsyncClient
+    ) -> list[PublicContact]:
         contacts: list[PublicContact] = []
         for source_name, url, org_name in [
-            ("Gunnison County Community & Economic Development", GUNNISON_COMMUNITY_DEV_URL, "Gunnison County Community & Economic Development"),
-            ("Gunnison County Permit Database", GUNNISON_PERMIT_DATABASE_URL, "Gunnison County Planning, Building, and Environmental Health"),
-            ("Town of Crested Butte Permitting", CRESTED_BUTTE_PERMITTING_URL, "Town of Crested Butte Community Development"),
+            (
+                "Gunnison County Community & Economic Development",
+                GUNNISON_COMMUNITY_DEV_URL,
+                "Gunnison County Community & Economic Development",
+            ),
+            (
+                "Gunnison County Permit Database",
+                GUNNISON_PERMIT_DATABASE_URL,
+                "Gunnison County Planning, Building, and Environmental Health",
+            ),
+            (
+                "Town of Crested Butte Permitting",
+                CRESTED_BUTTE_PERMITTING_URL,
+                "Town of Crested Butte Community Development",
+            ),
         ]:
 
             async def _fetch_gunnison(url=url):
@@ -1837,14 +2179,19 @@ class RegionalIntelService:
                 response.raise_for_status()
                 return response
 
-            response = await self._retry_fetch(f"gunnison_valley_contacts:{source_name}", _fetch_gunnison)
+            response = await self._retry_fetch(
+                f"gunnison_valley_contacts:{source_name}", _fetch_gunnison
+            )
             if response is None:
                 continue
             plain = _html_to_text(response.text)
             email = _extract_first_email(response.text)
             phone = _extract_first_phone(plain)
             snippets = [
-                ("Cathie Pagano", "Assistant County Manager for Community & Economic Development"),
+                (
+                    "Cathie Pagano",
+                    "Assistant County Manager for Community & Economic Development",
+                ),
                 ("Eric Treadwell", "Building permit contact"),
             ]
             matched_named = False
@@ -1880,7 +2227,9 @@ class RegionalIntelService:
                         website=url,
                         source_name=source_name,
                         source_url=url,
-                        notes=["Public office contact collected from an official Gunnison Valley page."],
+                        notes=[
+                            "Public office contact collected from an official Gunnison Valley page."
+                        ],
                     )
                 )
         return contacts
@@ -1925,7 +2274,9 @@ class RegionalIntelService:
         current: list[PermitSignal],
         previous: dict[str, Any],
     ) -> tuple[list[PermitSignal], list[str]]:
-        previous_items = previous.get("permits", []) if isinstance(previous, dict) else []
+        previous_items = (
+            previous.get("permits", []) if isinstance(previous, dict) else []
+        )
         current_regions = {item.region_id for item in current}
         applied: list[str] = []
         output = list(current)
@@ -1951,7 +2302,9 @@ class RegionalIntelService:
         current: list[BusinessLead],
         previous: dict[str, Any],
     ) -> tuple[list[BusinessLead], list[str]]:
-        previous_items = previous.get("businesses", []) if isinstance(previous, dict) else []
+        previous_items = (
+            previous.get("businesses", []) if isinstance(previous, dict) else []
+        )
         current_regions = {item.region_id for item in current}
         applied: list[str] = []
         output = list(current)
@@ -1977,7 +2330,9 @@ class RegionalIntelService:
         current: list[PublicContact],
         previous: dict[str, Any],
     ) -> tuple[list[PublicContact], list[str]]:
-        previous_items = previous.get("contacts", []) if isinstance(previous, dict) else []
+        previous_items = (
+            previous.get("contacts", []) if isinstance(previous, dict) else []
+        )
         current_regions = {item.region_id for item in current}
         applied: list[str] = []
         output = list(current)
@@ -1995,5 +2350,11 @@ class RegionalIntelService:
                 item.notes.append("Backfilled from previous successful snapshot.")
             output.extend(backfill)
             applied.append(region.name)
-        output.sort(key=lambda item: (item.region_id, item.organization.lower(), item.name.lower()))
+        output.sort(
+            key=lambda item: (
+                item.region_id,
+                item.organization.lower(),
+                item.name.lower(),
+            )
+        )
         return output[:120], applied

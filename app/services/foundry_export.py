@@ -56,7 +56,9 @@ def _source_policy(snapshot: RegionalIntelSnapshot) -> dict[str, Any]:
     }
 
 
-def region_objects(snapshot: RegionalIntelSnapshot, *, region: RegionId | None = None) -> list[dict[str, Any]]:
+def region_objects(
+    snapshot: RegionalIntelSnapshot, *, region: RegionId | None = None
+) -> list[dict[str, Any]]:
     rows = []
     for item in snapshot.regions:
         if not _region_allowed(item.id, region):
@@ -65,7 +67,9 @@ def region_objects(snapshot: RegionalIntelSnapshot, *, region: RegionId | None =
     return rows
 
 
-def _region_object(item: RegionProfile, snapshot: RegionalIntelSnapshot) -> dict[str, Any]:
+def _region_object(
+    item: RegionProfile, snapshot: RegionalIntelSnapshot
+) -> dict[str, Any]:
     return {
         "object_id": f"regional-intel:region:{item.id}",
         "region_id": item.id,
@@ -93,7 +97,9 @@ def source_health_objects(
     return rows
 
 
-def _source_health_object(item: SourceHealth, snapshot: RegionalIntelSnapshot) -> dict[str, Any]:
+def _source_health_object(
+    item: SourceHealth, snapshot: RegionalIntelSnapshot
+) -> dict[str, Any]:
     return {
         "object_id": f"regional-intel:source:{item.source_key}",
         "source_key": item.source_key,
@@ -121,7 +127,13 @@ def _empty_drop_report() -> dict[str, Any]:
     return {"total": 0, "by_reason": {}, "details": []}
 
 
-def _record_drop(report: dict[str, Any], *, reason: str, row: dict[str, Any], missing_fields: list[str]) -> None:
+def _record_drop(
+    report: dict[str, Any],
+    *,
+    reason: str,
+    row: dict[str, Any],
+    missing_fields: list[str],
+) -> None:
     report["total"] += 1
     report["by_reason"][reason] = report["by_reason"].get(reason, 0) + 1
     report["details"].append(
@@ -152,7 +164,12 @@ def _drop_missing_provenance_with_report(
                 for field in ("source_name", "source_url")
                 if not (row.get(field) and str(row.get(field)).strip())
             ]
-            _record_drop(report, reason="missing_provenance", row=row, missing_fields=missing_fields)
+            _record_drop(
+                report,
+                reason="missing_provenance",
+                row=row,
+                missing_fields=missing_fields,
+            )
             if log_drops:
                 logger.warning(
                     "foundry_export: dropping %s item %s (region=%s) - missing provenance "
@@ -256,7 +273,11 @@ def _intel_item_objects_with_drop_report(
     log_drops: bool = True,
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     rows: list[dict[str, Any]] = []
-    rows.extend(_news_object(item, snapshot) for item in snapshot.news if _region_allowed(item.region_id, region))
+    rows.extend(
+        _news_object(item, snapshot)
+        for item in snapshot.news
+        if _region_allowed(item.region_id, region)
+    )
     rows.extend(
         _permit_object(item, snapshot)
         for item in snapshot.permits
@@ -357,7 +378,9 @@ def _news_object(item: NewsSignal, snapshot: RegionalIntelSnapshot) -> dict[str,
     )
 
 
-def _permit_object(item: PermitSignal, snapshot: RegionalIntelSnapshot) -> dict[str, Any]:
+def _permit_object(
+    item: PermitSignal, snapshot: RegionalIntelSnapshot
+) -> dict[str, Any]:
     return _base_item(
         kind="permit",
         item_id=item.item_id,
@@ -381,7 +404,9 @@ def _permit_object(item: PermitSignal, snapshot: RegionalIntelSnapshot) -> dict[
     )
 
 
-def _business_object(item: BusinessLead, snapshot: RegionalIntelSnapshot) -> dict[str, Any]:
+def _business_object(
+    item: BusinessLead, snapshot: RegionalIntelSnapshot
+) -> dict[str, Any]:
     return _base_item(
         kind="business",
         item_id=item.item_id,
@@ -407,7 +432,9 @@ def _business_object(item: BusinessLead, snapshot: RegionalIntelSnapshot) -> dic
     )
 
 
-def _contact_object(item: PublicContact, snapshot: RegionalIntelSnapshot) -> dict[str, Any]:
+def _contact_object(
+    item: PublicContact, snapshot: RegionalIntelSnapshot
+) -> dict[str, Any]:
     subtitle = " - ".join(part for part in (item.title, item.organization) if part)
     return _base_item(
         kind="contact",
@@ -433,7 +460,9 @@ def _contact_object(item: PublicContact, snapshot: RegionalIntelSnapshot) -> dic
     )
 
 
-def _organization_object(item: OrganizationProfile, snapshot: RegionalIntelSnapshot) -> dict[str, Any]:
+def _organization_object(
+    item: OrganizationProfile, snapshot: RegionalIntelSnapshot
+) -> dict[str, Any]:
     summary = (
         f"{len(item.categories)} categories; "
         f"{item.news_signal_count} news, {item.permit_signal_count} permits, "
@@ -495,7 +524,9 @@ def build_export_plan(
         "region": region,
         "object_types": files,
         "dropped_rows": drop_report,
-        "source_health_summary": _source_health_summary(rows_by_type["IntelSourceHealth"]),
+        "source_health_summary": _source_health_summary(
+            rows_by_type["IntelSourceHealth"]
+        ),
         "policy": _source_policy(snapshot),
     }
     return rows_by_type, manifest
@@ -509,12 +540,16 @@ def export_snapshot(
 ) -> dict[str, Any]:
     """Write Foundry-ready NDJSON exports and return a manifest."""
     output_dir.mkdir(parents=True, exist_ok=True)
-    rows_by_type, manifest = build_export_plan(snapshot, region=region, output_dir=output_dir)
+    rows_by_type, manifest = build_export_plan(
+        snapshot, region=region, output_dir=output_dir
+    )
     for object_type, rows in rows_by_type.items():
         path = Path(manifest["object_types"][object_type]["path"])
         _write_ndjson(path, rows)
 
     manifest_path = output_dir / "manifest.json"
-    manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    manifest_path.write_text(
+        json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
     manifest["manifest_path"] = str(manifest_path)
     return manifest

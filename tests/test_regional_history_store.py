@@ -28,7 +28,10 @@ class RegionalIntelHistoryStoreTestCase(unittest.TestCase):
             self.assertTrue(store.append_snapshot(second, force=True))
 
             records = store.load_records(lookback_days=10_000)
-            self.assertEqual([record["updated_at"] for record in records], [first.updated_at, second.updated_at])
+            self.assertEqual(
+                [record["updated_at"] for record in records],
+                [first.updated_at, second.updated_at],
+            )
 
 
 if __name__ == "__main__":

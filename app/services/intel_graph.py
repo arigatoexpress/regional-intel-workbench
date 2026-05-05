@@ -3,14 +3,10 @@ from __future__ import annotations
 import hashlib
 import re
 
-from app.intel_models import BusinessLead
 from app.intel_models import IntelGraph
 from app.intel_models import IntelGraphEdge
 from app.intel_models import IntelGraphNode
-from app.intel_models import NewsSignal
 from app.intel_models import OrganizationProfile
-from app.intel_models import PermitSignal
-from app.intel_models import PublicContact
 from app.intel_models import RegionId
 from app.intel_models import RegionalIntelSnapshot
 from app.utils import clean_text
@@ -69,7 +65,9 @@ def build_intel_graph(
     organizations.sort(key=lambda o: o.organization_score, reverse=True)
     if focus_node_id:
         focus_org = next((o for o in organizations if o.item_id == focus_node_id), None)
-        seed_orgs: list[OrganizationProfile] = [focus_org] if focus_org is not None else organizations[:10]
+        seed_orgs: list[OrganizationProfile] = (
+            [focus_org] if focus_org is not None else organizations[:10]
+        )
     else:
         seed_orgs = organizations[:18]
 
@@ -82,7 +80,14 @@ def build_intel_graph(
         if node.node_id not in nodes:
             nodes[node.node_id] = node
 
-    def add_edge(source_id: str, target_id: str, relation: str, *, weight: float = 1.0, notes: list[str] | None = None) -> None:
+    def add_edge(
+        source_id: str,
+        target_id: str,
+        relation: str,
+        *,
+        weight: float = 1.0,
+        notes: list[str] | None = None,
+    ) -> None:
         edge_id = _stable_id(source_id, target_id, relation)
         if edge_id not in edges:
             edges[edge_id] = IntelGraphEdge(
@@ -120,7 +125,12 @@ def build_intel_graph(
                 notes=org.notes,
             )
         )
-        add_edge(f"region:{org.region_id}", org.item_id, "region_watch", weight=org.organization_score)
+        add_edge(
+            f"region:{org.region_id}",
+            org.item_id,
+            "region_watch",
+            weight=org.organization_score,
+        )
 
     for biz in snapshot.businesses:
         if region_ids and biz.region_id not in region_ids:
@@ -155,7 +165,9 @@ def build_intel_graph(
                 kind="contact",
                 region_id=con.region_id,
                 label=con.name,
-                subtitle=" | ".join(part for part in [con.title or "", con.organization] if part),
+                subtitle=" | ".join(
+                    part for part in [con.title or "", con.organization] if part
+                ),
                 score=con.contact_score,
                 url=con.website or con.source_url,
                 address=con.address,
@@ -193,7 +205,9 @@ def build_intel_graph(
     known_business_addresses = {
         _normalize_address(node.address)
         for node in nodes.values()
-        if node.kind == "business" and node.address and node.address != "Address not provided"
+        if node.kind == "business"
+        and node.address
+        and node.address != "Address not provided"
     }
 
     for ps in snapshot.permits:
@@ -201,11 +215,18 @@ def build_intel_graph(
             continue
         related_org_ids = [
             seed_org_names[name_key]
-            for name_key in [_normalize_text(name) for name in _permit_related_organizations(ps.notes)]
+            for name_key in [
+                _normalize_text(name)
+                for name in _permit_related_organizations(ps.notes)
+            ]
             if name_key in seed_org_names
         ]
         address_key = _normalize_address(ps.address)
-        if not related_org_ids and address_key not in known_business_addresses and ps.signal_score < 70:
+        if (
+            not related_org_ids
+            and address_key not in known_business_addresses
+            and ps.signal_score < 70
+        ):
             continue
         add_node(
             IntelGraphNode(
@@ -224,22 +245,41 @@ def build_intel_graph(
             add_edge(ps.item_id, org_id, "permit_names_org", weight=ps.signal_score)
 
     permit_nodes = [
-        node for node in nodes.values() if node.kind == "permit" and node.address and node.address != "Address not provided"
+        node
+        for node in nodes.values()
+        if node.kind == "permit"
+        and node.address
+        and node.address != "Address not provided"
     ]
-    permit_by_address = {_normalize_address(node.address): node.node_id for node in permit_nodes}
+    permit_by_address = {
+        _normalize_address(node.address): node.node_id for node in permit_nodes
+    }
 
     for node in list(nodes.values()):
         if node.kind == "business":
             permit_id = permit_by_address.get(_normalize_address(node.address))
             if permit_id:
-                add_edge(node.node_id, permit_id, "same_address", weight=max(node.score, nodes[permit_id].score))
+                add_edge(
+                    node.node_id,
+                    permit_id,
+                    "same_address",
+                    weight=max(node.score, nodes[permit_id].score),
+                )
         elif node.kind == "news" and node.address:
             news_address = _normalize_address(node.address)
             if not news_address:
                 continue
             for normalized_permit_address, permit_id in permit_by_address.items():
-                if news_address and (news_address in normalized_permit_address or normalized_permit_address in news_address):
-                    add_edge(node.node_id, permit_id, "same_address_hint", weight=max(node.score, nodes[permit_id].score))
+                if news_address and (
+                    news_address in normalized_permit_address
+                    or normalized_permit_address in news_address
+                ):
+                    add_edge(
+                        node.node_id,
+                        permit_id,
+                        "same_address_hint",
+                        weight=max(node.score, nodes[permit_id].score),
+                    )
 
     if focus_node_id and focus_node_id in nodes:
         neighbor_ids = {focus_node_id}
@@ -251,13 +291,26 @@ def build_intel_graph(
             if edge.source_id in neighbor_ids and edge.target_id in neighbor_ids:
                 continue
             edges.pop(edge.edge_id, None)
-        nodes = {node_id: node for node_id, node in nodes.items() if node_id in neighbor_ids}
+        nodes = {
+            node_id: node for node_id, node in nodes.items() if node_id in neighbor_ids
+        }
 
     graph = IntelGraph(
         region=region,
         focus_node_id=focus_node_id,
-        nodes=sorted(nodes.values(), key=lambda item: (item.kind, -item.score, item.label.lower())),
-        edges=sorted(edges.values(), key=lambda item: (-item.weight, item.relation, item.source_id, item.target_id)),
+        nodes=sorted(
+            nodes.values(),
+            key=lambda item: (item.kind, -item.score, item.label.lower()),
+        ),
+        edges=sorted(
+            edges.values(),
+            key=lambda item: (
+                -item.weight,
+                item.relation,
+                item.source_id,
+                item.target_id,
+            ),
+        ),
         notes=[
             "Graph edges are built from exact-name organization matches, public-contact associations, organization mentions in news, permit-linked organization notes, and address overlaps.",
             "This is an intelligence graph, not a truth graph. Human review is still required before action.",

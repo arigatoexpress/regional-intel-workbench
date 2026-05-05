@@ -59,7 +59,9 @@ def get_settings() -> Settings:
         public_base_url=public_base_url.strip() if public_base_url else None,
         regional_intel_source_timeout=_env_float("REGIONAL_INTEL_SOURCE_TIMEOUT", 25.0),
         regional_intel_retry_limit=max(_env_int("REGIONAL_INTEL_RETRY_LIMIT", 2), 0),
-        regional_intel_retry_backoff_base=_env_float("REGIONAL_INTEL_RETRY_BACKOFF_BASE", 0.5),
+        regional_intel_retry_backoff_base=_env_float(
+            "REGIONAL_INTEL_RETRY_BACKOFF_BASE", 0.5
+        ),
     )
 
 
@@ -74,7 +76,13 @@ def resolve_vote_powers(
     defaults = config.default_vote_powers()
 
     return {
-        "blackhole": max(blackhole if blackhole is not None else defaults["blackhole"], 0.0),
-        "supernova": max(supernova if supernova is not None else defaults["supernova"], 0.0),
-        "fullsail": max(fullsail if fullsail is not None else defaults["fullsail"], 0.0),
+        "blackhole": max(
+            blackhole if blackhole is not None else defaults["blackhole"], 0.0
+        ),
+        "supernova": max(
+            supernova if supernova is not None else defaults["supernova"], 0.0
+        ),
+        "fullsail": max(
+            fullsail if fullsail is not None else defaults["fullsail"], 0.0
+        ),
     }

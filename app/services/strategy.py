@@ -68,7 +68,10 @@ def enrich_dashboard_snapshot(
             )
         if not protocol.error:
             protocol.key_stats.append(
-                KeyStat(label="History window", value=f"{protocol.history_samples} snaps / {lookback_days}d")
+                KeyStat(
+                    label="History window",
+                    value=f"{protocol.history_samples} snaps / {lookback_days}d",
+                )
             )
 
         protocol_history = history_index.get(protocol.id, {})
@@ -77,7 +80,9 @@ def enrich_dashboard_snapshot(
             _apply_pool_history(pool, observations)
 
         if protocol.history_samples < 3:
-            protocol.notes.append("Historical model is still warming up locally for this protocol.")
+            protocol.notes.append(
+                "Historical model is still warming up locally for this protocol."
+            )
         else:
             protocol.notes.append(
                 f"Historical model currently uses {protocol.history_samples} stored snapshots from the last {lookback_days} days."
@@ -109,7 +114,9 @@ def recommend_protocol_strategy(
     lookback_days: int = LOOKBACK_DAYS,
 ) -> ProtocolStrategy:
     if protocol.id == "fullsail":
-        return recommend_fullsail_strategy(protocol=protocol, vote_power=vote_power, lookback_days=lookback_days)
+        return recommend_fullsail_strategy(
+            protocol=protocol, vote_power=vote_power, lookback_days=lookback_days
+        )
 
     base_notes = [
         "Objective: maximize expected weekly payout from your vote power using adjusted rewards and current vote depth.",
@@ -124,7 +131,10 @@ def recommend_protocol_strategy(
             lookback_days=lookback_days,
             history_samples=protocol.history_samples,
             max_recommended_pools=MAX_RECOMMENDED_POOLS,
-            notes=["Enter your vote power to generate a sized weekly strategy.", *base_notes],
+            notes=[
+                "Enter your vote power to generate a sized weekly strategy.",
+                *base_notes,
+            ],
         )
 
     candidates = _build_candidates(protocol, vote_power)
@@ -136,14 +146,21 @@ def recommend_protocol_strategy(
             lookback_days=lookback_days,
             history_samples=protocol.history_samples,
             max_recommended_pools=MAX_RECOMMENDED_POOLS,
-            notes=["No eligible pools had enough reward and vote data to size a strategy.", *base_notes],
+            notes=[
+                "No eligible pools had enough reward and vote data to size a strategy.",
+                *base_notes,
+            ],
         )
 
     best_single = max(
         candidates,
-        key=lambda item: _expected_payout(item.expected_rewards_usd, item.effective_votes, vote_power),
+        key=lambda item: _expected_payout(
+            item.expected_rewards_usd, item.effective_votes, vote_power
+        ),
     )
-    best_single_payout = _expected_payout(best_single.expected_rewards_usd, best_single.effective_votes, vote_power)
+    best_single_payout = _expected_payout(
+        best_single.expected_rewards_usd, best_single.effective_votes, vote_power
+    )
 
     allocations = _optimize_allocations(candidates, vote_power)
     min_allocation = max(vote_power * 0.03, 1.0)
@@ -151,7 +168,9 @@ def recommend_protocol_strategy(
     if not kept:
         kept = [max(allocations, key=lambda item: item[1])]
     if len(kept) > MAX_RECOMMENDED_POOLS:
-        kept = sorted(kept, key=lambda item: item[1], reverse=True)[:MAX_RECOMMENDED_POOLS]
+        kept = sorted(kept, key=lambda item: item[1], reverse=True)[
+            :MAX_RECOMMENDED_POOLS
+        ]
     if len(kept) != len(allocations):
         allocations = _optimize_allocations([item[0] for item in kept], vote_power)
     else:
@@ -163,7 +182,9 @@ def recommend_protocol_strategy(
         sorted(allocations, key=lambda item: item[1], reverse=True),
         start=1,
     ):
-        payout = _expected_payout(candidate.expected_rewards_usd, candidate.effective_votes, allocation_votes)
+        payout = _expected_payout(
+            candidate.expected_rewards_usd, candidate.effective_votes, allocation_votes
+        )
         expected_total_payout += payout
         strategy_allocations.append(
             StrategyAllocation(
@@ -172,7 +193,9 @@ def recommend_protocol_strategy(
                 name=candidate.pool.name,
                 fee_tier=candidate.pool.fee_tier,
                 allocation_votes=allocation_votes,
-                allocation_pct=(allocation_votes / vote_power * 100) if vote_power else 0.0,
+                allocation_pct=(allocation_votes / vote_power * 100)
+                if vote_power
+                else 0.0,
                 expected_weekly_payout_usd=payout,
                 expected_capture_pct=(
                     payout / candidate.expected_rewards_usd * 100
@@ -189,7 +212,9 @@ def recommend_protocol_strategy(
 
     improvement = None
     if best_single_payout > 0:
-        improvement = (expected_total_payout - best_single_payout) / best_single_payout * 100
+        improvement = (
+            (expected_total_payout - best_single_payout) / best_single_payout * 100
+        )
 
     if expected_total_payout <= best_single_payout:
         strategy_allocations = [
@@ -261,7 +286,10 @@ def recommend_fullsail_strategy(
             lookback_days=lookback_days,
             history_samples=protocol.history_samples,
             max_recommended_pools=1,
-            notes=["Enter your veSAIL balance to generate a prediction plan.", *base_notes],
+            notes=[
+                "Enter your veSAIL balance to generate a prediction plan.",
+                *base_notes,
+            ],
         )
 
     candidates = _build_candidates(protocol, vote_power)
@@ -275,17 +303,26 @@ def recommend_fullsail_strategy(
             lookback_days=lookback_days,
             history_samples=protocol.history_samples,
             max_recommended_pools=1,
-            notes=["No eligible Full Sail pools had enough data to build a prediction plan.", *base_notes],
+            notes=[
+                "No eligible Full Sail pools had enough data to build a prediction plan.",
+                *base_notes,
+            ],
         )
 
-    unrestricted_best = max(candidates, key=lambda item: _fullsail_candidate_score(item, vote_power))
-    preferred_candidates = [item for item in candidates if _is_fullsail_preferred_pool(item.pool)]
+    unrestricted_best = max(
+        candidates, key=lambda item: _fullsail_candidate_score(item, vote_power)
+    )
+    preferred_candidates = [
+        item for item in candidates if _is_fullsail_preferred_pool(item.pool)
+    ]
     chosen = max(
         preferred_candidates or candidates,
         key=lambda item: _fullsail_candidate_score(item, vote_power),
     )
 
-    payout = _expected_payout(chosen.expected_rewards_usd, chosen.effective_votes, vote_power)
+    payout = _expected_payout(
+        chosen.expected_rewards_usd, chosen.effective_votes, vote_power
+    )
     suggested_prediction = (
         chosen.pool.forecast_volume_usd
         or chosen.pool.predicted_volume_usd
@@ -305,7 +342,9 @@ def recommend_fullsail_strategy(
         *base_notes,
     ]
     if preferred_candidates:
-        notes.append("The unrestricted model may rank another pool higher, but the strategy stays inside your IKA-only constraint.")
+        notes.append(
+            "The unrestricted model may rank another pool higher, but the strategy stays inside your IKA-only constraint."
+        )
     if unrestricted_best.pool.pool_key != chosen.pool.pool_key:
         notes.append(f"Unrestricted model leader is {unrestricted_best.pool.name}.")
 
@@ -317,7 +356,9 @@ def recommend_fullsail_strategy(
         allocation_votes=vote_power,
         allocation_pct=100.0,
         expected_weekly_payout_usd=payout,
-        expected_capture_pct=(payout / chosen.expected_rewards_usd * 100) if chosen.expected_rewards_usd > 0 else None,
+        expected_capture_pct=(payout / chosen.expected_rewards_usd * 100)
+        if chosen.expected_rewards_usd > 0
+        else None,
         suggested_prediction_usd=suggested_prediction,
         prediction_range_low_usd=prediction_low,
         prediction_range_high_usd=prediction_high,
@@ -335,7 +376,9 @@ def recommend_fullsail_strategy(
     )
     improvement = None
     if unrestricted_best_payout > 0:
-        improvement = (payout - unrestricted_best_payout) / unrestricted_best_payout * 100
+        improvement = (
+            (payout - unrestricted_best_payout) / unrestricted_best_payout * 100
+        )
 
     return ProtocolStrategy(
         protocol_id=protocol.id,
@@ -365,7 +408,9 @@ def _build_history_index(
         updated_at = record.get("updated_at")
         if not updated_at:
             continue
-        timestamp = datetime.fromisoformat(str(updated_at).replace("Z", "+00:00")).astimezone(UTC)
+        timestamp = datetime.fromisoformat(
+            str(updated_at).replace("Z", "+00:00")
+        ).astimezone(UTC)
         for protocol in record.get("protocols", []):
             protocol_id = protocol.get("id")
             if not protocol_id:
@@ -383,23 +428,45 @@ def _build_history_index(
                     PoolObservation(
                         timestamp=timestamp,
                         apr=_positive_or_none(raw_pool.get("apr")),
-                        total_rewards_usd=_positive_or_none(raw_pool.get("total_rewards_usd")),
+                        total_rewards_usd=_positive_or_none(
+                            raw_pool.get("total_rewards_usd")
+                        ),
                         current_votes=_positive_or_none(raw_pool.get("current_votes")),
-                        weekly_volume_usd=_positive_or_none(raw_pool.get("weekly_volume_usd")),
-                        predicted_volume_usd=_positive_or_none(raw_pool.get("predicted_volume_usd")),
-                        prediction_confidence=_bounded_or_none(raw_pool.get("prediction_confidence")),
+                        weekly_volume_usd=_positive_or_none(
+                            raw_pool.get("weekly_volume_usd")
+                        ),
+                        predicted_volume_usd=_positive_or_none(
+                            raw_pool.get("predicted_volume_usd")
+                        ),
+                        prediction_confidence=_bounded_or_none(
+                            raw_pool.get("prediction_confidence")
+                        ),
                     )
                 )
 
     return pool_history, protocol_samples
 
 
-def _apply_pool_history(pool: PoolOpportunity, observations: list[PoolObservation]) -> None:
-    apr_values = [value for value in (_positive_or_none(item.apr) for item in observations) if value is not None]
-    reward_values = [
-        value for value in (_positive_or_none(item.total_rewards_usd) for item in observations) if value is not None
+def _apply_pool_history(
+    pool: PoolOpportunity, observations: list[PoolObservation]
+) -> None:
+    apr_values = [
+        value
+        for value in (_positive_or_none(item.apr) for item in observations)
+        if value is not None
     ]
-    vote_values = [value for value in (_positive_or_none(item.current_votes) for item in observations) if value is not None]
+    reward_values = [
+        value
+        for value in (
+            _positive_or_none(item.total_rewards_usd) for item in observations
+        )
+        if value is not None
+    ]
+    vote_values = [
+        value
+        for value in (_positive_or_none(item.current_votes) for item in observations)
+        if value is not None
+    ]
 
     history_points = len(observations)
     history_weight = clamp(history_points / 8.0, 0.0, 1.0)
@@ -417,7 +484,9 @@ def _apply_pool_history(pool: PoolOpportunity, observations: list[PoolObservatio
         if component is not None
     ]
     raw_stability = 1.0 - mean(volatility_components) if volatility_components else 0.55
-    stability_score = clamp((0.45 + 0.55 * raw_stability) * (0.55 + 0.45 * sample_score), 0.35, 0.98)
+    stability_score = clamp(
+        (0.45 + 0.55 * raw_stability) * (0.55 + 0.45 * sample_score), 0.35, 0.98
+    )
 
     confidence_components = [0.35 + 0.65 * sample_score, stability_score]
     if pool.prediction_confidence is not None:
@@ -430,27 +499,43 @@ def _apply_pool_history(pool: PoolOpportunity, observations: list[PoolObservatio
     current_rewards = _positive_or_none(pool.total_rewards_usd)
     reward_baseline = current_rewards or historical_avg_rewards or 0.0
     if current_rewards and historical_avg_rewards:
-        reward_baseline = current_rewards * (1.0 - 0.45 * history_weight) + historical_avg_rewards * (0.45 * history_weight)
+        reward_baseline = current_rewards * (
+            1.0 - 0.45 * history_weight
+        ) + historical_avg_rewards * (0.45 * history_weight)
 
     confidence_factor = 0.75 + 0.35 * model_confidence
     momentum_factor = clamp(1.0 + momentum * 0.35, 0.8, 1.2)
-    expected_rewards = reward_baseline * confidence_factor * momentum_factor * volume_factor
+    expected_rewards = (
+        reward_baseline * confidence_factor * momentum_factor * volume_factor
+    )
     if current_rewards:
-        expected_rewards = clamp(expected_rewards, current_rewards * 0.55, max(current_rewards * 1.6, current_rewards))
+        expected_rewards = clamp(
+            expected_rewards,
+            current_rewards * 0.55,
+            max(current_rewards * 1.6, current_rewards),
+        )
     elif historical_avg_rewards:
-        expected_rewards = historical_avg_rewards * confidence_factor * momentum_factor * volume_factor
+        expected_rewards = (
+            historical_avg_rewards * confidence_factor * momentum_factor * volume_factor
+        )
     else:
         expected_rewards = 0.0
 
     current_apr = _positive_or_none(pool.apr)
     expected_apr = current_apr or historical_avg_apr
     if current_apr and historical_avg_apr:
-        expected_apr = current_apr * (1.0 - 0.4 * history_weight) + historical_avg_apr * (0.4 * history_weight)
+        expected_apr = current_apr * (
+            1.0 - 0.4 * history_weight
+        ) + historical_avg_apr * (0.4 * history_weight)
     if expected_apr is not None:
         expected_apr *= clamp(0.85 + 0.3 * model_confidence + momentum * 0.15, 0.7, 1.3)
 
     effective_votes = max(_positive_or_none(pool.current_votes) or 0.0, 1.0)
-    analysis_score = expected_rewards / effective_votes * model_confidence if effective_votes else None
+    analysis_score = (
+        expected_rewards / effective_votes * model_confidence
+        if effective_votes
+        else None
+    )
 
     pool.history_points = history_points
     pool.historical_avg_apr = historical_avg_apr
@@ -487,19 +572,32 @@ def _is_fullsail_preferred_pool(pool: PoolOpportunity) -> bool:
 
 
 def _fullsail_candidate_score(candidate: CandidatePool, vote_power: float) -> float:
-    payout = _expected_payout(candidate.expected_rewards_usd, candidate.effective_votes, vote_power)
-    confidence = candidate.pool.model_confidence or candidate.pool.prediction_confidence or 0.35
-    forecast = candidate.pool.forecast_volume_usd or candidate.pool.predicted_volume_usd or candidate.pool.weekly_volume_usd or 0.0
+    payout = _expected_payout(
+        candidate.expected_rewards_usd, candidate.effective_votes, vote_power
+    )
+    confidence = (
+        candidate.pool.model_confidence or candidate.pool.prediction_confidence or 0.35
+    )
+    forecast = (
+        candidate.pool.forecast_volume_usd
+        or candidate.pool.predicted_volume_usd
+        or candidate.pool.weekly_volume_usd
+        or 0.0
+    )
     return payout * (0.8 + 0.2 * confidence) + math.log1p(forecast) * 0.05
 
 
-def _build_candidates(protocol: ProtocolSnapshot, vote_power: float) -> list[CandidatePool]:
+def _build_candidates(
+    protocol: ProtocolSnapshot, vote_power: float
+) -> list[CandidatePool]:
     protocol_votes = sum(max(pool.current_votes or 0.0, 0.0) for pool in protocol.pools)
     zero_vote_floor = max(protocol_votes * 0.0005, vote_power * 0.03, 1.0)
     candidates: list[CandidatePool] = []
 
     for pool in protocol.pools:
-        rewards = _positive_or_none(pool.expected_rewards_usd) or _positive_or_none(pool.total_rewards_usd)
+        rewards = _positive_or_none(pool.expected_rewards_usd) or _positive_or_none(
+            pool.total_rewards_usd
+        )
         if not rewards:
             continue
         current_votes = _positive_or_none(pool.current_votes) or 0.0
@@ -515,14 +613,17 @@ def _build_candidates(protocol: ProtocolSnapshot, vote_power: float) -> list[Can
     return candidates
 
 
-def _optimize_allocations(candidates: list[CandidatePool], vote_power: float) -> list[tuple[CandidatePool, float]]:
+def _optimize_allocations(
+    candidates: list[CandidatePool], vote_power: float
+) -> list[tuple[CandidatePool, float]]:
     if vote_power <= 0 or not candidates:
         return []
     if len(candidates) == 1:
         return [(candidates[0], vote_power)]
 
     max_derivative = max(
-        candidate.expected_rewards_usd / max(candidate.effective_votes, 1e-9) for candidate in candidates
+        candidate.expected_rewards_usd / max(candidate.effective_votes, 1e-9)
+        for candidate in candidates
     )
     low = 0.0
     high = max(max_derivative, 1e-9)
@@ -539,20 +640,31 @@ def _optimize_allocations(candidates: list[CandidatePool], vote_power: float) ->
     allocations = [
         (
             candidate,
-            max(math.sqrt(candidate.expected_rewards_usd * candidate.effective_votes / lam) - candidate.effective_votes, 0.0),
+            max(
+                math.sqrt(
+                    candidate.expected_rewards_usd * candidate.effective_votes / lam
+                )
+                - candidate.effective_votes,
+                0.0,
+            ),
         )
         for candidate in candidates
     ]
     allocated = sum(amount for _, amount in allocations)
     if allocated <= 0:
-        best = max(candidates, key=lambda item: item.expected_rewards_usd / item.effective_votes)
+        best = max(
+            candidates,
+            key=lambda item: item.expected_rewards_usd / item.effective_votes,
+        )
         return [(best, vote_power)]
 
     residual = vote_power - allocated
     if residual > 0:
         best_index = max(
             range(len(allocations)),
-            key=lambda index: _marginal_value(allocations[index][0], allocations[index][1]),
+            key=lambda index: _marginal_value(
+                allocations[index][0], allocations[index][1]
+            ),
         )
         candidate, amount = allocations[best_index]
         allocations[best_index] = (candidate, amount + residual)
@@ -566,7 +678,8 @@ def _total_allocation_for_lambda(candidates: list[CandidatePool], lam: float) ->
     total = 0.0
     for candidate in candidates:
         total += max(
-            math.sqrt(candidate.expected_rewards_usd * candidate.effective_votes / lam) - candidate.effective_votes,
+            math.sqrt(candidate.expected_rewards_usd * candidate.effective_votes / lam)
+            - candidate.effective_votes,
             0.0,
         )
     return total
@@ -574,10 +687,16 @@ def _total_allocation_for_lambda(candidates: list[CandidatePool], lam: float) ->
 
 def _marginal_value(candidate: CandidatePool, allocation_votes: float) -> float:
     denominator = candidate.effective_votes + allocation_votes
-    return candidate.expected_rewards_usd * candidate.effective_votes / max(denominator * denominator, 1e-9)
+    return (
+        candidate.expected_rewards_usd
+        * candidate.effective_votes
+        / max(denominator * denominator, 1e-9)
+    )
 
 
-def _expected_payout(expected_rewards_usd: float, current_votes: float, allocation_votes: float) -> float:
+def _expected_payout(
+    expected_rewards_usd: float, current_votes: float, allocation_votes: float
+) -> float:
     if expected_rewards_usd <= 0 or allocation_votes <= 0:
         return 0.0
     return expected_rewards_usd * allocation_votes / (current_votes + allocation_votes)

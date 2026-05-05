@@ -39,15 +39,33 @@ class IntelAppTestCase(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls) -> None:
-        history_path = Path(__file__).resolve().parents[1] / "data" / "regional_intel_history.jsonl"
+        history_path = (
+            Path(__file__).resolve().parents[1]
+            / "data"
+            / "regional_intel_history.jsonl"
+        )
         latest_record = RegionalIntelHistoryStore(history_path).load_latest_record()
         if latest_record is None:
             raise RuntimeError("Expected at least one stored intel snapshot for tests")
         cls.fixture_snapshot = RegionalIntelSnapshot.model_validate(latest_record)
-        cls.sample_org = next(item for item in cls.fixture_snapshot.organizations if item.region_id == "austin_tx")
-        cls.sample_business = next(item for item in cls.fixture_snapshot.businesses if item.region_id == "austin_tx")
-        cls.sample_news = next(item for item in cls.fixture_snapshot.news if item.region_id == "austin_tx")
-        cls.sample_permit = next(item for item in cls.fixture_snapshot.permits if item.region_id == "austin_tx")
+        cls.sample_org = next(
+            item
+            for item in cls.fixture_snapshot.organizations
+            if item.region_id == "austin_tx"
+        )
+        cls.sample_business = next(
+            item
+            for item in cls.fixture_snapshot.businesses
+            if item.region_id == "austin_tx"
+        )
+        cls.sample_news = next(
+            item for item in cls.fixture_snapshot.news if item.region_id == "austin_tx"
+        )
+        cls.sample_permit = next(
+            item
+            for item in cls.fixture_snapshot.permits
+            if item.region_id == "austin_tx"
+        )
 
     def setUp(self) -> None:
         self.tempdir = tempfile.TemporaryDirectory()
@@ -59,13 +77,25 @@ class IntelAppTestCase(unittest.TestCase):
         self.original_bundle_store = main.intel_bundle_store
         self.original_monitor_store = main.intel_monitor_store
         self.original_get_snapshot = main.regional_intel_service.get_snapshot
-        self.original_cached_snapshot = getattr(main.regional_intel_service, "_latest_snapshot", None)
+        self.original_cached_snapshot = getattr(
+            main.regional_intel_service, "_latest_snapshot", None
+        )
 
-        main.intel_watchlist_store = IntelWatchlistStore(temp_path / "intel_watchlist.json")
-        main.intel_analyst_store = IntelAnalystStore(temp_path / "intel_annotations.json")
-        main.intel_collection_store = IntelCollectionStore(temp_path / "intel_collections.json")
-        main.intel_bundle_store = IntelBundleStore(temp_path / "intel_briefing_bundles.json")
-        main.intel_monitor_store = IntelMonitorStore(temp_path / "intel_monitor_rules.json")
+        main.intel_watchlist_store = IntelWatchlistStore(
+            temp_path / "intel_watchlist.json"
+        )
+        main.intel_analyst_store = IntelAnalystStore(
+            temp_path / "intel_annotations.json"
+        )
+        main.intel_collection_store = IntelCollectionStore(
+            temp_path / "intel_collections.json"
+        )
+        main.intel_bundle_store = IntelBundleStore(
+            temp_path / "intel_briefing_bundles.json"
+        )
+        main.intel_monitor_store = IntelMonitorStore(
+            temp_path / "intel_monitor_rules.json"
+        )
 
         fixture_snapshot = self.fixture_snapshot
 
@@ -112,12 +142,16 @@ class IntelAppTestCase(unittest.TestCase):
         self.assertIn("How To Use It", client_view.text)
 
     def test_snapshot_region_filter_and_client_view_shape(self) -> None:
-        snapshot = self.client.get("/api/intel/snapshot", params={"region": "austin_tx"})
+        snapshot = self.client.get(
+            "/api/intel/snapshot", params={"region": "austin_tx"}
+        )
         self.assertEqual(snapshot.status_code, 200)
         payload = snapshot.json()
         self.assertEqual(len(payload["regions"]), 1)
         self.assertEqual(payload["regions"][0]["id"], "austin_tx")
-        self.assertTrue(all(item["region_id"] == "austin_tx" for item in payload["businesses"]))
+        self.assertTrue(
+            all(item["region_id"] == "austin_tx" for item in payload["businesses"])
+        )
 
         view = self.client.get("/api/client-views/blanga_austin")
         self.assertEqual(view.status_code, 200)
@@ -129,7 +163,9 @@ class IntelAppTestCase(unittest.TestCase):
         section_ids = {section["section_id"] for section in view_payload["sections"]}
         self.assertIn("deal_radar", section_ids)
         self.assertIn("what_changed", section_ids)
-        feed_items = [item for section in view_payload["sections"] for item in section["items"]]
+        feed_items = [
+            item for section in view_payload["sections"] for item in section["items"]
+        ]
         self.assertTrue(any(item.get("source_url") for item in feed_items))
         self.assertTrue(any(item.get("recommended_action") for item in feed_items))
         self.assertTrue(
@@ -151,13 +187,17 @@ class IntelAppTestCase(unittest.TestCase):
         try:
             view = self.client.get("/api/client-views/blanga_austin")
         finally:
-            main.regional_intel_service.history_store.load_records = original_load_records
+            main.regional_intel_service.history_store.load_records = (
+                original_load_records
+            )
 
         self.assertEqual(view.status_code, 200)
         self.assertEqual(calls, [14])
 
     def test_recent_feed_contract_for_sapphire_proxy(self) -> None:
-        recent = self.client.get("/api/intel/recent", params={"region": "austin_tx", "limit": 5})
+        recent = self.client.get(
+            "/api/intel/recent", params={"region": "austin_tx", "limit": 5}
+        )
         self.assertEqual(recent.status_code, 200)
         payload = recent.json()
         self.assertEqual(payload["region"], "austin_tx")
@@ -167,13 +207,24 @@ class IntelAppTestCase(unittest.TestCase):
 
         timestamps = [item["timestamp"] or "" for item in payload["items"]]
         self.assertEqual(timestamps, sorted(timestamps, reverse=True))
-        self.assertTrue(all(item["region_id"] == "austin_tx" for item in payload["items"]))
+        self.assertTrue(
+            all(item["region_id"] == "austin_tx" for item in payload["items"])
+        )
         self.assertTrue(all(item["region"] == "austin_tx" for item in payload["items"]))
         self.assertTrue(all(item["source_name"] for item in payload["items"]))
         self.assertTrue(any(item["source_url"] for item in payload["items"]))
-        self.assertTrue(all(item["severity"] in {"high", "medium", "low"} for item in payload["items"]))
-        self.assertTrue(all(item["intel_url"].startswith("/intel?") for item in payload["items"]))
-        self.assertTrue({"id", "kind", "title", "timestamp", "tags"} <= set(payload["items"][0]))
+        self.assertTrue(
+            all(
+                item["severity"] in {"high", "medium", "low"}
+                for item in payload["items"]
+            )
+        )
+        self.assertTrue(
+            all(item["intel_url"].startswith("/intel?") for item in payload["items"])
+        )
+        self.assertTrue(
+            {"id", "kind", "title", "timestamp", "tags"} <= set(payload["items"][0])
+        )
 
         capped = self.client.get("/api/intel/recent", params={"limit": 500})
         self.assertEqual(capped.status_code, 200)
@@ -181,18 +232,28 @@ class IntelAppTestCase(unittest.TestCase):
         self.assertLessEqual(len(capped.json()["items"]), 50)
 
     def test_search_detail_and_briefing_endpoints(self) -> None:
-        search = self.client.get("/api/intel/search", params={"q": "Amy", "region": "austin_tx"})
+        search = self.client.get(
+            "/api/intel/search", params={"q": "Amy", "region": "austin_tx"}
+        )
         self.assertEqual(search.status_code, 200)
         results = search.json()["results"]
         self.assertTrue(results)
 
-        org_detail = self.client.get(f"/api/intel/organizations/{self.sample_org.item_id}")
+        org_detail = self.client.get(
+            f"/api/intel/organizations/{self.sample_org.item_id}"
+        )
         self.assertEqual(org_detail.status_code, 200)
-        self.assertEqual(org_detail.json()["organization"]["item_id"], self.sample_org.item_id)
+        self.assertEqual(
+            org_detail.json()["organization"]["item_id"], self.sample_org.item_id
+        )
 
-        generic_detail = self.client.get(f"/api/intel/items/business/{self.sample_business.item_id}")
+        generic_detail = self.client.get(
+            f"/api/intel/items/business/{self.sample_business.item_id}"
+        )
         self.assertEqual(generic_detail.status_code, 200)
-        self.assertEqual(generic_detail.json()["item"]["item_id"], self.sample_business.item_id)
+        self.assertEqual(
+            generic_detail.json()["item"]["item_id"], self.sample_business.item_id
+        )
 
         briefing = self.client.get(f"/api/intel/briefing/{self.sample_org.item_id}")
         self.assertEqual(briefing.status_code, 200)
@@ -241,24 +302,38 @@ class IntelAppTestCase(unittest.TestCase):
 
         collection = self.client.post(
             "/api/intel/collections",
-            json={"title": "Austin Demo Dossier", "region_id": "austin_tx", "note": "QA collection"},
+            json={
+                "title": "Austin Demo Dossier",
+                "region_id": "austin_tx",
+                "note": "QA collection",
+            },
         )
         self.assertEqual(collection.status_code, 200)
         collection_id = collection.json()["collection"]["collection_id"]
 
         collection_item = self.client.post(
             f"/api/intel/collections/{collection_id}/items",
-            json={"kind": "organization", "item_id": self.sample_org.item_id, "region_id": "austin_tx"},
+            json={
+                "kind": "organization",
+                "item_id": self.sample_org.item_id,
+                "region_id": "austin_tx",
+            },
         )
         self.assertEqual(collection_item.status_code, 200)
 
-        collection_briefing = self.client.get(f"/api/intel/collections/{collection_id}/briefing")
+        collection_briefing = self.client.get(
+            f"/api/intel/collections/{collection_id}/briefing"
+        )
         self.assertEqual(collection_briefing.status_code, 200)
         self.assertIn("Austin Demo Dossier", collection_briefing.json()["title"])
 
         bundle = self.client.post(
             "/api/intel/bundles",
-            json={"title": "Austin Weekly Bundle", "region_id": "austin_tx", "note": "QA bundle"},
+            json={
+                "title": "Austin Weekly Bundle",
+                "region_id": "austin_tx",
+                "note": "QA bundle",
+            },
         )
         self.assertEqual(bundle.status_code, 200)
         bundle_id = bundle.json()["bundle"]["bundle_id"]
@@ -292,23 +367,34 @@ class IntelAppTestCase(unittest.TestCase):
         self.assertEqual(rule["entity_kinds"], ["permit"])
         self.assertEqual(rule["tags"], ["demo", "austin"])
 
-        listed = self.client.get("/api/intel/monitor-rules", params={"region": "austin_tx"})
+        listed = self.client.get(
+            "/api/intel/monitor-rules", params={"region": "austin_tx"}
+        )
         self.assertEqual(listed.status_code, 200)
         self.assertTrue(listed.json()["rules"])
 
-        source_history = self.client.get("/api/intel/source-history", params={"region": "austin_tx"})
+        source_history = self.client.get(
+            "/api/intel/source-history", params={"region": "austin_tx"}
+        )
         self.assertEqual(source_history.status_code, 200)
         self.assertIn("sources", source_history.json())
 
-        source_incidents = self.client.get("/api/intel/source-incidents", params={"region": "austin_tx"})
+        source_incidents = self.client.get(
+            "/api/intel/source-incidents", params={"region": "austin_tx"}
+        )
         self.assertEqual(source_incidents.status_code, 200)
         self.assertIn("incidents", source_incidents.json())
 
-        region_changes = self.client.get("/api/intel/region-changes", params={"region": "austin_tx"})
+        region_changes = self.client.get(
+            "/api/intel/region-changes", params={"region": "austin_tx"}
+        )
         self.assertEqual(region_changes.status_code, 200)
         self.assertIn("changes", region_changes.json())
 
-        entity_changes = self.client.get("/api/intel/entity-changes", params={"region": "austin_tx", "kind": "permit"})
+        entity_changes = self.client.get(
+            "/api/intel/entity-changes",
+            params={"region": "austin_tx", "kind": "permit"},
+        )
         self.assertEqual(entity_changes.status_code, 200)
         self.assertIn("changes", entity_changes.json())
 
@@ -342,11 +428,24 @@ class IntelAppTestCase(unittest.TestCase):
         self.assertEqual(payload["act"]["external_calls"], [])
 
     def test_invalid_resources_return_404(self) -> None:
-        self.assertEqual(self.client.get("/api/client-views/does_not_exist").status_code, 404)
-        self.assertEqual(self.client.get("/api/intel/items/unknown/abc").status_code, 404)
-        self.assertEqual(self.client.get("/api/intel/organizations/not-real").status_code, 404)
-        self.assertEqual(self.client.delete("/api/intel/watchlist-items/not-real").status_code, 404)
-        self.assertEqual(self.client.delete("/api/intel/annotations/organization/not-real").status_code, 404)
+        self.assertEqual(
+            self.client.get("/api/client-views/does_not_exist").status_code, 404
+        )
+        self.assertEqual(
+            self.client.get("/api/intel/items/unknown/abc").status_code, 404
+        )
+        self.assertEqual(
+            self.client.get("/api/intel/organizations/not-real").status_code, 404
+        )
+        self.assertEqual(
+            self.client.delete("/api/intel/watchlist-items/not-real").status_code, 404
+        )
+        self.assertEqual(
+            self.client.delete(
+                "/api/intel/annotations/organization/not-real"
+            ).status_code,
+            404,
+        )
 
 
 class IntelOodaCliTestCase(unittest.TestCase):
@@ -355,7 +454,9 @@ class IntelOodaCliTestCase(unittest.TestCase):
 
         stdout = io.StringIO()
         with contextlib.redirect_stdout(stdout):
-            exit_code = cli_main(["intel-ooda-packet", "--region", "austin_tx", "--json"])
+            exit_code = cli_main(
+                ["intel-ooda-packet", "--region", "austin_tx", "--json"]
+            )
 
         self.assertEqual(exit_code, 0)
         payload = json.loads(stdout.getvalue())
@@ -442,7 +543,13 @@ def _build_controlled_snapshot(
     )
 
 
-def _news(item_id: str, *, region: str = "austin_tx", score: float, ts: str = "2026-04-27T10:00:00Z") -> NewsSignal:
+def _news(
+    item_id: str,
+    *,
+    region: str = "austin_tx",
+    score: float,
+    ts: str = "2026-04-27T10:00:00Z",
+) -> NewsSignal:
     return NewsSignal(
         item_id=item_id,
         region_id=region,
@@ -465,7 +572,9 @@ class IntelRecentEndpointTestCase(unittest.TestCase):
         temp_path = Path(self.tempdir.name)
 
         self._original_get_snapshot = main.regional_intel_service.get_snapshot
-        self._original_cached = getattr(main.regional_intel_service, "_latest_snapshot", None)
+        self._original_cached = getattr(
+            main.regional_intel_service, "_latest_snapshot", None
+        )
         self._original_watchlist_store = main.intel_watchlist_store
         self._original_analyst_store = main.intel_analyst_store
         self._original_collection_store = main.intel_collection_store
@@ -494,13 +603,16 @@ class IntelRecentEndpointTestCase(unittest.TestCase):
     def _install_snapshot(self, snapshot: RegionalIntelSnapshot) -> None:
         async def fake(force_refresh: bool = False):
             return snapshot
+
         main.regional_intel_service.get_snapshot = fake
         main.regional_intel_service._latest_snapshot = snapshot
 
     # --- score normalization -----------------------------------------------
 
     def test_score_is_rounded_to_two_decimals(self) -> None:
-        self._install_snapshot(_build_controlled_snapshot(news=[_news("n1", score=72.34567)]))
+        self._install_snapshot(
+            _build_controlled_snapshot(news=[_news("n1", score=72.34567)])
+        )
         payload = self.client.get("/api/intel/recent").json()
         item = next(it for it in payload["items"] if it["item_id"] == "n1")
         self.assertEqual(item["score"], 72.35)
@@ -570,7 +682,10 @@ class IntelRecentEndpointTestCase(unittest.TestCase):
     # --- pagination / limit clamping --------------------------------------
 
     def test_limit_default_is_ten(self) -> None:
-        items = [_news(f"n{i}", score=10.0 + i, ts=f"2026-04-27T{i:02d}:00:00Z") for i in range(20)]
+        items = [
+            _news(f"n{i}", score=10.0 + i, ts=f"2026-04-27T{i:02d}:00:00Z")
+            for i in range(20)
+        ]
         self._install_snapshot(_build_controlled_snapshot(news=items))
         payload = self.client.get("/api/intel/recent").json()
         self.assertEqual(payload["limit"], 10)
@@ -578,14 +693,19 @@ class IntelRecentEndpointTestCase(unittest.TestCase):
         self.assertEqual(payload["item_count"], 20)
 
     def test_limit_clamps_to_max_fifty(self) -> None:
-        items = [_news(f"n{i}", score=10.0, ts=f"2026-04-{(i % 28) + 1:02d}T00:00:00Z") for i in range(120)]
+        items = [
+            _news(f"n{i}", score=10.0, ts=f"2026-04-{(i % 28) + 1:02d}T00:00:00Z")
+            for i in range(120)
+        ]
         self._install_snapshot(_build_controlled_snapshot(news=items))
         payload = self.client.get("/api/intel/recent", params={"limit": 9999}).json()
         self.assertEqual(payload["limit"], 50)
         self.assertLessEqual(len(payload["items"]), 50)
 
     def test_limit_clamps_below_one_to_one(self) -> None:
-        self._install_snapshot(_build_controlled_snapshot(news=[_news("n1", score=50.0)]))
+        self._install_snapshot(
+            _build_controlled_snapshot(news=[_news("n1", score=50.0)])
+        )
         for raw in (0, -5):
             payload = self.client.get("/api/intel/recent", params={"limit": raw}).json()
             self.assertEqual(payload["limit"], 1, f"limit={raw} should clamp to 1")
@@ -642,7 +762,9 @@ class IntelRecentEndpointTestCase(unittest.TestCase):
                 ]
             )
         )
-        payload = self.client.get("/api/intel/recent", params={"region": "austin_tx"}).json()
+        payload = self.client.get(
+            "/api/intel/recent", params={"region": "austin_tx"}
+        ).json()
         self.assertEqual(payload["region"], "austin_tx")
         ids = {it["item_id"] for it in payload["items"]}
         self.assertEqual(ids, {"austin_a", "austin_b"})

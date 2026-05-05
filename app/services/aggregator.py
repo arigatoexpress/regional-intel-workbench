@@ -25,7 +25,11 @@ class DashboardService:
             return self._snapshot
         async with self._lock:
             now = time.monotonic()
-            if not force_refresh and self._snapshot is not None and now < self._expires_at:
+            if (
+                not force_refresh
+                and self._snapshot is not None
+                and now < self._expires_at
+            ):
                 return self._snapshot
             snapshot = await self._build_snapshot()
             self._snapshot = snapshot
@@ -56,10 +60,14 @@ class DashboardService:
                         ranking_basis="Unavailable",
                         source=protocol.source,
                         error=str(exc),
-                        notes=["This protocol failed to refresh in the last scrape attempt."],
+                        notes=[
+                            "This protocol failed to refresh in the last scrape attempt."
+                        ],
                     )
                 )
-            global_notes.append("At least one EVM protocol failed to refresh. See the per-protocol error card.")
+            global_notes.append(
+                "At least one EVM protocol failed to refresh. See the per-protocol error card."
+            )
 
         try:
             protocols.append(await fullsail_task)
@@ -76,7 +84,9 @@ class DashboardService:
                     notes=["Full Sail failed to refresh in the last API attempt."],
                 )
             )
-            global_notes.append("Full Sail failed to refresh. See the per-protocol error card.")
+            global_notes.append(
+                "Full Sail failed to refresh. See the per-protocol error card."
+            )
 
         order = {"blackhole": 0, "supernova": 1, "fullsail": 2}
         protocols.sort(key=lambda protocol: order.get(protocol.id, 99))
@@ -89,4 +99,6 @@ class DashboardService:
         )
         self.history_store.append_snapshot(snapshot)
         history_records = self.history_store.load_records(lookback_days=LOOKBACK_DAYS)
-        return enrich_dashboard_snapshot(snapshot, history_records, lookback_days=LOOKBACK_DAYS)
+        return enrich_dashboard_snapshot(
+            snapshot, history_records, lookback_days=LOOKBACK_DAYS
+        )

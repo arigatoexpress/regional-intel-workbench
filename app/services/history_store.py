@@ -36,9 +36,12 @@ class SnapshotHistoryStore:
             if last_record:
                 last_timestamp = _parse_timestamp(str(last_record.get("updated_at")))
                 delta = (current_timestamp - last_timestamp).total_seconds()
-                if delta < self.min_append_interval_seconds and not self._has_recovered_protocol_data(
-                    last_record,
-                    record,
+                if (
+                    delta < self.min_append_interval_seconds
+                    and not self._has_recovered_protocol_data(
+                        last_record,
+                        record,
+                    )
                 ):
                     return False
 

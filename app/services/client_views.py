@@ -100,7 +100,12 @@ def _feed_item(
 
 
 def _is_retail_business(category: str, tags: dict[str, str]) -> bool:
-    haystack = " ".join([clean_text(category), " ".join(f"{clean_text(k)}:{clean_text(v)}" for k, v in tags.items())]).lower()
+    haystack = " ".join(
+        [
+            clean_text(category),
+            " ".join(f"{clean_text(k)}:{clean_text(v)}" for k, v in tags.items()),
+        ]
+    ).lower()
     retail_terms = [
         "restaurant",
         "fast_food",
@@ -179,7 +184,9 @@ def _looks_commercial_signal(*parts: str | None) -> bool:
 
 
 def _is_commercial_permit(item) -> bool:
-    return _looks_commercial_signal(item.permit_type, item.address, " ".join(item.notes))
+    return _looks_commercial_signal(
+        item.permit_type, item.address, " ".join(item.notes)
+    )
 
 
 def _build_blanga_austin_view(
@@ -202,9 +209,15 @@ def _build_blanga_austin_view(
 
     austin_news = [item for item in snapshot.news if item.region_id == region_id]
     austin_permits = [item for item in snapshot.permits if item.region_id == region_id]
-    austin_businesses = [item for item in snapshot.businesses if item.region_id == region_id]
-    austin_contacts = [item for item in snapshot.contacts if item.region_id == region_id]
-    austin_orgs = [item for item in snapshot.organizations if item.region_id == region_id]
+    austin_businesses = [
+        item for item in snapshot.businesses if item.region_id == region_id
+    ]
+    austin_contacts = [
+        item for item in snapshot.contacts if item.region_id == region_id
+    ]
+    austin_orgs = [
+        item for item in snapshot.organizations if item.region_id == region_id
+    ]
     permit_lookup = {item.item_id: item for item in austin_permits}
 
     vacancy_news = [
@@ -212,17 +225,24 @@ def _build_blanga_austin_view(
         for item in austin_news
         if item.signal_type == "vacancy_or_closure"
         and (item.address_hint or item.actionable)
-        and _looks_commercial_signal(item.title, item.summary, item.address_hint, " ".join(item.notes))
+        and _looks_commercial_signal(
+            item.title, item.summary, item.address_hint, " ".join(item.notes)
+        )
     ]
-    vacancy_news.sort(key=lambda item: (item.signal_score, item.published_at), reverse=True)
+    vacancy_news.sort(
+        key=lambda item: (item.signal_score, item.published_at), reverse=True
+    )
 
     construction_permits = [
         item
         for item in austin_permits
-        if item.signal_type in {"construction", "commercial_development", "tenant_improvement"}
+        if item.signal_type
+        in {"construction", "commercial_development", "tenant_improvement"}
         and _is_commercial_permit(item)
     ]
-    construction_permits.sort(key=lambda item: (item.signal_score, item.status_date), reverse=True)
+    construction_permits.sort(
+        key=lambda item: (item.signal_score, item.status_date), reverse=True
+    )
 
     redevelopment_permits = [
         item
@@ -231,19 +251,30 @@ def _build_blanga_austin_view(
         and item.status.lower() in {"under review", "on hold", "approved", "active"}
         and _is_commercial_permit(item)
     ]
-    redevelopment_permits.sort(key=lambda item: (item.signal_score, item.status_date), reverse=True)
+    redevelopment_permits.sort(
+        key=lambda item: (item.signal_score, item.status_date), reverse=True
+    )
 
     redevelopment_orgs = [
         item
         for item in austin_orgs
-        if any(term in clean_text(",".join(item.categories)).lower() for term in ["commercial_development", "vacancy_or_closure"])
+        if any(
+            term in clean_text(",".join(item.categories)).lower()
+            for term in ["commercial_development", "vacancy_or_closure"]
+        )
     ]
     redevelopment_orgs.sort(key=lambda item: item.organization_score, reverse=True)
 
-    retail_businesses = [item for item in austin_businesses if _is_retail_business(item.category, item.tags)]
+    retail_businesses = [
+        item
+        for item in austin_businesses
+        if _is_retail_business(item.category, item.tags)
+    ]
     retail_businesses.sort(key=lambda item: item.lead_score, reverse=True)
 
-    contact_rows = sorted(austin_contacts, key=lambda item: item.contact_score, reverse=True)
+    contact_rows = sorted(
+        austin_contacts, key=lambda item: item.contact_score, reverse=True
+    )
 
     vacancy_items = [
         _feed_item(
@@ -252,7 +283,8 @@ def _build_blanga_austin_view(
             region_id=item.region_id,
             title=item.title,
             subtitle=item.address_hint or item.publication or item.source_name,
-            summary=item.summary or "Vacancy or closure signal from public local media.",
+            summary=item.summary
+            or "Vacancy or closure signal from public local media.",
             why_it_matters="Vacancy signals can create landlord motivation, repositioning angles, or near-term leasing/listing opportunities.",
             recommended_action="Verify the address, link ownership, and check for follow-on permits or listing activity.",
             score=item.signal_score,
@@ -309,7 +341,9 @@ def _build_blanga_austin_view(
             item_kind="organization",
             region_id=item.region_id,
             title=item.name,
-            subtitle=item.address or ", ".join(item.categories[:2]) or "organization watch",
+            subtitle=item.address
+            or ", ".join(item.categories[:2])
+            or "organization watch",
             summary="Organization profile with development- or vacancy-linked signal density.",
             why_it_matters="Repeated business/news/permit linkage can point to owners, operators, or properties worth underwriting for repositioning.",
             recommended_action="Open the entity detail, inspect linked signals, and decide whether it belongs in an Austin redevelopment collection.",
@@ -317,7 +351,9 @@ def _build_blanga_austin_view(
             tags=item.categories[:3] + ["redevelopment_watch"],
             source_name=", ".join(item.source_names[:2]) if item.source_names else None,
             source_url=item.website,
-            intel_url=_intel_url("organization", item.item_id, region_id=item.region_id),
+            intel_url=_intel_url(
+                "organization", item.item_id, region_id=item.region_id
+            ),
             notes=item.notes,
         )
         for item in redevelopment_orgs[:4]
@@ -327,7 +363,11 @@ def _build_blanga_austin_view(
     opportunity_items = [
         _feed_item(
             item_id=item.item_ids[0] if item.item_ids else item.opportunity_id,
-            item_kind="organization" if item.kind == "organization" else "permit" if item.kind == "permit_signal" else "news",
+            item_kind="organization"
+            if item.kind == "organization"
+            else "permit"
+            if item.kind == "permit_signal"
+            else "news",
             region_id=item.region_id,
             title=item.title,
             subtitle=item.kind.replace("_", " "),
@@ -338,15 +378,25 @@ def _build_blanga_austin_view(
             tags=item.reasons[:3],
             source_url=item.urls[0] if item.urls else None,
             intel_url=_intel_url(
-                "organization" if item.kind == "organization" else "permit" if item.kind == "permit_signal" else "news",
+                "organization"
+                if item.kind == "organization"
+                else "permit"
+                if item.kind == "permit_signal"
+                else "news",
                 item.item_ids[0] if item.item_ids else item.opportunity_id,
                 region_id=item.region_id,
-            ) if item.item_ids else None,
+            )
+            if item.item_ids
+            else None,
             notes=item.notes,
         )
         for item in opportunities[:20]
         if item.kind != "permit_signal"
-        or (item.item_ids and item.item_ids[0] in permit_lookup and _is_commercial_permit(permit_lookup[item.item_ids[0]]))
+        or (
+            item.item_ids
+            and item.item_ids[0] in permit_lookup
+            and _is_commercial_permit(permit_lookup[item.item_ids[0]])
+        )
     ]
 
     business_items = [
@@ -375,8 +425,15 @@ def _build_blanga_austin_view(
             item_kind="contact",
             region_id=item.region_id,
             title=item.name,
-            subtitle=" | ".join(part for part in [item.title or "", item.organization] if part),
-            summary=" | ".join(part for part in [item.email or "", item.phone or "", item.address or ""] if part) or "Public contact path",
+            subtitle=" | ".join(
+                part for part in [item.title or "", item.organization] if part
+            ),
+            summary=" | ".join(
+                part
+                for part in [item.email or "", item.phone or "", item.address or ""]
+                if part
+            )
+            or "Public contact path",
             why_it_matters="Public professional contacts help with economic-development context, permitting follow-up, and market validation.",
             recommended_action="Use for context gathering and public-side research, not private outreach assumptions.",
             score=item.contact_score,
@@ -399,7 +456,8 @@ def _build_blanga_austin_view(
             summary=item.summary,
             why_it_matters="This is the direct answer to what changed, not just how counts moved.",
             recommended_action="Open detail if it is relevant to current Austin coverage, then decide whether to save it into a dossier or monitor rule.",
-            score=abs((item.score_after or 0.0) - (item.score_before or 0.0)) or float(item.score_after or item.score_before or 0.0),
+            score=abs((item.score_after or 0.0) - (item.score_before or 0.0))
+            or float(item.score_after or item.score_before or 0.0),
             tags=[item.kind, item.change_type],
             intel_url=_intel_url(item.kind, item.item_id, region_id=item.region_id),
             notes=item.notes,
@@ -411,7 +469,9 @@ def _build_blanga_austin_view(
     monitor_items = []
     for evaluation in evaluations[:6]:
         for match in evaluation.matches[:3]:
-            if match.kind == "permit" and not _looks_commercial_signal(match.title, match.summary):
+            if match.kind == "permit" and not _looks_commercial_signal(
+                match.title, match.summary
+            ):
                 continue
             monitor_items.append(
                 _feed_item(
@@ -426,17 +486,43 @@ def _build_blanga_austin_view(
                     score=match.score,
                     tags=[match.severity, evaluation.rule.title],
                     source_url=match.url,
-                    intel_url=_intel_url(match.kind, match.item_id, region_id=match.region_id) if match.item_id and match.kind in {"news", "permit", "business", "contact", "organization"} else None,
+                    intel_url=_intel_url(
+                        match.kind, match.item_id, region_id=match.region_id
+                    )
+                    if match.item_id
+                    and match.kind
+                    in {"news", "permit", "business", "contact", "organization"}
+                    else None,
                     notes=match.notes,
                 )
             )
 
     hero_metrics = [
-        ClientViewMetric(label="Vacancy signals", value=str(len(vacancy_news)), detail="Address-backed closure or move-out coverage"),
-        ClientViewMetric(label="Construction + TI", value=str(len(construction_permits)), detail="Retail development and tenant work"),
-        ClientViewMetric(label="Retail leads", value=str(len(retail_businesses)), detail="Operators and tenant-style business leads"),
-        ClientViewMetric(label="Today changes", value=str(len(change_items)), detail="Brokerage-relevant entity changes surfaced in this feed"),
-        ClientViewMetric(label="Public contacts", value=str(len(contact_rows)), detail="Official or public professional contact paths"),
+        ClientViewMetric(
+            label="Vacancy signals",
+            value=str(len(vacancy_news)),
+            detail="Address-backed closure or move-out coverage",
+        ),
+        ClientViewMetric(
+            label="Construction + TI",
+            value=str(len(construction_permits)),
+            detail="Retail development and tenant work",
+        ),
+        ClientViewMetric(
+            label="Retail leads",
+            value=str(len(retail_businesses)),
+            detail="Operators and tenant-style business leads",
+        ),
+        ClientViewMetric(
+            label="Today changes",
+            value=str(len(change_items)),
+            detail="Brokerage-relevant entity changes surfaced in this feed",
+        ),
+        ClientViewMetric(
+            label="Public contacts",
+            value=str(len(contact_rows)),
+            detail="Official or public professional contact paths",
+        ),
     ]
 
     sections = [
@@ -452,21 +538,27 @@ def _build_blanga_austin_view(
             title="Vacancy + Closure Feed",
             summary="Public local-news items that suggest a space may be vacant or a tenant may be leaving.",
             items=vacancy_items,
-            notes=["Address-bearing vacancy signals are the highest-confidence items here."],
+            notes=[
+                "Address-bearing vacancy signals are the highest-confidence items here."
+            ],
         ),
         ClientFeedSection(
             section_id="construction_feed",
             title="Retail Construction + TI Feed",
             summary="Austin-area construction, TI, and commercial development permits relevant to retail and tenant movement.",
             items=construction_items,
-            notes=["This is best used to spot tenant expansion, new competition, and adjacent ownership opportunities."],
+            notes=[
+                "This is best used to spot tenant expansion, new competition, and adjacent ownership opportunities."
+            ],
         ),
         ClientFeedSection(
             section_id="redevelopment_watch",
             title="Redevelopment + Repositioning Watch",
             summary="A blended view of permits and entities that look more like repositioning or redevelopment candidates than simple stabilized retail.",
             items=redevelopment_items[:12],
-            notes=["This section intentionally prioritizes friction, vacancy, and development transitions over stabilized assets."],
+            notes=[
+                "This section intentionally prioritizes friction, vacancy, and development transitions over stabilized assets."
+            ],
         ),
         ClientFeedSection(
             section_id="operator_leads",
@@ -491,7 +583,9 @@ def _build_blanga_austin_view(
             title="Saved Monitor Hits",
             summary="Matches from saved Austin monitor rules so repeat filters turn into a standing client inbox.",
             items=monitor_items[:12],
-            notes=["Monitor rules are reusable across client views, which is the core extensibility pattern here."],
+            notes=[
+                "Monitor rules are reusable across client views, which is the core extensibility pattern here."
+            ],
         ),
     ]
 

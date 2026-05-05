@@ -41,7 +41,9 @@ def _hours_since(iso_string: str | None) -> float | None:
     from datetime import UTC, datetime
 
     try:
-        delta = datetime.now(tz=UTC) - datetime.fromisoformat(iso_string.replace("Z", "+00:00")).astimezone(UTC)
+        delta = datetime.now(tz=UTC) - datetime.fromisoformat(
+            iso_string.replace("Z", "+00:00")
+        ).astimezone(UTC)
     except ValueError:
         return None
     return max(delta.total_seconds() / 3600, 0.0)
@@ -58,27 +60,45 @@ def _parse_iso(iso_string: str | None):
         return None
 
 
-def _organization_lookup(snapshot: RegionalIntelSnapshot) -> dict[str, OrganizationProfile]:
+def _organization_lookup(
+    snapshot: RegionalIntelSnapshot,
+) -> dict[str, OrganizationProfile]:
     return {item.item_id: item for item in snapshot.organizations}
 
 
-def _organization_detail_payload(snapshot: RegionalIntelSnapshot, org_id: str) -> dict[str, Any] | None:
+def _organization_detail_payload(
+    snapshot: RegionalIntelSnapshot, org_id: str
+) -> dict[str, Any] | None:
     org = _organization_lookup(snapshot).get(org_id)
     if org is None:
         return None
     normalized_name = _normalize(org.name)
-    businesses = [item for item in snapshot.businesses if item.region_id == org.region_id and _normalize(item.name) == normalized_name]
-    contacts = [item for item in snapshot.contacts if item.region_id == org.region_id and _normalize(item.organization) == normalized_name]
+    businesses = [
+        item
+        for item in snapshot.businesses
+        if item.region_id == org.region_id and _normalize(item.name) == normalized_name
+    ]
+    contacts = [
+        item
+        for item in snapshot.contacts
+        if item.region_id == org.region_id
+        and _normalize(item.organization) == normalized_name
+    ]
     news = [
         item
         for item in snapshot.news
-        if item.region_id == org.region_id and normalized_name in {_normalize(name) for name in item.organizations}
+        if item.region_id == org.region_id
+        and normalized_name in {_normalize(name) for name in item.organizations}
     ]
     permits = [
         item
         for item in snapshot.permits
         if item.region_id == org.region_id
-        and any(normalized_name == _normalize(note.split(":", 1)[1]) for note in item.notes if ":" in note)
+        and any(
+            normalized_name == _normalize(note.split(":", 1)[1])
+            for note in item.notes
+            if ":" in note
+        )
     ]
     return {
         "organization": org,
@@ -89,7 +109,9 @@ def _organization_detail_payload(snapshot: RegionalIntelSnapshot, org_id: str) -
     }
 
 
-def build_entity_timeline(snapshot: RegionalIntelSnapshot, item_id: str) -> list[IntelTimelineEvent]:
+def build_entity_timeline(
+    snapshot: RegionalIntelSnapshot, item_id: str
+) -> list[IntelTimelineEvent]:
     detail = _organization_detail_payload(snapshot, item_id)
     if detail is None:
         return []
@@ -121,7 +143,9 @@ def build_entity_timeline(snapshot: RegionalIntelSnapshot, item_id: str) -> list
                 kind="permit",
                 title=item.address,
                 subtitle=f"{item.county} | {item.permit_type}",
-                detail=" | ".join(part for part in [item.permit_number, item.signal_type] if part),
+                detail=" | ".join(
+                    part for part in [item.permit_number, item.signal_type] if part
+                ),
                 score=item.signal_score,
                 url=item.source_url,
                 notes=item.notes,
@@ -136,8 +160,14 @@ def build_entity_timeline(snapshot: RegionalIntelSnapshot, item_id: str) -> list
                 occurred_at=snapshot.updated_at,
                 kind="contact",
                 title=item.name,
-                subtitle=" | ".join(part for part in [item.title or "", item.organization] if part),
-                detail=" | ".join(part for part in [item.email or "", item.phone or "", item.address or ""] if part),
+                subtitle=" | ".join(
+                    part for part in [item.title or "", item.organization] if part
+                ),
+                detail=" | ".join(
+                    part
+                    for part in [item.email or "", item.phone or "", item.address or ""]
+                    if part
+                ),
                 score=item.contact_score,
                 url=item.website or item.source_url,
                 notes=item.notes,
@@ -164,7 +194,9 @@ def build_entity_timeline(snapshot: RegionalIntelSnapshot, item_id: str) -> list
     return timeline[:40]
 
 
-def build_opportunities(snapshot: RegionalIntelSnapshot, region: RegionId | None = None) -> list[IntelOpportunity]:
+def build_opportunities(
+    snapshot: RegionalIntelSnapshot, region: RegionId | None = None
+) -> list[IntelOpportunity]:
     opportunities: list[IntelOpportunity] = []
 
     for org in snapshot.organizations:
@@ -182,9 +214,14 @@ def build_opportunities(snapshot: RegionalIntelSnapshot, region: RegionId | None
             reasons.append(f"{org.contact_count} public contact paths")
             score += org.contact_count * 8
         if org.business_lead_count:
-            reasons.append(f"{org.business_lead_count} mapped public business locations")
+            reasons.append(
+                f"{org.business_lead_count} mapped public business locations"
+            )
             score += org.business_lead_count * 4
-        if any(term in clean_text(",".join(org.categories)).lower() for term in ["vacancy_or_closure", "commercial_development", "construction"]):
+        if any(
+            term in clean_text(",".join(org.categories)).lower()
+            for term in ["vacancy_or_closure", "commercial_development", "construction"]
+        ):
             reasons.append("high-signal category activity")
             score += 18
         recency_hours = _hours_since(org.latest_activity_at)
@@ -234,13 +271,21 @@ def build_opportunities(snapshot: RegionalIntelSnapshot, region: RegionId | None
     for ps in snapshot.permits:
         if region is not None and ps.region_id != region:
             continue
-        if ps.signal_type not in {"commercial_development", "construction", "tenant_improvement"}:
+        if ps.signal_type not in {
+            "commercial_development",
+            "construction",
+            "tenant_improvement",
+        }:
             continue
         reasons = [f"{ps.signal_type.replace('_', ' ')} signal", ps.county]
         if any(note.startswith("Developer:") for note in ps.notes):
-            reasons.append(next(note for note in ps.notes if note.startswith("Developer:")))
+            reasons.append(
+                next(note for note in ps.notes if note.startswith("Developer:"))
+            )
         if any(note.startswith("Organization:") for note in ps.notes):
-            reasons.append(next(note for note in ps.notes if note.startswith("Organization:")))
+            reasons.append(
+                next(note for note in ps.notes if note.startswith("Organization:"))
+            )
         opportunities.append(
             IntelOpportunity(
                 opportunity_id=_stable_id("opportunity", ps.item_id),
@@ -256,13 +301,23 @@ def build_opportunities(snapshot: RegionalIntelSnapshot, region: RegionId | None
             )
         )
 
-    opportunities.sort(key=lambda item: (item.region_id, -item.score, item.title.lower()))
+    opportunities.sort(
+        key=lambda item: (item.region_id, -item.score, item.title.lower())
+    )
     return opportunities[:40]
 
 
-def resolve_watchlist(snapshot: RegionalIntelSnapshot, entries: list[IntelWatchlistEntry]) -> list[dict[str, Any]]:
+def resolve_watchlist(
+    snapshot: RegionalIntelSnapshot, entries: list[IntelWatchlistEntry]
+) -> list[dict[str, Any]]:
     by_id: dict[str, dict[str, Any]] = {}
-    for collection_name in ["organizations", "businesses", "contacts", "news", "permits"]:
+    for collection_name in [
+        "organizations",
+        "businesses",
+        "contacts",
+        "news",
+        "permits",
+    ]:
         for item in getattr(snapshot, collection_name):
             by_id[item.item_id] = item.model_dump()
 
@@ -285,9 +340,17 @@ def resolve_watchlist(snapshot: RegionalIntelSnapshot, entries: list[IntelWatchl
     return output
 
 
-def resolve_collection_items(snapshot: RegionalIntelSnapshot, collection: IntelCollection) -> list[dict[str, Any]]:
+def resolve_collection_items(
+    snapshot: RegionalIntelSnapshot, collection: IntelCollection
+) -> list[dict[str, Any]]:
     by_id: dict[str, dict[str, Any]] = {}
-    for collection_name in ["organizations", "businesses", "contacts", "news", "permits"]:
+    for collection_name in [
+        "organizations",
+        "businesses",
+        "contacts",
+        "news",
+        "permits",
+    ]:
         for item in getattr(snapshot, collection_name):
             by_id[item.item_id] = item.model_dump()
 
@@ -325,15 +388,25 @@ def build_briefing_pack(
     timeline = build_entity_timeline(snapshot, item_id)[:12]
     reasons: list[str] = []
     if org.permit_signal_count:
-        reasons.append(f"{org.permit_signal_count} permit/development signals are linked to this organization.")
+        reasons.append(
+            f"{org.permit_signal_count} permit/development signals are linked to this organization."
+        )
     if org.news_signal_count:
-        reasons.append(f"{org.news_signal_count} public news signals mention this organization.")
+        reasons.append(
+            f"{org.news_signal_count} public news signals mention this organization."
+        )
     if org.contact_count:
-        reasons.append(f"{org.contact_count} public professional contacts are available.")
+        reasons.append(
+            f"{org.contact_count} public professional contacts are available."
+        )
     if org.business_lead_count:
-        reasons.append(f"{org.business_lead_count} mapped public-facing business locations were found.")
+        reasons.append(
+            f"{org.business_lead_count} mapped public-facing business locations were found."
+        )
     if not reasons:
-        reasons.append("Organization exists in the current public-source graph but has limited linked evidence.")
+        reasons.append(
+            "Organization exists in the current public-source graph but has limited linked evidence."
+        )
     if annotation and annotation.note:
         reasons.insert(0, "Analyst note is attached to this organization.")
 
@@ -352,8 +425,16 @@ def build_briefing_pack(
     source_index: dict[str, dict[str, str]] = {}
     for collection_name in ["news", "permits", "contacts", "businesses"]:
         for item in detail[collection_name]:
-            label = getattr(item, "source_name", None) or getattr(item, "publication", None) or "Public source"
-            url = getattr(item, "source_url", None) or getattr(item, "website", None) or ""
+            label = (
+                getattr(item, "source_name", None)
+                or getattr(item, "publication", None)
+                or "Public source"
+            )
+            url = (
+                getattr(item, "source_url", None)
+                or getattr(item, "website", None)
+                or ""
+            )
             key = f"{label}|{url}"
             if key not in source_index:
                 source_index[key] = {"name": label, "url": url}
@@ -402,7 +483,10 @@ def build_briefing_pack(
     else:
         markdown_lines.append("- No timeline events linked yet.")
     markdown_lines.extend(["", "## Sources"])
-    markdown_lines.extend([f"- {item['name']} | {item['url']}" for item in source_index.values()] or ["- No sources linked yet."])
+    markdown_lines.extend(
+        [f"- {item['name']} | {item['url']}" for item in source_index.values()]
+        or ["- No sources linked yet."]
+    )
 
     return IntelBriefingPack(
         item_id=item_id,
@@ -440,7 +524,12 @@ def build_operational_alerts(
             severity = "high" if empty_runs >= 2 else "medium"
             alerts.append(
                 IntelAlert(
-                    alert_id=_stable_id("alert", item.get("source_key", ""), last_status, str(empty_runs)),
+                    alert_id=_stable_id(
+                        "alert",
+                        item.get("source_key", ""),
+                        last_status,
+                        str(empty_runs),
+                    ),
                     region_id=region_ids[0] if len(region_ids) == 1 else region,
                     severity=severity,
                     kind="source_gap",
@@ -449,13 +538,20 @@ def build_operational_alerts(
                     score=90.0 if severity == "high" else 72.0,
                     source_keys=[str(item.get("source_key"))],
                     urls=[],
-                    notes=["Source reliability alert generated from stored source-history data."],
+                    notes=[
+                        "Source reliability alert generated from stored source-history data."
+                    ],
                 )
             )
         elif last_status == "live" and last_item_count > 40:
             alerts.append(
                 IntelAlert(
-                    alert_id=_stable_id("alert", item.get("source_key", ""), "surge", str(last_item_count)),
+                    alert_id=_stable_id(
+                        "alert",
+                        item.get("source_key", ""),
+                        "surge",
+                        str(last_item_count),
+                    ),
                     region_id=region_ids[0] if len(region_ids) == 1 else region,
                     severity="info",
                     kind="source_surge",
@@ -463,7 +559,9 @@ def build_operational_alerts(
                     summary=f"Latest run produced {last_item_count} items.",
                     score=55.0,
                     source_keys=[str(item.get("source_key"))],
-                    notes=["High-volume source run; review for new intelligence density."],
+                    notes=[
+                        "High-volume source run; review for new intelligence density."
+                    ],
                 )
             )
 
@@ -478,7 +576,9 @@ def build_operational_alerts(
                     severity="high",
                     kind="actionable_news",
                     title=ns.title,
-                    summary=ns.address_hint or ns.summary or "Actionable public news signal.",
+                    summary=ns.address_hint
+                    or ns.summary
+                    or "Actionable public news signal.",
                     score=ns.signal_score,
                     item_ids=[ns.item_id],
                     urls=[ns.source_url],
@@ -489,7 +589,11 @@ def build_operational_alerts(
     for ps in snapshot.permits:
         if region is not None and ps.region_id != region:
             continue
-        if ps.signal_type in {"commercial_development", "construction", "tenant_improvement"} and ps.signal_score >= 78:
+        if (
+            ps.signal_type
+            in {"commercial_development", "construction", "tenant_improvement"}
+            and ps.signal_score >= 78
+        ):
             alerts.append(
                 IntelAlert(
                     alert_id=_stable_id("alert", ps.item_id, "permit_signal"),
@@ -517,7 +621,9 @@ def build_region_briefing_pack(
     alerts: list[IntelAlert],
     watchlist_items: list[dict],
 ) -> IntelRegionBriefingPack:
-    region_profile = next((item for item in snapshot.regions if item.id == region), None)
+    region_profile = next(
+        (item for item in snapshot.regions if item.id == region), None
+    )
     if region_profile is None:
         raise ValueError(f"Unknown region: {region}")
 
@@ -532,7 +638,10 @@ def build_region_briefing_pack(
         if (item.get("entry", {}).get("region_id") == region)
         or (item.get("resolved", {}).get("region_id") == region)
     ][:6]
-    top_opportunities = [item.model_dump() if hasattr(item, "model_dump") else item for item in opportunities[:6]]
+    top_opportunities = [
+        item.model_dump() if hasattr(item, "model_dump") else item
+        for item in opportunities[:6]
+    ]
     top_contacts = [
         {
             "name": item.name,
@@ -629,12 +738,19 @@ def build_collection_briefing_pack(
 ) -> IntelCollectionBriefingPack:
     resolved_items = resolve_collection_items(snapshot, collection)
     collection_regions = {
-        item.get("resolved", {}).get("region_id") or item.get("ref", {}).get("region_id")
+        item.get("resolved", {}).get("region_id")
+        or item.get("ref", {}).get("region_id")
         for item in resolved_items
-        if item.get("resolved", {}).get("region_id") or item.get("ref", {}).get("region_id")
+        if item.get("resolved", {}).get("region_id")
+        or item.get("ref", {}).get("region_id")
     }
-    effective_region = collection.region_id or (sorted(collection_regions)[0] if len(collection_regions) == 1 else None)
-    item_ids = {item.get("resolved", {}).get("item_id") or item.get("ref", {}).get("item_id") for item in resolved_items}
+    effective_region = collection.region_id or (
+        sorted(collection_regions)[0] if len(collection_regions) == 1 else None
+    )
+    item_ids = {
+        item.get("resolved", {}).get("item_id") or item.get("ref", {}).get("item_id")
+        for item in resolved_items
+    }
     item_ids.discard(None)
     annotation_lookup = annotation_lookup or {}
 
@@ -652,7 +768,9 @@ def build_collection_briefing_pack(
             continue
         kind = item.get("ref", {}).get("kind")
         if kind == "contact":
-            key = str(resolved.get("item_id") or resolved.get("email") or resolved.get("name"))
+            key = str(
+                resolved.get("item_id") or resolved.get("email") or resolved.get("name")
+            )
             if key in seen_contacts:
                 continue
             seen_contacts.add(key)
@@ -675,12 +793,18 @@ def build_collection_briefing_pack(
             if org_briefing is None:
                 continue
             for contact in org_briefing.public_contacts:
-                key = str(contact.get("email") or contact.get("name") or contact.get("website"))
+                key = str(
+                    contact.get("email")
+                    or contact.get("name")
+                    or contact.get("website")
+                )
                 if not key or key in seen_contacts:
                     continue
                 seen_contacts.add(key)
                 contact_rows.append(contact)
-    source_alerts = build_operational_alerts(snapshot, source_history=source_history, region=effective_region)[:8]
+    source_alerts = build_operational_alerts(
+        snapshot, source_history=source_history, region=effective_region
+    )[:8]
 
     item_lines: list[str] = []
     markdown_lines = [
@@ -695,7 +819,13 @@ def build_collection_briefing_pack(
     for item in resolved_items:
         ref = item.get("ref", {})
         resolved = item.get("resolved", {})
-        title = resolved.get("name") or resolved.get("title") or resolved.get("address") or ref.get("label") or "Saved item"
+        title = (
+            resolved.get("name")
+            or resolved.get("title")
+            or resolved.get("address")
+            or ref.get("label")
+            or "Saved item"
+        )
         descriptor = (
             resolved.get("summary")
             or resolved.get("address")
@@ -721,7 +851,9 @@ def build_collection_briefing_pack(
             ]
         )
     else:
-        markdown_lines.append("- No linked opportunities were detected from the current collection items.")
+        markdown_lines.append(
+            "- No linked opportunities were detected from the current collection items."
+        )
 
     markdown_lines.extend(["", "## Public Contacts"])
     if contact_rows:
@@ -732,11 +864,18 @@ def build_collection_briefing_pack(
             ]
         )
     else:
-        markdown_lines.append("- No public contacts linked from current collection items.")
+        markdown_lines.append(
+            "- No public contacts linked from current collection items."
+        )
 
     markdown_lines.extend(["", "## Operational Alerts"])
     if source_alerts:
-        markdown_lines.extend([f"- [{item.severity}] {item.title} | {item.summary}" for item in source_alerts])
+        markdown_lines.extend(
+            [
+                f"- [{item.severity}] {item.title} | {item.summary}"
+                for item in source_alerts
+            ]
+        )
     else:
         markdown_lines.append("- No current alerts for this collection scope.")
 
@@ -800,7 +939,9 @@ def build_bundle_briefing_pack(
             seen_contact_keys.add(key)
             contacts.append(item)
     effective_region = bundle.region_id
-    alerts = build_operational_alerts(snapshot, source_history=source_history, region=effective_region)[:10]
+    alerts = build_operational_alerts(
+        snapshot, source_history=source_history, region=effective_region
+    )[:10]
     summary = (
         f"{bundle.title} combines {len(collections)} collections, "
         f"{sum(len(collection.items) for collection in collections)} saved items, "
@@ -842,7 +983,10 @@ def build_bundle_briefing_pack(
         or ["- No public contacts linked yet."]
     )
     markdown_lines.extend(["", "## Operational Alerts"])
-    markdown_lines.extend([f"- [{item.severity}] {item.title} | {item.summary}" for item in alerts] or ["- No current alerts."])
+    markdown_lines.extend(
+        [f"- [{item.severity}] {item.title} | {item.summary}" for item in alerts]
+        or ["- No current alerts."]
+    )
     markdown_lines.extend(["", "## Collection Briefs"])
     for pack in packs:
         markdown_lines.extend(
@@ -858,7 +1002,15 @@ def build_bundle_briefing_pack(
         title=bundle.title,
         region_id=effective_region,
         summary=summary,
-        collections=[{"collection_id": pack.collection_id, "title": pack.title, "summary": pack.summary, "item_count": len(pack.items)} for pack in packs],
+        collections=[
+            {
+                "collection_id": pack.collection_id,
+                "title": pack.title,
+                "summary": pack.summary,
+                "item_count": len(pack.items),
+            }
+            for pack in packs
+        ],
         linked_opportunities=linked_opportunities[:12],
         public_contacts=contacts[:12],
         source_alerts=alerts,
@@ -881,7 +1033,10 @@ def build_source_incidents(
         region_ids = item.get("region_ids") or []
         if region is not None and region_ids and region not in region_ids:
             continue
-        points = sorted(item.get("points") or [], key=lambda point: str(point.get("updated_at") or ""))
+        points = sorted(
+            item.get("points") or [],
+            key=lambda point: str(point.get("updated_at") or ""),
+        )
         if not points:
             continue
         latest = points[-1]
@@ -898,13 +1053,20 @@ def build_source_incidents(
             severity = "high" if len(trailing_empty) >= 2 else "medium"
             incidents.append(
                 IntelSourceIncident(
-                    incident_id=_stable_id("source_incident", str(item.get("source_key")), "empty", str(len(trailing_empty))),
+                    incident_id=_stable_id(
+                        "source_incident",
+                        str(item.get("source_key")),
+                        "empty",
+                        str(len(trailing_empty)),
+                    ),
                     source_key=str(item.get("source_key")),
                     name=str(item.get("name") or item.get("source_key")),
                     category=str(item.get("category") or "news"),
                     region_ids=region_ids,
                     severity=severity,
-                    incident_type="repeated_empty" if len(trailing_empty) >= 2 else "single_empty",
+                    incident_type="repeated_empty"
+                    if len(trailing_empty) >= 2
+                    else "single_empty",
                     started_at=str(trailing_empty[0].get("updated_at")),
                     latest_at=str(trailing_empty[-1].get("updated_at")),
                     run_count=len(trailing_empty),
@@ -920,14 +1082,20 @@ def build_source_incidents(
         previous_non_empty = [
             int(point.get("item_count") or 0)
             for point in points[:-1]
-            if str(point.get("status") or "unknown") == "live" and int(point.get("item_count") or 0) > 0
+            if str(point.get("status") or "unknown") == "live"
+            and int(point.get("item_count") or 0) > 0
         ]
         if latest_status == "live" and latest_count > 0 and previous_non_empty:
             baseline = sum(previous_non_empty) / max(len(previous_non_empty), 1)
             if baseline > 0 and latest_count >= max(int(round(baseline * 1.75)), 20):
                 incidents.append(
                     IntelSourceIncident(
-                        incident_id=_stable_id("source_incident", str(item.get("source_key")), "surge", str(latest_count)),
+                        incident_id=_stable_id(
+                            "source_incident",
+                            str(item.get("source_key")),
+                            "surge",
+                            str(latest_count),
+                        ),
                         source_key=str(item.get("source_key")),
                         name=str(item.get("name") or item.get("source_key")),
                         category=str(item.get("category") or "news"),
@@ -939,7 +1107,9 @@ def build_source_incidents(
                         run_count=1,
                         last_item_count=latest_count,
                         summary=f"Latest run produced {latest_count} items against a trailing baseline of {round(baseline, 1)}.",
-                        notes=["Use this to review sudden density spikes from an otherwise stable source."],
+                        notes=[
+                            "Use this to review sudden density spikes from an otherwise stable source."
+                        ],
                     )
                 )
 
@@ -955,7 +1125,12 @@ def build_source_incidents(
             if len(recovery_streak) >= 2:
                 incidents.append(
                     IntelSourceIncident(
-                        incident_id=_stable_id("source_incident", str(item.get("source_key")), "recovery", str(latest_count)),
+                        incident_id=_stable_id(
+                            "source_incident",
+                            str(item.get("source_key")),
+                            "recovery",
+                            str(latest_count),
+                        ),
                         source_key=str(item.get("source_key")),
                         name=str(item.get("name") or item.get("source_key")),
                         category=str(item.get("category") or "news"),
@@ -967,7 +1142,9 @@ def build_source_incidents(
                         run_count=len(recovery_streak) + 1,
                         last_item_count=latest_count,
                         summary=f"Source recovered after {len(recovery_streak)} empty run(s); latest run returned {latest_count} items.",
-                        notes=["Useful for distinguishing temporary outages from chronic source failures."],
+                        notes=[
+                            "Useful for distinguishing temporary outages from chronic source failures."
+                        ],
                     )
                 )
 
@@ -975,7 +1152,12 @@ def build_source_incidents(
         if age_hours is not None and age_hours >= 36:
             incidents.append(
                 IntelSourceIncident(
-                    incident_id=_stable_id("source_incident", str(item.get("source_key")), "stale", str(int(age_hours))),
+                    incident_id=_stable_id(
+                        "source_incident",
+                        str(item.get("source_key")),
+                        "stale",
+                        str(int(age_hours)),
+                    ),
                     source_key=str(item.get("source_key")),
                     name=str(item.get("name") or item.get("source_key")),
                     category=str(item.get("category") or "news"),
@@ -987,11 +1169,16 @@ def build_source_incidents(
                     run_count=1,
                     last_item_count=latest_count,
                     summary=f"Latest recorded run is {round(age_hours, 1)} hours old.",
-                    notes=["Staleness is measured from the latest history point, not from feed metadata."],
+                    notes=[
+                        "Staleness is measured from the latest history point, not from feed metadata."
+                    ],
                 )
             )
 
-    incidents.sort(key=lambda item: (-item.run_count, -item.last_item_count, item.latest_at), reverse=True)
+    incidents.sort(
+        key=lambda item: (-item.run_count, -item.last_item_count, item.latest_at),
+        reverse=True,
+    )
     return incidents[:40]
 
 
@@ -1013,14 +1200,32 @@ def build_region_changes(
                 continue
 
             def _count(record: dict, collection_name: str) -> int:
-                return len([item for item in record.get(collection_name, []) if item.get("region_id") == region_id])
+                return len(
+                    [
+                        item
+                        for item in record.get(collection_name, [])
+                        if item.get("region_id") == region_id
+                    ]
+                )
 
             delta_news = _count(latest, "news") - _count(previous, "news")
             delta_permits = _count(latest, "permits") - _count(previous, "permits")
-            delta_businesses = _count(latest, "businesses") - _count(previous, "businesses")
+            delta_businesses = _count(latest, "businesses") - _count(
+                previous, "businesses"
+            )
             delta_contacts = _count(latest, "contacts") - _count(previous, "contacts")
-            delta_organizations = _count(latest, "organizations") - _count(previous, "organizations")
-            if not any([delta_news, delta_permits, delta_businesses, delta_contacts, delta_organizations]):
+            delta_organizations = _count(latest, "organizations") - _count(
+                previous, "organizations"
+            )
+            if not any(
+                [
+                    delta_news,
+                    delta_permits,
+                    delta_businesses,
+                    delta_contacts,
+                    delta_organizations,
+                ]
+            ):
                 continue
 
             lines: list[str] = []
@@ -1037,7 +1242,9 @@ def build_region_changes(
 
             changes.append(
                 IntelRegionChange(
-                    change_id=_stable_id("region_change", str(region_id), previous_at, latest_at),
+                    change_id=_stable_id(
+                        "region_change", str(region_id), previous_at, latest_at
+                    ),
                     region_id=region_id,
                     latest_at=latest_at,
                     previous_at=previous_at,
@@ -1048,7 +1255,9 @@ def build_region_changes(
                     delta_contacts=delta_contacts,
                     delta_organizations=delta_organizations,
                     notable_lines=lines,
-                    notes=["Counts are derived from stored snapshots, not from entity-level diffs."],
+                    notes=[
+                        "Counts are derived from stored snapshots, not from entity-level diffs."
+                    ],
                 )
             )
 
@@ -1080,42 +1289,88 @@ def build_entity_changes(
 
     def _title_for(entity_kind: str, row: dict) -> str:
         if entity_kind == "news":
-            return str(row.get("title") or row.get("summary") or row.get("item_id") or "news item")
+            return str(
+                row.get("title")
+                or row.get("summary")
+                or row.get("item_id")
+                or "news item"
+            )
         if entity_kind == "permit":
-            return str(row.get("address") or row.get("permit_number") or row.get("item_id") or "permit")
+            return str(
+                row.get("address")
+                or row.get("permit_number")
+                or row.get("item_id")
+                or "permit"
+            )
         if entity_kind == "business":
-            return str(row.get("name") or row.get("address") or row.get("item_id") or "business")
+            return str(
+                row.get("name")
+                or row.get("address")
+                or row.get("item_id")
+                or "business"
+            )
         if entity_kind == "contact":
-            return str(row.get("name") or row.get("organization") or row.get("item_id") or "contact")
+            return str(
+                row.get("name")
+                or row.get("organization")
+                or row.get("item_id")
+                or "contact"
+            )
         return str(row.get("name") or row.get("item_id") or "organization")
 
     def _summary_for(entity_kind: str, row: dict) -> str:
         if entity_kind == "news":
             return str(row.get("summary") or row.get("source_name") or "")
         if entity_kind == "permit":
-            return " | ".join(part for part in [row.get("permit_type"), row.get("status"), row.get("county")] if part)
+            return " | ".join(
+                part
+                for part in [
+                    row.get("permit_type"),
+                    row.get("status"),
+                    row.get("county"),
+                ]
+                if part
+            )
         if entity_kind == "business":
-            return " | ".join(part for part in [row.get("category"), row.get("address")] if part)
+            return " | ".join(
+                part for part in [row.get("category"), row.get("address")] if part
+            )
         if entity_kind == "contact":
-            return " | ".join(part for part in [row.get("organization"), row.get("title"), row.get("email")] if part)
-        return " | ".join(part for part in [", ".join(row.get("categories") or []), row.get("address")] if part)
+            return " | ".join(
+                part
+                for part in [
+                    row.get("organization"),
+                    row.get("title"),
+                    row.get("email"),
+                ]
+                if part
+            )
+        return " | ".join(
+            part
+            for part in [", ".join(row.get("categories") or []), row.get("address")]
+            if part
+        )
 
     for previous, latest in zip(history_records[:-1], history_records[1:]):
         latest_at = str(latest.get("updated_at") or "")
         previous_at = str(previous.get("updated_at") or "")
-        kinds_to_process = [normalized_kind] if normalized_kind else list(collection_map.keys())
+        kinds_to_process = (
+            [normalized_kind] if normalized_kind else list(collection_map.keys())
+        )
 
         for entity_kind in kinds_to_process:
             collection_name, score_field = collection_map[entity_kind]
             previous_rows = {
                 str(row.get("item_id")): row
                 for row in previous.get(collection_name, [])
-                if row.get("item_id") and (region is None or row.get("region_id") == region)
+                if row.get("item_id")
+                and (region is None or row.get("region_id") == region)
             }
             latest_rows = {
                 str(row.get("item_id")): row
                 for row in latest.get(collection_name, [])
-                if row.get("item_id") and (region is None or row.get("region_id") == region)
+                if row.get("item_id")
+                and (region is None or row.get("region_id") == region)
             }
             candidate_ids = set(previous_rows) | set(latest_rows)
             if item_id:
@@ -1129,12 +1384,20 @@ def build_entity_changes(
                 if region_id is None:
                     continue
                 title = _title_for(entity_kind, reference)
-                notes = [f"{entity_kind} diff derived from consecutive stored snapshots."]
+                notes = [
+                    f"{entity_kind} diff derived from consecutive stored snapshots."
+                ]
 
                 if previous_row is None and latest_row is not None:
                     changes.append(
                         IntelEntityChange(
-                            change_id=_stable_id("entity_change", entity_kind, current_item_id, "added", latest_at),
+                            change_id=_stable_id(
+                                "entity_change",
+                                entity_kind,
+                                current_item_id,
+                                "added",
+                                latest_at,
+                            ),
                             region_id=region_id,
                             kind=entity_kind,
                             item_id=current_item_id,
@@ -1153,7 +1416,13 @@ def build_entity_changes(
                 if previous_row is not None and latest_row is None:
                     changes.append(
                         IntelEntityChange(
-                            change_id=_stable_id("entity_change", entity_kind, current_item_id, "removed", latest_at),
+                            change_id=_stable_id(
+                                "entity_change",
+                                entity_kind,
+                                current_item_id,
+                                "removed",
+                                latest_at,
+                            ),
                             region_id=region_id,
                             kind=entity_kind,
                             item_id=current_item_id,
@@ -1179,7 +1448,13 @@ def build_entity_changes(
                     direction = "increased" if score_delta > 0 else "decreased"
                     changes.append(
                         IntelEntityChange(
-                            change_id=_stable_id("entity_change", entity_kind, current_item_id, "score", latest_at),
+                            change_id=_stable_id(
+                                "entity_change",
+                                entity_kind,
+                                current_item_id,
+                                "score",
+                                latest_at,
+                            ),
                             region_id=region_id,
                             kind=entity_kind,
                             item_id=current_item_id,
@@ -1197,10 +1472,20 @@ def build_entity_changes(
                 if entity_kind == "permit":
                     previous_status = str(previous_row.get("status") or "").strip()
                     latest_status = str(latest_row.get("status") or "").strip()
-                    if previous_status and latest_status and previous_status != latest_status:
+                    if (
+                        previous_status
+                        and latest_status
+                        and previous_status != latest_status
+                    ):
                         changes.append(
                             IntelEntityChange(
-                                change_id=_stable_id("entity_change", entity_kind, current_item_id, "status", latest_at),
+                                change_id=_stable_id(
+                                    "entity_change",
+                                    entity_kind,
+                                    current_item_id,
+                                    "status",
+                                    latest_at,
+                                ),
                                 region_id=region_id,
                                 kind=entity_kind,
                                 item_id=current_item_id,
@@ -1215,7 +1500,10 @@ def build_entity_changes(
                             )
                         )
 
-    changes.sort(key=lambda current: (current.latest_at, current.kind, current.change_type), reverse=True)
+    changes.sort(
+        key=lambda current: (current.latest_at, current.kind, current.change_type),
+        reverse=True,
+    )
     return changes[:80]
 
 
@@ -1239,10 +1527,14 @@ def build_monitor_evaluations(
         return {"high": 3, "medium": 2, "info": 1}.get(value, 0)
 
     for rule in rules:
-        entity_changes = build_entity_changes(history_records, region=rule.region_id, kind=None, item_id=None)
+        entity_changes = build_entity_changes(
+            history_records, region=rule.region_id, kind=None, item_id=None
+        )
         incidents = build_source_incidents(source_history, region=rule.region_id)
         matches: list[IntelMonitorMatch] = []
-        has_entity_filters = bool(rule.entity_kinds or rule.change_types or rule.min_score_delta is not None)
+        has_entity_filters = bool(
+            rule.entity_kinds or rule.change_types or rule.min_score_delta is not None
+        )
         has_incident_filters = bool(rule.incident_types)
         include_entity_changes = has_entity_filters or not has_incident_filters
         include_incidents = has_incident_filters or not has_entity_filters
@@ -1254,14 +1546,27 @@ def build_monitor_evaluations(
                 if rule.change_types and ec.change_type not in rule.change_types:
                     continue
                 score_delta = abs((ec.score_after or 0.0) - (ec.score_before or 0.0))
-                if rule.min_score_delta is not None and score_delta < rule.min_score_delta:
+                if (
+                    rule.min_score_delta is not None
+                    and score_delta < rule.min_score_delta
+                ):
                     continue
-                if not _keyword_match(rule.keyword, [ec.title, ec.summary, " ".join(ec.notes)]):
+                if not _keyword_match(
+                    rule.keyword, [ec.title, ec.summary, " ".join(ec.notes)]
+                ):
                     continue
-                severity = "high" if ec.change_type in {"removed", "status_change"} else "medium" if ec.change_type == "score_shift" else "info"
+                severity = (
+                    "high"
+                    if ec.change_type in {"removed", "status_change"}
+                    else "medium"
+                    if ec.change_type == "score_shift"
+                    else "info"
+                )
                 matches.append(
                     IntelMonitorMatch(
-                        match_id=_stable_id("monitor_match", rule.rule_id, ec.change_id),
+                        match_id=_stable_id(
+                            "monitor_match", rule.rule_id, ec.change_id
+                        ),
                         rule_id=rule.rule_id,
                         source_kind="entity_change",
                         region_id=ec.region_id,
@@ -1271,7 +1576,8 @@ def build_monitor_evaluations(
                         severity=severity,
                         kind=ec.kind,
                         item_id=ec.item_id,
-                        score=score_delta or float(ec.score_after or ec.score_before or 0.0),
+                        score=score_delta
+                        or float(ec.score_after or ec.score_before or 0.0),
                         notes=ec.notes,
                     )
                 )
@@ -1280,14 +1586,20 @@ def build_monitor_evaluations(
             for inc in incidents:
                 if rule.incident_types and inc.incident_type not in rule.incident_types:
                     continue
-                if not _keyword_match(rule.keyword, [inc.name, inc.summary, " ".join(inc.notes)]):
+                if not _keyword_match(
+                    rule.keyword, [inc.name, inc.summary, " ".join(inc.notes)]
+                ):
                     continue
                 matches.append(
                     IntelMonitorMatch(
-                        match_id=_stable_id("monitor_match", rule.rule_id, inc.incident_id),
+                        match_id=_stable_id(
+                            "monitor_match", rule.rule_id, inc.incident_id
+                        ),
                         rule_id=rule.rule_id,
                         source_kind="source_incident",
-                        region_id=inc.region_ids[0] if len(inc.region_ids) == 1 else None,
+                        region_id=inc.region_ids[0]
+                        if len(inc.region_ids) == 1
+                        else None,
                         title=inc.name,
                         summary=inc.summary,
                         occurred_at=inc.latest_at,
@@ -1299,7 +1611,14 @@ def build_monitor_evaluations(
                     )
                 )
 
-        matches.sort(key=lambda item: (_severity_rank(item.severity), item.occurred_at, item.score), reverse=True)
+        matches.sort(
+            key=lambda item: (
+                _severity_rank(item.severity),
+                item.occurred_at,
+                item.score,
+            ),
+            reverse=True,
+        )
         summary = (
             f"{rule.title} matched {len(matches)} item(s)"
             + (f" in {rule.region_id}" if rule.region_id else "")
@@ -1319,5 +1638,12 @@ def build_monitor_evaluations(
             )
         )
 
-    evaluations.sort(key=lambda item: (len(item.matches), item.rule.updated_at, item.rule.title.lower()), reverse=True)
+    evaluations.sort(
+        key=lambda item: (
+            len(item.matches),
+            item.rule.updated_at,
+            item.rule.title.lower(),
+        ),
+        reverse=True,
+    )
     return evaluations

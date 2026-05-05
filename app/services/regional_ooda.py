@@ -16,20 +16,52 @@ def _region_allowed(region_id: RegionId | str, region: RegionId | None) -> bool:
     return region is None or region_id == region
 
 
-def _snapshot_counts(snapshot: RegionalIntelSnapshot, *, region: RegionId | None) -> dict[str, int]:
+def _snapshot_counts(
+    snapshot: RegionalIntelSnapshot, *, region: RegionId | None
+) -> dict[str, int]:
     return {
-        "regions": len([item for item in snapshot.regions if _region_allowed(item.id, region)]),
-        "news": len([item for item in snapshot.news if _region_allowed(item.region_id, region)]),
-        "permits": len([item for item in snapshot.permits if _region_allowed(item.region_id, region)]),
-        "businesses": len([item for item in snapshot.businesses if _region_allowed(item.region_id, region)]),
-        "contacts": len([item for item in snapshot.contacts if _region_allowed(item.region_id, region)]),
-        "organizations": len([item for item in snapshot.organizations if _region_allowed(item.region_id, region)]),
+        "regions": len(
+            [item for item in snapshot.regions if _region_allowed(item.id, region)]
+        ),
+        "news": len(
+            [item for item in snapshot.news if _region_allowed(item.region_id, region)]
+        ),
+        "permits": len(
+            [
+                item
+                for item in snapshot.permits
+                if _region_allowed(item.region_id, region)
+            ]
+        ),
+        "businesses": len(
+            [
+                item
+                for item in snapshot.businesses
+                if _region_allowed(item.region_id, region)
+            ]
+        ),
+        "contacts": len(
+            [
+                item
+                for item in snapshot.contacts
+                if _region_allowed(item.region_id, region)
+            ]
+        ),
+        "organizations": len(
+            [
+                item
+                for item in snapshot.organizations
+                if _region_allowed(item.region_id, region)
+            ]
+        ),
     }
 
 
 def _source_health_orientation(summary: dict[str, Any]) -> dict[str, Any]:
     by_status = dict(summary.get("by_status") or {})
-    non_live = {status: count for status, count in by_status.items() if status != "live"}
+    non_live = {
+        status: count for status, count in by_status.items() if status != "live"
+    }
     return {
         "status": "attention_needed" if non_live else "nominal",
         "non_live_statuses": non_live,
@@ -47,7 +79,9 @@ def _provenance_orientation(dropped_rows: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _safe_act_recommendations(*, source_orientation: dict[str, Any], provenance_orientation: dict[str, Any]) -> list[dict[str, str]]:
+def _safe_act_recommendations(
+    *, source_orientation: dict[str, Any], provenance_orientation: dict[str, Any]
+) -> list[dict[str, str]]:
     recommendations = [
         {
             "title": "Review high-score public-source signals locally",
@@ -88,7 +122,9 @@ def build_regional_ooda_packet(
 ) -> dict[str, Any]:
     """Build a read-only regional OODA packet from an already-stored snapshot."""
     _, export_manifest = build_export_plan(snapshot, region=region, log_drops=False)
-    source_orientation = _source_health_orientation(export_manifest["source_health_summary"])
+    source_orientation = _source_health_orientation(
+        export_manifest["source_health_summary"]
+    )
     provenance_orientation = _provenance_orientation(export_manifest["dropped_rows"])
     recommendations = _safe_act_recommendations(
         source_orientation=source_orientation,

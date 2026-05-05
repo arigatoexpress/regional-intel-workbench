@@ -19,7 +19,14 @@ class IntelMonitorStore:
         with self._lock:
             payload = self._read_unlocked()
         rules = [IntelMonitorRule.model_validate(item) for item in payload]
-        rules.sort(key=lambda item: (item.status == "active", item.updated_at, item.title.lower()), reverse=True)
+        rules.sort(
+            key=lambda item: (
+                item.status == "active",
+                item.updated_at,
+                item.title.lower(),
+            ),
+            reverse=True,
+        )
         return rules
 
     def get_rule(self, rule_id: str) -> IntelMonitorRule | None:
@@ -54,7 +61,10 @@ class IntelMonitorStore:
         with self._lock:
             payload = self._read_unlocked()
             for raw in payload:
-                if clean_text(raw.get("title", "")).strip().lower() != cleaned_title.lower():
+                if (
+                    clean_text(raw.get("title", "")).strip().lower()
+                    != cleaned_title.lower()
+                ):
                     continue
                 raw["updated_at"] = now
                 raw["title"] = cleaned_title
