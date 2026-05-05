@@ -10,7 +10,8 @@ on:
 
 jobs:
   lint:
-    runs-on: ubuntu-latest
+    if: ${{ vars.SAPPHIRE_RUNNER != '' }}
+    runs-on: ${{ fromJSON(vars.SAPPHIRE_RUNNER || '["self-hosted","sapphire-disabled"]') }}
     timeout-minutes: 10
 
     steps:
@@ -37,7 +38,8 @@ jobs:
         run: uv run ruff format --check app/ tests/
 
   type-check:
-    runs-on: ubuntu-latest
+    if: ${{ vars.SAPPHIRE_RUNNER != '' }}
+    runs-on: ${{ fromJSON(vars.SAPPHIRE_RUNNER || '["self-hosted","sapphire-disabled"]') }}
     timeout-minutes: 10
 
     steps:
