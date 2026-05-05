@@ -140,12 +140,23 @@ class IntelGraphBuildTestCase(unittest.TestCase):
     def test_build_intel_graph_filters_by_region(self) -> None:
         snapshot = self._snapshot()
         graph = build_intel_graph(snapshot, region="austin_tx")
-        self.assertTrue(all(n.region_id == "austin_tx" for n in graph.nodes if n.region_id))
+        self.assertTrue(
+            all(n.region_id == "austin_tx" for n in graph.nodes if n.region_id)
+        )
 
     def test_build_intel_graph_focus_node_id(self) -> None:
         snapshot = self._snapshot()
         graph = build_intel_graph(snapshot, focus_node_id="org1")
-        self.assertTrue(all(n.node_id == "org1" or any(e.source_id == n.node_id or e.target_id == n.node_id for e in graph.edges) for n in graph.nodes))
+        self.assertTrue(
+            all(
+                n.node_id == "org1"
+                or any(
+                    e.source_id == n.node_id or e.target_id == n.node_id
+                    for e in graph.edges
+                )
+                for n in graph.nodes
+            )
+        )
 
     def test_build_intel_graph_unknown_focus_returns_emptyish(self) -> None:
         snapshot = self._snapshot()

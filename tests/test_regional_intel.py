@@ -11,7 +11,6 @@ from app.intel_models import NewsSignal
 from app.intel_models import OrganizationProfile
 from app.intel_models import PermitSignal
 from app.intel_models import PublicContact
-from app.intel_models import RegionId
 from app.intel_models import RegionProfile
 from app.intel_models import RegionalIntelSnapshot
 from app.services.regional_intel import _austin_permit_signal_type
@@ -76,19 +75,24 @@ class RegionalIntelHelpersTestCase(unittest.TestCase):
         text = "A new store at 123 Main Street is opening"
         result = _extract_address_hint(text)
         self.assertIsNotNone(result)
+        assert result is not None
         self.assertIn("123 Main Street", result)
 
     def test_extract_address_hint_no_match(self) -> None:
         self.assertIsNone(_extract_address_hint("No address here"))
 
     def test_signal_type_from_text_vacancy(self) -> None:
-        self.assertEqual(_signal_type_from_text("Store closing soon"), "vacancy_or_closure")
+        self.assertEqual(
+            _signal_type_from_text("Store closing soon"), "vacancy_or_closure"
+        )
 
     def test_signal_type_from_text_opening(self) -> None:
         self.assertEqual(_signal_type_from_text("Grand opening this week"), "opening")
 
     def test_signal_type_from_text_construction(self) -> None:
-        self.assertEqual(_signal_type_from_text("Building permit issued"), "construction")
+        self.assertEqual(
+            _signal_type_from_text("Building permit issued"), "construction"
+        )
 
     def test_signal_type_from_text_general(self) -> None:
         self.assertEqual(_signal_type_from_text("Random news"), "general_business")
@@ -110,10 +114,14 @@ class RegionalIntelHelpersTestCase(unittest.TestCase):
         self.assertEqual(_extract_source_label(item), "Austin Monitor")
 
     def test_austin_permit_signal_type_construction(self) -> None:
-        self.assertEqual(_austin_permit_signal_type("Restaurant Build", ""), "construction")
+        self.assertEqual(
+            _austin_permit_signal_type("Restaurant Build", ""), "construction"
+        )
 
     def test_austin_permit_signal_type_ti(self) -> None:
-        self.assertEqual(_austin_permit_signal_type("Tenant Improvement", ""), "tenant_improvement")
+        self.assertEqual(
+            _austin_permit_signal_type("Tenant Improvement", ""), "tenant_improvement"
+        )
 
     def test_county_portal_datatables_payload_structure(self) -> None:
         payload = _county_portal_datatables_payload(start=0, length=10)
@@ -137,10 +145,16 @@ class RegionalIntelHelpersTestCase(unittest.TestCase):
         self.assertTrue(result)
 
     def test_houston_development_signal_type_commercial(self) -> None:
-        self.assertEqual(_houston_development_signal_type("Plat", "Commercial", "Test"), "commercial_development")
+        self.assertEqual(
+            _houston_development_signal_type("Plat", "Commercial", "Test"),
+            "commercial_development",
+        )
 
     def test_houston_development_signal_type_residential(self) -> None:
-        self.assertEqual(_houston_development_signal_type("Plat", "Single Family", "Test"), "residential_development")
+        self.assertEqual(
+            _houston_development_signal_type("Plat", "Single Family", "Test"),
+            "residential_development",
+        )
 
     def test_houston_location_label(self) -> None:
         row = {"App Location": "Main St", "Zipcode": "77001"}
@@ -162,7 +176,10 @@ class RegionalIntelHelpersTestCase(unittest.TestCase):
         self.assertEqual(_html_to_text("<script>x</script><p>Hi</p>"), "Hi")
 
     def test_extract_first_email(self) -> None:
-        self.assertEqual(_extract_first_email("Contact us at team@example.com today"), "team@example.com")
+        self.assertEqual(
+            _extract_first_email("Contact us at team@example.com today"),
+            "team@example.com",
+        )
 
     def test_extract_first_email_none(self) -> None:
         self.assertIsNone(_extract_first_email("No email"))
@@ -177,14 +194,35 @@ class RegionalIntelHelpersTestCase(unittest.TestCase):
         self.assertEqual(_normalize_entity_name("Acme Corp!"), "acmecorp")
 
     def test_derive_org_keywords(self) -> None:
-        businesses = [BusinessLead(item_id="b1", region_id="austin_tx", name="Acme", category="shop", address="A", source_name="OSM", source_url="https://osm.org")]
-        contacts = [PublicContact(item_id="c1", region_id="austin_tx", name="Alice", organization="Acme", source_name="OSM", source_url="https://osm.org")]
+        businesses = [
+            BusinessLead(
+                item_id="b1",
+                region_id="austin_tx",
+                name="Acme",
+                category="shop",
+                address="A",
+                source_name="OSM",
+                source_url="https://osm.org",
+            )
+        ]
+        contacts = [
+            PublicContact(
+                item_id="c1",
+                region_id="austin_tx",
+                name="Alice",
+                organization="Acme",
+                source_name="OSM",
+                source_url="https://osm.org",
+            )
+        ]
         permits: list[PermitSignal] = []
         result = _derive_org_keywords(businesses, contacts, permits)
         self.assertIn("Acme", result.get("austin_tx", []))
 
     def test_extract_organizations_from_text(self) -> None:
-        result = _extract_organizations_from_text("Acme Corp is hiring", ["Acme Corp", "Other Corp"])
+        result = _extract_organizations_from_text(
+            "Acme Corp is hiring", ["Acme Corp", "Other Corp"]
+        )
         self.assertIn("Acme Corp", result)
 
     def test_extract_organizations_from_text_limits_six(self) -> None:
@@ -197,6 +235,7 @@ class RegionalIntelHelpersTestCase(unittest.TestCase):
         now = datetime.now(tz=UTC).isoformat()
         result = _hours_since(now)
         self.assertIsNotNone(result)
+        assert result is not None
         self.assertGreaterEqual(result, 0.0)
 
     def test_hours_since_invalid(self) -> None:
@@ -290,7 +329,12 @@ class RegionalIntelHelpersTestCase(unittest.TestCase):
         from app.intel_models import IntelSource
 
         source = IntelSource(
-            source_key="test", region_ids=[], category="news", name="Austin Monitor", collection_mode="rss", access="public"
+            source_key="test",
+            region_ids=[],
+            category="news",
+            name="Austin Monitor",
+            collection_mode="rss",
+            access="public",
         )
         self.assertTrue(_source_matches_name(source, "Austin Monitor"))
 
@@ -298,7 +342,12 @@ class RegionalIntelHelpersTestCase(unittest.TestCase):
         from app.intel_models import IntelSource
 
         source = IntelSource(
-            source_key="test", region_ids=[], category="news", name="Austin Monitor", collection_mode="rss", access="public"
+            source_key="test",
+            region_ids=[],
+            category="news",
+            name="Austin Monitor",
+            collection_mode="rss",
+            access="public",
         )
         self.assertFalse(_source_matches_name(source, "Houston Chronicle"))
 
@@ -309,7 +358,9 @@ class RegionalIntelHelpersTestCase(unittest.TestCase):
         self.assertFalse(_is_useful_business({"leisure": "park"}, "Campground Trail"))
 
     def test_build_organization_profiles_empty(self) -> None:
-        result = _build_organization_profiles(news=[], permits=[], businesses=[], contacts=[])
+        result = _build_organization_profiles(
+            news=[], permits=[], businesses=[], contacts=[]
+        )
         self.assertEqual(result, [])
 
     def test_build_organization_profiles_from_business(self) -> None:
@@ -324,7 +375,9 @@ class RegionalIntelHelpersTestCase(unittest.TestCase):
                 source_url="https://osm.org",
             )
         ]
-        result = _build_organization_profiles(news=[], permits=[], businesses=businesses, contacts=[])
+        result = _build_organization_profiles(
+            news=[], permits=[], businesses=businesses, contacts=[]
+        )
         self.assertEqual(len(result), 1)
         self.assertEqual(result[0].name, "Acme")
 
@@ -334,7 +387,10 @@ class RegionalIntelHelpersTestCase(unittest.TestCase):
             cache_ttl_seconds=900,
             regions=[
                 RegionProfile(
-                    id="austin_tx", name="Austin", summary="Test", bbox=[30.0, -98.0, 31.0, -97.0]
+                    id="austin_tx",
+                    name="Austin",
+                    summary="Test",
+                    bbox=[30.0, -98.0, 31.0, -97.0],
                 )
             ],
             news=[],
@@ -372,7 +428,9 @@ class RegionalIntelServiceTestCase(unittest.TestCase):
 
     def test_get_snapshot_returns_cached(self) -> None:
         service = RegionalIntelService(ttl_seconds=3600)
-        snapshot = RegionalIntelSnapshot(updated_at="2026-01-01T00:00:00Z", cache_ttl_seconds=900)
+        snapshot = RegionalIntelSnapshot(
+            updated_at="2026-01-01T00:00:00Z", cache_ttl_seconds=900
+        )
         service._snapshot = snapshot
         service._expires_at = float("inf")
         result = asyncio.run(service.get_snapshot())

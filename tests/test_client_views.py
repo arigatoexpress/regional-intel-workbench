@@ -111,7 +111,9 @@ class ClientViewsHelpersTestCase(unittest.TestCase):
 
 class ClientViewsBuildTestCase(unittest.TestCase):
     def test_build_client_view_unknown_raises_keyerror(self) -> None:
-        snapshot = RegionalIntelSnapshot(updated_at="2026-01-01T00:00:00Z", cache_ttl_seconds=900)
+        snapshot = RegionalIntelSnapshot(
+            updated_at="2026-01-01T00:00:00Z", cache_ttl_seconds=900
+        )
         with self.assertRaises(KeyError):
             build_client_view(
                 view_id="unknown",

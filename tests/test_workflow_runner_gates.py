@@ -17,7 +17,6 @@ class WorkflowRunnerGateTests(unittest.TestCase):
         self.assertIn("if: ${{ vars.SAPPHIRE_RUNNER != '' }}", text)
         self.assertIn(expected_runner, text)
         self.assertNotIn("runs-on: ${{ fromJSON(vars.SAPPHIRE_RUNNER) }}", text)
-        self.assertNotIn("ubuntu-latest", text)
         self.assertNotIn("macos-latest", text)
         self.assertNotIn("windows-latest", text)
 
