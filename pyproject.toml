@@ -29,3 +29,12 @@ dev = [
     "pytest>=9.0.3",
     "ruff>=0.15.12",
 ]
+
+[tool.mypy]
+plugins = ["pydantic.mypy"]
+ignore_missing_imports = true
+warn_unused_ignores = false
+
+[[tool.mypy.overrides]]
+module = ["test_intel_app", "test_admin_app", "test_foundry_export", "test_intel_resilience", "test_regional_history_store", "test_workflow_runner_gates"]
+disable_error_code = ["method-assign", "attr-defined"]
