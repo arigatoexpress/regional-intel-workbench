@@ -275,6 +275,11 @@ regional-intel serve --port 8768
 
 ## API Highlights
 
+Interactive API documentation is available when the app is running:
+
+- **Swagger UI:** `/docs`
+- **ReDoc:** `/redoc`
+
 Read-mostly demo endpoints:
 
 ```text
