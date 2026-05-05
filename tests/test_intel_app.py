@@ -31,6 +31,12 @@ from app.services.regional_history_store import RegionalIntelHistoryStore
 
 
 class IntelAppTestCase(unittest.TestCase):
+    fixture_snapshot: RegionalIntelSnapshot
+    sample_org: OrganizationProfile
+    sample_business: BusinessLead
+    sample_news: NewsSignal
+    sample_permit: PermitSignal
+
     @classmethod
     def setUpClass(cls) -> None:
         history_path = Path(__file__).resolve().parents[1] / "data" / "regional_intel_history.jsonl"

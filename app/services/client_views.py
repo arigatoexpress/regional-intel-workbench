@@ -56,7 +56,7 @@ def build_client_view(
 
 
 def _intel_url(kind: str, item_id: str, *, region_id: RegionId | None = None) -> str:
-    params = {}
+    params: dict[str, str] = {}
     if region_id:
         params["region"] = region_id
     params["detail_kind"] = kind

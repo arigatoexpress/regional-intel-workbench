@@ -4,6 +4,7 @@ import math
 from datetime import datetime
 from datetime import timezone
 from pathlib import Path
+from typing import Any
 from typing import Literal
 
 from fastapi import Depends, FastAPI, Request
@@ -16,6 +17,7 @@ from pydantic import Field
 
 from app.admin import require_admin
 from app.config import get_settings, resolve_vote_powers
+from app.intel_models import IntelAnalystAnnotation
 from app.intel_models import RegionId
 from app.intel_models import RegionalIntelSnapshot
 from app.presenters.digest import build_digest_payload
@@ -895,7 +897,7 @@ def _build_trends(regional_intel_service: RegionalIntelService, lookback_days: i
     records = regional_intel_service.history_store.load_records(lookback_days=lookback_days)
     series = []
     for record in records:
-        row = {
+        row: dict[str, Any] = {
             "updated_at": record.get("updated_at"),
             "regions": [],
         }
@@ -1066,7 +1068,7 @@ def _build_bundle_briefing(snapshot, bundle_id: str):
         if collection is not None:
             collections.append(collection)
     source_history = _build_source_history(regional_intel_service, lookback_days=14, region=bundle.region_id)["sources"]
-    annotation_lookup: dict[str, object] = {}
+    annotation_lookup: dict[str, IntelAnalystAnnotation] = {}
     for collection in collections:
         for item in resolve_collection_items(snapshot, collection):
             if item.get("ref", {}).get("kind") != "organization" or not item.get("resolved", {}).get("item_id"):
@@ -1490,7 +1492,7 @@ async def api_intel_bundles(force: bool = False):
     snapshot = await regional_intel_service.get_snapshot(force_refresh=force)
     bundles = []
     for bundle in intel_bundle_store.list_bundles():
-        resolved_collections = []
+        resolved_collections: list[dict[str, Any]] = []
         live_count = 0
         for ref in bundle.collections:
             collection = intel_collection_store.get_collection(ref.collection_id)
@@ -1506,7 +1508,7 @@ async def api_intel_bundles(force: bool = False):
                     "is_live": True,
                     "item_count": len(collection.items),
                     "live_count": len([item for item in resolved_items if item.get("is_live")]),
-                }
+                }  # type: ignore[dict-item]
             )
         bundles.append({"bundle": bundle.model_dump(), "collections": resolved_collections, "live_count": live_count})
     return {"bundles": bundles}

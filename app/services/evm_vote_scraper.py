@@ -68,7 +68,7 @@ async def fetch_evm_protocol_snapshots() -> list[ProtocolSnapshot]:
 async def _launch_browser(playwright: Playwright) -> Browser:
     chromium = playwright.chromium
     launch_errors: list[str] = []
-    launch_options = {"headless": True}
+    launch_options: dict[str, object] = {"headless": True}
     candidates: list[dict[str, object]] = []
 
     configured_executable = os.getenv("VE_MONITOR_CHROMIUM_EXECUTABLE")
@@ -95,7 +95,7 @@ async def _launch_browser(playwright: Playwright) -> Browser:
 
     for candidate in candidates:
         try:
-            return await chromium.launch(**candidate)
+            return await chromium.launch(**candidate)  # type: ignore[arg-type]
         except Exception as exc:  # noqa: BLE001
             launch_errors.append(str(exc))
 

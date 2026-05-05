@@ -27,6 +27,8 @@ from app.services.regional_history_store import RegionalIntelHistoryStore
 
 
 class AdminAppTestCase(unittest.TestCase):
+    fixture_snapshot: RegionalIntelSnapshot
+
     @classmethod
     def setUpClass(cls) -> None:
         history_path = (

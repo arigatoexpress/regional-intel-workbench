@@ -208,51 +208,51 @@ def build_opportunities(snapshot: RegionalIntelSnapshot, region: RegionId | None
             )
         )
 
-    for item in snapshot.news:
-        if region is not None and item.region_id != region:
+    for ns in snapshot.news:
+        if region is not None and ns.region_id != region:
             continue
-        if not item.actionable:
+        if not ns.actionable:
             continue
-        reasons = [f"Actionable {item.signal_type} signal", item.source_name]
-        if item.address_hint:
-            reasons.append(f"Address: {item.address_hint}")
+        reasons = [f"Actionable {ns.signal_type} signal", ns.source_name]
+        if ns.address_hint:
+            reasons.append(f"Address: {ns.address_hint}")
         opportunities.append(
             IntelOpportunity(
-                opportunity_id=_stable_id("opportunity", item.item_id),
-                region_id=item.region_id,
+                opportunity_id=_stable_id("opportunity", ns.item_id),
+                region_id=ns.region_id,
                 kind="news_signal",
-                title=item.title,
-                summary=item.summary or "Public local-news signal with an address hint.",
-                score=round(item.signal_score + 16, 2),
+                title=ns.title,
+                summary=ns.summary or "Public local-news signal with an address hint.",
+                score=round(ns.signal_score + 16, 2),
                 reasons=reasons[:4],
-                item_ids=[item.item_id],
-                urls=[item.source_url],
-                notes=item.notes,
+                item_ids=[ns.item_id],
+                urls=[ns.source_url],
+                notes=ns.notes,
             )
         )
 
-    for item in snapshot.permits:
-        if region is not None and item.region_id != region:
+    for ps in snapshot.permits:
+        if region is not None and ps.region_id != region:
             continue
-        if item.signal_type not in {"commercial_development", "construction", "tenant_improvement"}:
+        if ps.signal_type not in {"commercial_development", "construction", "tenant_improvement"}:
             continue
-        reasons = [f"{item.signal_type.replace('_', ' ')} signal", item.county]
-        if any(note.startswith("Developer:") for note in item.notes):
-            reasons.append(next(note for note in item.notes if note.startswith("Developer:")))
-        if any(note.startswith("Organization:") for note in item.notes):
-            reasons.append(next(note for note in item.notes if note.startswith("Organization:")))
+        reasons = [f"{ps.signal_type.replace('_', ' ')} signal", ps.county]
+        if any(note.startswith("Developer:") for note in ps.notes):
+            reasons.append(next(note for note in ps.notes if note.startswith("Developer:")))
+        if any(note.startswith("Organization:") for note in ps.notes):
+            reasons.append(next(note for note in ps.notes if note.startswith("Organization:")))
         opportunities.append(
             IntelOpportunity(
-                opportunity_id=_stable_id("opportunity", item.item_id),
-                region_id=item.region_id,
+                opportunity_id=_stable_id("opportunity", ps.item_id),
+                region_id=ps.region_id,
                 kind="permit_signal",
-                title=item.address,
-                summary=f"{item.permit_type} from an official public source.",
-                score=round(item.signal_score + 10, 2),
+                title=ps.address,
+                summary=f"{ps.permit_type} from an official public source.",
+                score=round(ps.signal_score + 10, 2),
                 reasons=reasons[:4],
-                item_ids=[item.item_id],
-                urls=[item.source_url],
-                notes=item.notes,
+                item_ids=[ps.item_id],
+                urls=[ps.source_url],
+                notes=ps.notes,
             )
         )
 
@@ -467,45 +467,45 @@ def build_operational_alerts(
                 )
             )
 
-    for item in snapshot.news:
-        if region is not None and item.region_id != region:
+    for ns in snapshot.news:
+        if region is not None and ns.region_id != region:
             continue
-        if item.actionable and item.signal_score >= 90:
+        if ns.actionable and ns.signal_score >= 90:
             alerts.append(
                 IntelAlert(
-                    alert_id=_stable_id("alert", item.item_id, "actionable_news"),
-                    region_id=item.region_id,
+                    alert_id=_stable_id("alert", ns.item_id, "actionable_news"),
+                    region_id=ns.region_id,
                     severity="high",
                     kind="actionable_news",
-                    title=item.title,
-                    summary=item.address_hint or item.summary or "Actionable public news signal.",
-                    score=item.signal_score,
-                    item_ids=[item.item_id],
-                    urls=[item.source_url],
-                    notes=item.notes,
+                    title=ns.title,
+                    summary=ns.address_hint or ns.summary or "Actionable public news signal.",
+                    score=ns.signal_score,
+                    item_ids=[ns.item_id],
+                    urls=[ns.source_url],
+                    notes=ns.notes,
                 )
             )
 
-    for item in snapshot.permits:
-        if region is not None and item.region_id != region:
+    for ps in snapshot.permits:
+        if region is not None and ps.region_id != region:
             continue
-        if item.signal_type in {"commercial_development", "construction", "tenant_improvement"} and item.signal_score >= 78:
+        if ps.signal_type in {"commercial_development", "construction", "tenant_improvement"} and ps.signal_score >= 78:
             alerts.append(
                 IntelAlert(
-                    alert_id=_stable_id("alert", item.item_id, "permit_signal"),
-                    region_id=item.region_id,
+                    alert_id=_stable_id("alert", ps.item_id, "permit_signal"),
+                    region_id=ps.region_id,
                     severity="medium",
                     kind="permit_signal",
-                    title=item.address,
-                    summary=f"{item.permit_type} | {item.county}",
-                    score=item.signal_score,
-                    item_ids=[item.item_id],
-                    urls=[item.source_url],
-                    notes=item.notes,
+                    title=ps.address,
+                    summary=f"{ps.permit_type} | {ps.county}",
+                    score=ps.signal_score,
+                    item_ids=[ps.item_id],
+                    urls=[ps.source_url],
+                    notes=ps.notes,
                 )
             )
 
-    alerts.sort(key=lambda item: (-item.score, item.severity, item.title.lower()))
+    alerts.sort(key=lambda a: (-a.score, a.severity, a.title.lower()))
     return alerts[:30]
 
 
@@ -558,13 +558,16 @@ def build_region_briefing_pack(
         "",
         "## Top Opportunities",
     ]
-    if top_opportunities:
-        markdown_lines.extend(
-            [
-                f"- {item['title']} | score {item['score']} | {'; '.join(item.get('reasons', [])[:3])}"
-                for item in top_opportunities
-            ]
-        )
+    for opp in top_opportunities:
+        if isinstance(opp, dict):
+            title = opp.get("title", "")
+            score = opp.get("score", 0.0)
+            reasons = opp.get("reasons", [])
+        else:
+            title = opp.title
+            score = opp.score
+            reasons = opp.reasons
+        markdown_lines.append(f"- {title} | score {score} | {'; '.join(reasons[:3])}")
     else:
         markdown_lines.append("- No opportunities ranked yet.")
 
@@ -664,11 +667,14 @@ def build_collection_briefing_pack(
                 }
             )
         elif kind == "organization" and resolved.get("item_id"):
-            for contact in build_briefing_pack(
+            org_briefing = build_briefing_pack(
                 snapshot,
                 item_id=str(resolved.get("item_id")),
                 annotation=annotation_lookup.get(str(resolved.get("item_id"))),
-            ).public_contacts:
+            )
+            if org_briefing is None:
+                continue
+            for contact in org_briefing.public_contacts:
                 key = str(contact.get("email") or contact.get("name") or contact.get("website"))
                 if not key or key in seen_contacts:
                     continue
@@ -1242,54 +1248,54 @@ def build_monitor_evaluations(
         include_incidents = has_incident_filters or not has_entity_filters
 
         if include_entity_changes:
-            for item in entity_changes:
-                if rule.entity_kinds and item.kind not in rule.entity_kinds:
+            for ec in entity_changes:
+                if rule.entity_kinds and ec.kind not in rule.entity_kinds:
                     continue
-                if rule.change_types and item.change_type not in rule.change_types:
+                if rule.change_types and ec.change_type not in rule.change_types:
                     continue
-                score_delta = abs((item.score_after or 0.0) - (item.score_before or 0.0))
+                score_delta = abs((ec.score_after or 0.0) - (ec.score_before or 0.0))
                 if rule.min_score_delta is not None and score_delta < rule.min_score_delta:
                     continue
-                if not _keyword_match(rule.keyword, [item.title, item.summary, " ".join(item.notes)]):
+                if not _keyword_match(rule.keyword, [ec.title, ec.summary, " ".join(ec.notes)]):
                     continue
-                severity = "high" if item.change_type in {"removed", "status_change"} else "medium" if item.change_type == "score_shift" else "info"
+                severity = "high" if ec.change_type in {"removed", "status_change"} else "medium" if ec.change_type == "score_shift" else "info"
                 matches.append(
                     IntelMonitorMatch(
-                        match_id=_stable_id("monitor_match", rule.rule_id, item.change_id),
+                        match_id=_stable_id("monitor_match", rule.rule_id, ec.change_id),
                         rule_id=rule.rule_id,
                         source_kind="entity_change",
-                        region_id=item.region_id,
-                        title=item.title,
-                        summary=item.summary,
-                        occurred_at=item.latest_at,
+                        region_id=ec.region_id,
+                        title=ec.title,
+                        summary=ec.summary,
+                        occurred_at=ec.latest_at,
                         severity=severity,
-                        kind=item.kind,
-                        item_id=item.item_id,
-                        score=score_delta or float(item.score_after or item.score_before or 0.0),
-                        notes=item.notes,
+                        kind=ec.kind,
+                        item_id=ec.item_id,
+                        score=score_delta or float(ec.score_after or ec.score_before or 0.0),
+                        notes=ec.notes,
                     )
                 )
 
         if include_incidents:
-            for item in incidents:
-                if rule.incident_types and item.incident_type not in rule.incident_types:
+            for inc in incidents:
+                if rule.incident_types and inc.incident_type not in rule.incident_types:
                     continue
-                if not _keyword_match(rule.keyword, [item.name, item.summary, " ".join(item.notes)]):
+                if not _keyword_match(rule.keyword, [inc.name, inc.summary, " ".join(inc.notes)]):
                     continue
                 matches.append(
                     IntelMonitorMatch(
-                        match_id=_stable_id("monitor_match", rule.rule_id, item.incident_id),
+                        match_id=_stable_id("monitor_match", rule.rule_id, inc.incident_id),
                         rule_id=rule.rule_id,
                         source_kind="source_incident",
-                        region_id=item.region_ids[0] if len(item.region_ids) == 1 else None,
-                        title=item.name,
-                        summary=item.summary,
-                        occurred_at=item.latest_at,
-                        severity=item.severity,
-                        kind=item.incident_type,
+                        region_id=inc.region_ids[0] if len(inc.region_ids) == 1 else None,
+                        title=inc.name,
+                        summary=inc.summary,
+                        occurred_at=inc.latest_at,
+                        severity=inc.severity,
+                        kind=inc.incident_type,
                         item_id=None,
-                        score=float(item.run_count or item.last_item_count or 0.0),
-                        notes=item.notes,
+                        score=float(inc.run_count or inc.last_item_count or 0.0),
+                        notes=inc.notes,
                     )
                 )
 

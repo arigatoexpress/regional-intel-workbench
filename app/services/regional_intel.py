@@ -605,8 +605,8 @@ def _xlsx_rows(data: bytes) -> list[dict[str, str]]:
 
     headers = {index: value for index, value in matrix[0].items() if value}
     rows: list[dict[str, str]] = []
-    for row in matrix[1:]:
-        mapped = {header: clean_text(row.get(index, "")) for index, header in headers.items()}
+    for mrow in matrix[1:]:
+        mapped = {header: clean_text(mrow.get(index, "")) for index, header in headers.items()}
         if any(mapped.values()):
             rows.append(mapped)
     return rows
@@ -717,21 +717,21 @@ def _derive_org_keywords(
     permits: list[PermitSignal],
 ) -> dict[RegionId, list[str]]:
     keywords: dict[RegionId, list[str]] = {region.id: [] for region in REGIONS}
-    for item in businesses:
-        name = clean_text(item.name)
+    for biz in businesses:
+        name = clean_text(biz.name)
         if len(name) < 4:
             continue
-        keywords[item.region_id].append(name)
-    for item in contacts:
-        for value in (item.organization, item.name):
+        keywords[biz.region_id].append(name)
+    for con in contacts:
+        for value in (con.organization, con.name):
             label = clean_text(value)
             if len(label) >= 4:
-                keywords[item.region_id].append(label)
-    for item in permits:
-        for value in _permit_related_organizations(item):
+                keywords[con.region_id].append(label)
+    for perm in permits:
+        for value in _permit_related_organizations(perm):
             label = clean_text(value)
             if len(label) >= 4:
-                keywords[item.region_id].append(label)
+                keywords[perm.region_id].append(label)
     output: dict[RegionId, list[str]] = {}
     for region_id, values in keywords.items():
         deduped: list[str] = []
@@ -785,57 +785,57 @@ def _build_organization_profiles(
         if profile.latest_activity_at is None or timestamp > profile.latest_activity_at:
             profile.latest_activity_at = timestamp
 
-    for item in businesses:
-        profile = ensure_profile(item.region_id, item.name)
+    for biz in businesses:
+        profile = ensure_profile(biz.region_id, biz.name)
         profile.business_lead_count += 1
-        if item.category and item.category not in profile.categories:
-            profile.categories.append(item.category)
-        if item.address and item.address != "Address not provided" and not profile.address:
-            profile.address = item.address
-        if item.website and not profile.website:
-            profile.website = item.website
-        if item.phone and not profile.phone:
-            profile.phone = item.phone
-        if item.email and not profile.email:
-            profile.email = item.email
-        if item.source_name not in profile.source_names:
-            profile.source_names.append(item.source_name)
+        if biz.category and biz.category not in profile.categories:
+            profile.categories.append(biz.category)
+        if biz.address and biz.address != "Address not provided" and not profile.address:
+            profile.address = biz.address
+        if biz.website and not profile.website:
+            profile.website = biz.website
+        if biz.phone and not profile.phone:
+            profile.phone = biz.phone
+        if biz.email and not profile.email:
+            profile.email = biz.email
+        if biz.source_name not in profile.source_names:
+            profile.source_names.append(biz.source_name)
 
-    for item in contacts:
-        profile = ensure_profile(item.region_id, item.organization)
+    for con in contacts:
+        profile = ensure_profile(con.region_id, con.organization)
         profile.contact_count += 1
-        if item.title and item.title not in profile.categories:
-            profile.categories.append(item.title)
-        if item.address and not profile.address:
-            profile.address = item.address
-        if item.website and not profile.website:
-            profile.website = item.website
-        if item.phone and not profile.phone:
-            profile.phone = item.phone
-        if item.email and not profile.email:
-            profile.email = item.email
-        if item.source_name not in profile.source_names:
-            profile.source_names.append(item.source_name)
+        if con.title and con.title not in profile.categories:
+            profile.categories.append(con.title)
+        if con.address and not profile.address:
+            profile.address = con.address
+        if con.website and not profile.website:
+            profile.website = con.website
+        if con.phone and not profile.phone:
+            profile.phone = con.phone
+        if con.email and not profile.email:
+            profile.email = con.email
+        if con.source_name not in profile.source_names:
+            profile.source_names.append(con.source_name)
 
-    for item in permits:
-        for org_name in _permit_related_organizations(item):
-            profile = ensure_profile(item.region_id, org_name)
+    for perm in permits:
+        for org_name in _permit_related_organizations(perm):
+            profile = ensure_profile(perm.region_id, org_name)
             profile.permit_signal_count += 1
-            if item.signal_type and item.signal_type not in profile.categories:
-                profile.categories.append(item.signal_type)
-            if item.source_name not in profile.source_names:
-                profile.source_names.append(item.source_name)
-            touch_latest(profile, item.status_date)
+            if perm.signal_type and perm.signal_type not in profile.categories:
+                profile.categories.append(perm.signal_type)
+            if perm.source_name not in profile.source_names:
+                profile.source_names.append(perm.source_name)
+            touch_latest(profile, perm.status_date)
 
-    for item in news:
-        for org in item.organizations:
-            profile = ensure_profile(item.region_id, org)
+    for ns in news:
+        for org in ns.organizations:
+            profile = ensure_profile(ns.region_id, org)
             profile.news_signal_count += 1
-            if item.signal_type and item.signal_type not in profile.categories:
-                profile.categories.append(item.signal_type)
-            if item.source_name not in profile.source_names:
-                profile.source_names.append(item.source_name)
-            touch_latest(profile, item.published_at)
+            if ns.signal_type and ns.signal_type not in profile.categories:
+                profile.categories.append(ns.signal_type)
+            if ns.source_name not in profile.source_names:
+                profile.source_names.append(ns.source_name)
+            touch_latest(profile, ns.published_at)
 
     output = list(profiles.values())
     output.sort(
@@ -962,21 +962,21 @@ def _build_source_health(
         last_seen_at: str | None = None
         item_count = 0
         if source.category == "news":
-            matches = [item for item in snapshot.news if _source_matches_name(source, item.source_name, item.source_url)]
-            item_count = len(matches)
-            last_seen_at = matches[0].published_at if matches else None
+            news_matches = [n for n in snapshot.news if _source_matches_name(source, n.source_name, n.source_url)]
+            item_count = len(news_matches)
+            last_seen_at = news_matches[0].published_at if news_matches else None
         elif source.category == "permit":
-            matches = [item for item in snapshot.permits if _source_matches_name(source, item.source_name, item.source_url)]
-            item_count = len(matches)
-            last_seen_at = matches[0].status_date if matches else None
+            permit_matches = [p for p in snapshot.permits if _source_matches_name(source, p.source_name, p.source_url)]
+            item_count = len(permit_matches)
+            last_seen_at = permit_matches[0].status_date if permit_matches else None
         elif source.category == "business":
-            matches = [item for item in snapshot.businesses if _source_matches_name(source, item.source_name, item.source_url)]
-            item_count = len(matches)
-            last_seen_at = snapshot.updated_at if matches else None
+            biz_matches = [b for b in snapshot.businesses if _source_matches_name(source, b.source_name, b.source_url)]
+            item_count = len(biz_matches)
+            last_seen_at = snapshot.updated_at if biz_matches else None
         else:
-            matches = [item for item in snapshot.contacts if _source_matches_name(source, item.source_name, item.source_url)]
-            item_count = len(matches)
-            last_seen_at = snapshot.updated_at if matches else None
+            con_matches = [c for c in snapshot.contacts if _source_matches_name(source, c.source_name, c.source_url)]
+            item_count = len(con_matches)
+            last_seen_at = snapshot.updated_at if con_matches else None
 
         status = "manual"
         notes: list[str] = []
@@ -1294,11 +1294,11 @@ class RegionalIntelService:
         news.sort(key=lambda item: (item.signal_score, item.published_at), reverse=True)
 
         organizations = _build_organization_profiles(news=news, permits=permits, businesses=businesses, contacts=contacts)
-        for item in contacts:
-            item.contact_score = _contact_score(item)
-        for item in organizations:
-            item.organization_score = _organization_score(item)
-        organizations.sort(key=lambda item: (item.region_id, -item.organization_score, item.name.lower()))
+        for con in contacts:
+            con.contact_score = _contact_score(con)
+        for org in organizations:
+            org.organization_score = _organization_score(org)
+        organizations.sort(key=lambda o: (o.region_id, -o.organization_score, o.name.lower()))
         source_health = _build_source_health(
             RegionalIntelSnapshot(
                 updated_at=utc_now_iso(),
@@ -1633,7 +1633,7 @@ class RegionalIntelService:
             raw = payload.get("elements", []) if isinstance(payload, dict) else []
             return [item for item in raw if isinstance(item, dict)]
 
-        elements = await fetch_elements(tuple(region.bbox))
+        elements = await fetch_elements((region.bbox[0], region.bbox[1], region.bbox[2], region.bbox[3]))
         if not elements:
             tiled: list[dict[str, Any]] = []
             for bbox in _bbox_tiles(region.bbox):
@@ -1659,9 +1659,20 @@ class RegionalIntelService:
             seen.add(key)
             lat = element.get("lat")
             lon = element.get("lon")
-            center = element.get("center") if isinstance(element.get("center"), dict) else {}
-            lat_value = float(center.get("lat", lat)) if center.get("lat", lat) is not None else None
-            lon_value = float(center.get("lon", lon)) if center.get("lon", lon) is not None else None
+            raw_center = element.get("center")
+            center = raw_center if isinstance(raw_center, dict) else {}
+            center_lat = center.get("lat")
+            center_lon = center.get("lon")
+            lat_value: float | None = None
+            if center_lat is not None:
+                lat_value = float(center_lat)
+            elif lat is not None:
+                lat_value = float(lat)
+            lon_value: float | None = None
+            if center_lon is not None:
+                lon_value = float(center_lon)
+            elif lon is not None:
+                lon_value = float(lon)
             website = clean_text(str(tags.get("website") or tags.get("contact:website") or "")) or None
             phone = clean_text(str(tags.get("phone") or tags.get("contact:phone") or "")) or None
             email = clean_text(str(tags.get("email") or tags.get("contact:email") or "")) or None

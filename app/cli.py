@@ -235,13 +235,13 @@ async def _run_intel_region_briefing(force: bool, region: RegionId, as_json: boo
 async def _run_intel_collections(as_json: bool) -> int:
     snapshot = await _build_intel_snapshot(force=False)
     store = IntelCollectionStore()
-    collections = []
-    for collection in store.list_collections():
-        resolved = resolve_collection_items(snapshot, collection)
+    collections: list[dict[str, object]] = []
+    for coll in store.list_collections():
+        resolved = resolve_collection_items(snapshot, coll)
         collections.append(
             {
-                "collection": collection.model_dump(),
-                "item_count": len(collection.items),
+                "collection": coll.model_dump(),
+                "item_count": len(coll.items),
                 "live_count": len([item for item in resolved if item.get("is_live")]),
             }
         )
@@ -249,10 +249,10 @@ async def _run_intel_collections(as_json: bool) -> int:
         json.dump({"collections": collections}, sys.stdout, indent=2)
         sys.stdout.write("\n")
         return 0
-    for item in collections:
-        collection = item["collection"]
+    for col in collections:
+        collection = dict(col["collection"])  # type: ignore[call-overload]
         print(
-            f"- {collection['title']} | region={collection.get('region_id') or 'multi_region'} | items={item['item_count']} | live={item['live_count']}"
+            f"- {collection['title']} | region={collection.get('region_id') or 'multi_region'} | items={col['item_count']} | live={col['live_count']}"
         )
     return 0
 
@@ -292,11 +292,11 @@ async def _run_intel_bundles(as_json: bool) -> int:
     snapshot = await _build_intel_snapshot(force=False)
     bundle_store = IntelBundleStore()
     collection_store = IntelCollectionStore()
-    bundles = []
-    for bundle in bundle_store.list_bundles():
+    bundles: list[dict[str, object]] = []
+    for b in bundle_store.list_bundles():
         live_count = 0
         resolved_collections = []
-        for ref in bundle.collections:
+        for ref in b.collections:
             collection = collection_store.get_collection(ref.collection_id)
             if collection is None:
                 resolved_collections.append({"ref": ref.model_dump(), "collection": None, "is_live": False})
@@ -304,15 +304,15 @@ async def _run_intel_bundles(as_json: bool) -> int:
             resolved = resolve_collection_items(snapshot, collection)
             live_count += len([item for item in resolved if item.get("is_live")])
             resolved_collections.append({"ref": ref.model_dump(), "collection": collection.model_dump(), "is_live": True})
-        bundles.append({"bundle": bundle.model_dump(), "collection_count": len(bundle.collections), "live_count": live_count, "collections": resolved_collections})
+        bundles.append({"bundle": b.model_dump(), "collection_count": len(b.collections), "live_count": live_count, "collections": resolved_collections})
     if as_json:
         json.dump({"bundles": bundles}, sys.stdout, indent=2)
         sys.stdout.write("\n")
         return 0
-    for item in bundles:
-        bundle = item["bundle"]
-        print(
-            f"- {bundle['title']} | region={bundle.get('region_id') or 'multi_region'} | collections={item['collection_count']} | live_items={item['live_count']}"
+    for bun in bundles:  # type: ignore[assignment]
+        bdict = dict(bun["bundle"])  # type: ignore[call-overload]
+        print(  # type: ignore[index]
+            f"- {bdict['title']} | region={bdict.get('region_id') or 'multi_region'} | collections={bun['collection_count']} | live_items={bun['live_count']}"
         )
     return 0
 

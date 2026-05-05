@@ -200,10 +200,13 @@ def _render_digest_text(
             heading = f"{heading} | {section['countdown']}"
         lines.append(heading)
         lines.append(f"- {section['action']}")
+        details = section.get("details", [])
+        if not isinstance(details, list):
+            details = []
         if compact:
-            if section["details"]:
-                lines.append(f"- {section['details'][0]}")
+            if details:
+                lines.append(f"- {details[0]}")
             continue
-        for detail in section["details"]:
+        for detail in details:
             lines.append(f"- {detail}")
     return "\n".join(lines)

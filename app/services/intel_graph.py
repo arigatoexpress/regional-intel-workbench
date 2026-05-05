@@ -3,9 +3,14 @@ from __future__ import annotations
 import hashlib
 import re
 
+from app.intel_models import BusinessLead
 from app.intel_models import IntelGraph
 from app.intel_models import IntelGraphEdge
 from app.intel_models import IntelGraphNode
+from app.intel_models import NewsSignal
+from app.intel_models import OrganizationProfile
+from app.intel_models import PermitSignal
+from app.intel_models import PublicContact
 from app.intel_models import RegionId
 from app.intel_models import RegionalIntelSnapshot
 from app.utils import clean_text
@@ -55,16 +60,16 @@ def build_intel_graph(
     region: RegionId | None = None,
     focus_node_id: str | None = None,
 ) -> IntelGraph:
-    regions = [item for item in snapshot.regions if region is None or item.id == region]
-    region_ids = {item.id for item in regions}
+    regions = [r for r in snapshot.regions if region is None or r.id == region]
+    region_ids = {r.id for r in regions}
 
-    organizations = [
-        item for item in snapshot.organizations if not region_ids or item.region_id in region_ids
+    organizations: list[OrganizationProfile] = [
+        o for o in snapshot.organizations if not region_ids or o.region_id in region_ids
     ]
-    organizations.sort(key=lambda item: item.organization_score, reverse=True)
+    organizations.sort(key=lambda o: o.organization_score, reverse=True)
     if focus_node_id:
-        focus_org = next((item for item in organizations if item.item_id == focus_node_id), None)
-        seed_orgs = [focus_org] if focus_org is not None else organizations[:10]
+        focus_org = next((o for o in organizations if o.item_id == focus_node_id), None)
+        seed_orgs: list[OrganizationProfile] = [focus_org] if focus_org is not None else organizations[:10]
     else:
         seed_orgs = organizations[:18]
 
@@ -89,101 +94,101 @@ def build_intel_graph(
                 notes=notes or [],
             )
 
-    for item in regions:
+    for reg in regions:
         add_node(
             IntelGraphNode(
-                node_id=f"region:{item.id}",
+                node_id=f"region:{reg.id}",
                 kind="region",
-                region_id=item.id,
-                label=item.name,
-                subtitle=item.summary,
-                notes=item.notes,
+                region_id=reg.id,
+                label=reg.name,
+                subtitle=reg.summary,
+                notes=reg.notes,
             )
         )
 
-    for item in seed_orgs:
+    for org in seed_orgs:
         add_node(
             IntelGraphNode(
-                node_id=item.item_id,
+                node_id=org.item_id,
                 kind="organization",
-                region_id=item.region_id,
-                label=item.name,
-                subtitle=", ".join(item.categories[:3]) or "Organization",
-                score=item.organization_score,
-                url=item.website,
-                address=item.address,
-                notes=item.notes,
+                region_id=org.region_id,
+                label=org.name,
+                subtitle=", ".join(org.categories[:3]) or "Organization",
+                score=org.organization_score,
+                url=org.website,
+                address=org.address,
+                notes=org.notes,
             )
         )
-        add_edge(f"region:{item.region_id}", item.item_id, "region_watch", weight=item.organization_score)
+        add_edge(f"region:{org.region_id}", org.item_id, "region_watch", weight=org.organization_score)
 
-    for item in snapshot.businesses:
-        if region_ids and item.region_id not in region_ids:
+    for biz in snapshot.businesses:
+        if region_ids and biz.region_id not in region_ids:
             continue
-        org_id = seed_org_names.get(_normalize_text(item.name))
+        org_id = seed_org_names.get(_normalize_text(biz.name))
         if not org_id:
             continue
         add_node(
             IntelGraphNode(
-                node_id=item.item_id,
+                node_id=biz.item_id,
                 kind="business",
-                region_id=item.region_id,
-                label=item.name,
-                subtitle=item.category,
-                score=item.lead_score,
-                url=item.website or item.source_url,
-                address=item.address,
-                notes=item.notes,
+                region_id=biz.region_id,
+                label=biz.name,
+                subtitle=biz.category,
+                score=biz.lead_score,
+                url=biz.website or biz.source_url,
+                address=biz.address,
+                notes=biz.notes,
             )
         )
-        add_edge(org_id, item.item_id, "open_map_business", weight=item.lead_score)
+        add_edge(org_id, biz.item_id, "open_map_business", weight=biz.lead_score)
 
-    for item in snapshot.contacts:
-        if region_ids and item.region_id not in region_ids:
+    for con in snapshot.contacts:
+        if region_ids and con.region_id not in region_ids:
             continue
-        org_id = seed_org_names.get(_normalize_text(item.organization))
+        org_id = seed_org_names.get(_normalize_text(con.organization))
         if not org_id:
             continue
         add_node(
             IntelGraphNode(
-                node_id=item.item_id,
+                node_id=con.item_id,
                 kind="contact",
-                region_id=item.region_id,
-                label=item.name,
-                subtitle=" | ".join(part for part in [item.title or "", item.organization] if part),
-                score=item.contact_score,
-                url=item.website or item.source_url,
-                address=item.address,
-                notes=item.notes,
+                region_id=con.region_id,
+                label=con.name,
+                subtitle=" | ".join(part for part in [con.title or "", con.organization] if part),
+                score=con.contact_score,
+                url=con.website or con.source_url,
+                address=con.address,
+                notes=con.notes,
             )
         )
-        add_edge(org_id, item.item_id, "public_contact", weight=item.contact_score)
+        add_edge(org_id, con.item_id, "public_contact", weight=con.contact_score)
 
-    for item in snapshot.news:
-        if region_ids and item.region_id not in region_ids:
+    for ns in snapshot.news:
+        if region_ids and ns.region_id not in region_ids:
             continue
         related = [
             seed_org_names[_normalize_text(name)]
-            for name in item.organizations
+            for name in ns.organizations
             if _normalize_text(name) in seed_org_names
         ]
         if not related:
             continue
         add_node(
             IntelGraphNode(
-                node_id=item.item_id,
+                node_id=ns.item_id,
                 kind="news",
-                region_id=item.region_id,
-                label=item.title,
-                subtitle=item.source_name,
-                score=item.signal_score,
-                url=item.source_url,
-                address=item.address_hint,
-                notes=item.notes,
+                region_id=ns.region_id,
+                label=ns.title,
+                subtitle=ns.source_name,
+                score=ns.signal_score,
+                url=ns.source_url,
+                address=ns.address_hint,
+                notes=ns.notes,
             )
         )
         for org_id in related:
-            add_edge(item.item_id, org_id, "news_mentions_org", weight=item.signal_score)
+            add_edge(ns.item_id, org_id, "news_mentions_org", weight=ns.signal_score)
 
     known_business_addresses = {
         _normalize_address(node.address)
@@ -191,32 +196,32 @@ def build_intel_graph(
         if node.kind == "business" and node.address and node.address != "Address not provided"
     }
 
-    for item in snapshot.permits:
-        if region_ids and item.region_id not in region_ids:
+    for ps in snapshot.permits:
+        if region_ids and ps.region_id not in region_ids:
             continue
         related_org_ids = [
             seed_org_names[name_key]
-            for name_key in [_normalize_text(name) for name in _permit_related_organizations(item.notes)]
+            for name_key in [_normalize_text(name) for name in _permit_related_organizations(ps.notes)]
             if name_key in seed_org_names
         ]
-        address_key = _normalize_address(item.address)
-        if not related_org_ids and address_key not in known_business_addresses and item.signal_score < 70:
+        address_key = _normalize_address(ps.address)
+        if not related_org_ids and address_key not in known_business_addresses and ps.signal_score < 70:
             continue
         add_node(
             IntelGraphNode(
-                node_id=item.item_id,
+                node_id=ps.item_id,
                 kind="permit",
-                region_id=item.region_id,
-                label=item.address,
-                subtitle=f"{item.county} | {item.permit_type}",
-                score=item.signal_score,
-                url=item.source_url,
-                address=item.address,
-                notes=item.notes,
+                region_id=ps.region_id,
+                label=ps.address,
+                subtitle=f"{ps.county} | {ps.permit_type}",
+                score=ps.signal_score,
+                url=ps.source_url,
+                address=ps.address,
+                notes=ps.notes,
             )
         )
         for org_id in related_org_ids:
-            add_edge(item.item_id, org_id, "permit_names_org", weight=item.signal_score)
+            add_edge(ps.item_id, org_id, "permit_names_org", weight=ps.signal_score)
 
     permit_nodes = [
         node for node in nodes.values() if node.kind == "permit" and node.address and node.address != "Address not provided"
