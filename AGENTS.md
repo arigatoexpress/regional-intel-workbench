@@ -2,7 +2,18 @@
 
 ## Project Overview
 
-The **Regional Intelligence Workbench** is an ethical, public-source regional intelligence platform. It collects, scores, and surfaces open-data signals (permits, news, business listings, public contacts) for geographic regions. The stack is Python/FastAPI with Jinja2 templates, vanilla JS frontends, and Pydantic models throughout.
+The **Regional Intelligence Workbench** is the current regional-intelligence
+asset inside Ari's broader autonomous workspace. The present shape is an
+ethical, public-source platform that collects, scores, and surfaces open-data
+signals (permits, news, business listings, public contacts) for geographic
+regions. Treat that as the current useful frame, not a permanent mission
+ceiling.
+
+Agents may delete, replace, or consolidate stale scaffolding when doing so
+makes the product clearer, more useful, or more operator-grade. Preserve the
+public-source and provenance safety floor, but do not preserve old routes,
+screens, scripts, or docs only because they exist. The stack is Python/FastAPI
+with Jinja2 templates, vanilla JS frontends, and Pydantic models throughout.
 
 ## Architecture
 
@@ -127,6 +138,8 @@ uv run regional-intel intel-foundry-export --region austin_tx --output-dir data/
 ## Notes for Agents
 
 - Do not commit to `main`. Create feature branches and open PRs.
-- The `data/regional_intel_history.jsonl` file is committed data; append-only changes are safe to commit.
+- The `data/regional_intel_history.jsonl` file is committed runtime evidence.
+  Append-only changes are safe when intentional. Before rewrites, make a
+  timestamped copy or patch so useful history is not lost by accident.
 - If you add a new Pydantic model, run `mypy` to ensure it integrates cleanly.
 - When adding new regions or sources, update `app/services/regional_intel.py` and add tests for any new scoring/helpers.
