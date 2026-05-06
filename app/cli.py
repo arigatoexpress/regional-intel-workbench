@@ -84,7 +84,9 @@ async def _run_digest(
     )
     snapshot = await _build_snapshot(force=force)
     strategy = build_strategy_snapshot(snapshot, vote_powers=vote_powers)
-    payload = build_digest_payload(snapshot, strategy, timezone=settings.timezone, style=output_format)
+    payload = build_digest_payload(
+        snapshot, strategy, timezone=settings.timezone, style=output_format
+    )
 
     if output_format == "json":
         json.dump(payload, sys.stdout, indent=2)
@@ -106,17 +108,33 @@ async def _run_intel_collect(force: bool) -> int:
     return 0
 
 
-async def _run_intel_snapshot(force: bool, as_json: bool, region: RegionId | None) -> int:
+async def _run_intel_snapshot(
+    force: bool, as_json: bool, region: RegionId | None
+) -> int:
     snapshot = await _build_intel_snapshot(force=force)
     payload = snapshot.model_dump()
     if region is not None:
-        payload["regions"] = [item for item in payload["regions"] if item["id"] == region]
-        payload["sources"] = [item for item in payload["sources"] if region in item["region_ids"]]
-        payload["news"] = [item for item in payload["news"] if item["region_id"] == region]
-        payload["permits"] = [item for item in payload["permits"] if item["region_id"] == region]
-        payload["businesses"] = [item for item in payload["businesses"] if item["region_id"] == region]
-        payload["contacts"] = [item for item in payload["contacts"] if item["region_id"] == region]
-        payload["organizations"] = [item for item in payload["organizations"] if item["region_id"] == region]
+        payload["regions"] = [
+            item for item in payload["regions"] if item["id"] == region
+        ]
+        payload["sources"] = [
+            item for item in payload["sources"] if region in item["region_ids"]
+        ]
+        payload["news"] = [
+            item for item in payload["news"] if item["region_id"] == region
+        ]
+        payload["permits"] = [
+            item for item in payload["permits"] if item["region_id"] == region
+        ]
+        payload["businesses"] = [
+            item for item in payload["businesses"] if item["region_id"] == region
+        ]
+        payload["contacts"] = [
+            item for item in payload["contacts"] if item["region_id"] == region
+        ]
+        payload["organizations"] = [
+            item for item in payload["organizations"] if item["region_id"] == region
+        ]
     if as_json:
         json.dump(payload, sys.stdout, indent=2)
         sys.stdout.write("\n")
@@ -124,11 +142,25 @@ async def _run_intel_snapshot(force: bool, as_json: bool, region: RegionId | Non
         print(f"Regional intel updated at {payload['updated_at']}")
         for item in payload["regions"]:
             region_id = item["id"]
-            news_count = len([row for row in payload["news"] if row["region_id"] == region_id])
-            permit_count = len([row for row in payload["permits"] if row["region_id"] == region_id])
-            business_count = len([row for row in payload["businesses"] if row["region_id"] == region_id])
-            contact_count = len([row for row in payload["contacts"] if row["region_id"] == region_id])
-            org_count = len([row for row in payload["organizations"] if row["region_id"] == region_id])
+            news_count = len(
+                [row for row in payload["news"] if row["region_id"] == region_id]
+            )
+            permit_count = len(
+                [row for row in payload["permits"] if row["region_id"] == region_id]
+            )
+            business_count = len(
+                [row for row in payload["businesses"] if row["region_id"] == region_id]
+            )
+            contact_count = len(
+                [row for row in payload["contacts"] if row["region_id"] == region_id]
+            )
+            org_count = len(
+                [
+                    row
+                    for row in payload["organizations"]
+                    if row["region_id"] == region_id
+                ]
+            )
             print(
                 f"- {item['name']}: news={news_count}, permits={permit_count}, businesses={business_count}, contacts={contact_count}, organizations={org_count}"
             )
@@ -139,11 +171,21 @@ async def _run_intel_search(force: bool, region: RegionId | None, query: str) ->
     snapshot = await _build_intel_snapshot(force=force)
     payload = snapshot.model_dump()
     if region is not None:
-        payload["news"] = [item for item in payload["news"] if item["region_id"] == region]
-        payload["permits"] = [item for item in payload["permits"] if item["region_id"] == region]
-        payload["businesses"] = [item for item in payload["businesses"] if item["region_id"] == region]
-        payload["contacts"] = [item for item in payload["contacts"] if item["region_id"] == region]
-        payload["organizations"] = [item for item in payload["organizations"] if item["region_id"] == region]
+        payload["news"] = [
+            item for item in payload["news"] if item["region_id"] == region
+        ]
+        payload["permits"] = [
+            item for item in payload["permits"] if item["region_id"] == region
+        ]
+        payload["businesses"] = [
+            item for item in payload["businesses"] if item["region_id"] == region
+        ]
+        payload["contacts"] = [
+            item for item in payload["contacts"] if item["region_id"] == region
+        ]
+        payload["organizations"] = [
+            item for item in payload["organizations"] if item["region_id"] == region
+        ]
 
     needle = query.strip().lower()
     results: list[tuple[str, str, str]] = []
@@ -161,27 +203,36 @@ async def _run_intel_search(force: bool, region: RegionId | None, query: str) ->
             haystack = " ".join(str(item.get(field, "")) for field in fields).lower()
             if needle in haystack:
                 title = str(
-                    item.get("name")
-                    or item.get("title")
-                    or item.get("address")
+                    item.get("name") or item.get("title") or item.get("address") or ""
+                )
+                subtitle = str(
+                    item.get("organization")
+                    or item.get("category")
+                    or item.get("permit_type")
+                    or item.get("source_name")
                     or ""
                 )
-                subtitle = str(item.get("organization") or item.get("category") or item.get("permit_type") or item.get("source_name") or "")
                 results.append((kind, title, subtitle))
     for kind, title, subtitle in results[:40]:
         print(f"- [{kind}] {title} {f'| {subtitle}' if subtitle else ''}")
     return 0
 
 
-async def _run_intel_opportunities(force: bool, region: RegionId | None, as_json: bool) -> int:
+async def _run_intel_opportunities(
+    force: bool, region: RegionId | None, as_json: bool
+) -> int:
     snapshot = await _build_intel_snapshot(force=force)
-    opportunities = [item.model_dump() for item in build_opportunities(snapshot, region=region)]
+    opportunities = [
+        item.model_dump() for item in build_opportunities(snapshot, region=region)
+    ]
     if as_json:
         json.dump({"opportunities": opportunities}, sys.stdout, indent=2)
         sys.stdout.write("\n")
         return 0
     for item in opportunities[:20]:
-        print(f"- [{item['kind']}] {item['title']} | score={item['score']} | {'; '.join(item.get('reasons', [])[:3])}")
+        print(
+            f"- [{item['kind']}] {item['title']} | score={item['score']} | {'; '.join(item.get('reasons', [])[:3])}"
+        )
     return 0
 
 
@@ -202,20 +253,31 @@ async def _run_intel_briefing(force: bool, item_id: str, as_json: bool) -> int:
 async def _run_intel_alerts(force: bool, region: RegionId | None, as_json: bool) -> int:
     snapshot = await _build_intel_snapshot(force=force)
     source_history = _build_source_history_local(lookback_days=14, region=region)
-    alerts = [item.model_dump() for item in build_operational_alerts(snapshot, source_history=source_history, region=region)]
+    alerts = [
+        item.model_dump()
+        for item in build_operational_alerts(
+            snapshot, source_history=source_history, region=region
+        )
+    ]
     if as_json:
         json.dump({"alerts": alerts}, sys.stdout, indent=2)
         sys.stdout.write("\n")
         return 0
     for item in alerts[:20]:
-        print(f"- [{item['severity']}] {item['title']} | score={item['score']} | {item['summary']}")
+        print(
+            f"- [{item['severity']}] {item['title']} | score={item['score']} | {item['summary']}"
+        )
     return 0
 
 
-async def _run_intel_region_briefing(force: bool, region: RegionId, as_json: bool) -> int:
+async def _run_intel_region_briefing(
+    force: bool, region: RegionId, as_json: bool
+) -> int:
     snapshot = await _build_intel_snapshot(force=force)
     source_history = _build_source_history_local(lookback_days=14, region=region)
-    alerts = build_operational_alerts(snapshot, source_history=source_history, region=region)
+    alerts = build_operational_alerts(
+        snapshot, source_history=source_history, region=region
+    )
     watchlist_items = _resolve_watchlist_local(snapshot)
     pack = build_region_briefing_pack(
         snapshot,
@@ -235,13 +297,13 @@ async def _run_intel_region_briefing(force: bool, region: RegionId, as_json: boo
 async def _run_intel_collections(as_json: bool) -> int:
     snapshot = await _build_intel_snapshot(force=False)
     store = IntelCollectionStore()
-    collections = []
-    for collection in store.list_collections():
-        resolved = resolve_collection_items(snapshot, collection)
+    collections: list[dict[str, object]] = []
+    for coll in store.list_collections():
+        resolved = resolve_collection_items(snapshot, coll)
         collections.append(
             {
-                "collection": collection.model_dump(),
-                "item_count": len(collection.items),
+                "collection": coll.model_dump(),
+                "item_count": len(coll.items),
                 "live_count": len([item for item in resolved if item.get("is_live")]),
             }
         )
@@ -249,15 +311,17 @@ async def _run_intel_collections(as_json: bool) -> int:
         json.dump({"collections": collections}, sys.stdout, indent=2)
         sys.stdout.write("\n")
         return 0
-    for item in collections:
-        collection = item["collection"]
+    for col in collections:
+        collection = dict(col["collection"])  # type: ignore[call-overload]
         print(
-            f"- {collection['title']} | region={collection.get('region_id') or 'multi_region'} | items={item['item_count']} | live={item['live_count']}"
+            f"- {collection['title']} | region={collection.get('region_id') or 'multi_region'} | items={col['item_count']} | live={col['live_count']}"
         )
     return 0
 
 
-async def _run_intel_collection_briefing(collection_id: str, force: bool, as_json: bool) -> int:
+async def _run_intel_collection_briefing(
+    collection_id: str, force: bool, as_json: bool
+) -> int:
     snapshot = await _build_intel_snapshot(force=force)
     collection_store = IntelCollectionStore()
     analyst_store = IntelAnalystStore()
@@ -265,13 +329,19 @@ async def _run_intel_collection_briefing(collection_id: str, force: bool, as_jso
     if collection is None:
         print("Collection not found.", file=sys.stderr)
         return 2
-    source_history = _build_source_history_local(lookback_days=14, region=collection.region_id)
+    source_history = _build_source_history_local(
+        lookback_days=14, region=collection.region_id
+    )
     annotation_lookup = {}
     for item in resolve_collection_items(snapshot, collection):
-        if item.get("ref", {}).get("kind") != "organization" or not item.get("ref", {}).get("item_id"):
+        if item.get("ref", {}).get("kind") != "organization" or not item.get(
+            "ref", {}
+        ).get("item_id"):
             continue
         target_id = item["ref"]["item_id"]
-        annotation = analyst_store.get_annotation(target_kind="organization", target_id=target_id)
+        annotation = analyst_store.get_annotation(
+            target_kind="organization", target_id=target_id
+        )
         if annotation is not None:
             annotation_lookup[target_id] = annotation
     pack = build_collection_briefing_pack(
@@ -292,27 +362,42 @@ async def _run_intel_bundles(as_json: bool) -> int:
     snapshot = await _build_intel_snapshot(force=False)
     bundle_store = IntelBundleStore()
     collection_store = IntelCollectionStore()
-    bundles = []
-    for bundle in bundle_store.list_bundles():
+    bundles: list[dict[str, object]] = []
+    for b in bundle_store.list_bundles():
         live_count = 0
         resolved_collections = []
-        for ref in bundle.collections:
+        for ref in b.collections:
             collection = collection_store.get_collection(ref.collection_id)
             if collection is None:
-                resolved_collections.append({"ref": ref.model_dump(), "collection": None, "is_live": False})
+                resolved_collections.append(
+                    {"ref": ref.model_dump(), "collection": None, "is_live": False}
+                )
                 continue
             resolved = resolve_collection_items(snapshot, collection)
             live_count += len([item for item in resolved if item.get("is_live")])
-            resolved_collections.append({"ref": ref.model_dump(), "collection": collection.model_dump(), "is_live": True})
-        bundles.append({"bundle": bundle.model_dump(), "collection_count": len(bundle.collections), "live_count": live_count, "collections": resolved_collections})
+            resolved_collections.append(
+                {
+                    "ref": ref.model_dump(),
+                    "collection": collection.model_dump(),
+                    "is_live": True,
+                }
+            )
+        bundles.append(
+            {
+                "bundle": b.model_dump(),
+                "collection_count": len(b.collections),
+                "live_count": live_count,
+                "collections": resolved_collections,
+            }
+        )
     if as_json:
         json.dump({"bundles": bundles}, sys.stdout, indent=2)
         sys.stdout.write("\n")
         return 0
-    for item in bundles:
-        bundle = item["bundle"]
-        print(
-            f"- {bundle['title']} | region={bundle.get('region_id') or 'multi_region'} | collections={item['collection_count']} | live_items={item['live_count']}"
+    for bun in bundles:  # type: ignore[assignment]
+        bdict = dict(bun["bundle"])  # type: ignore[call-overload]
+        print(  # type: ignore[index]
+            f"- {bdict['title']} | region={bdict.get('region_id') or 'multi_region'} | collections={bun['collection_count']} | live_items={bun['live_count']}"
         )
     return 0
 
@@ -331,14 +416,20 @@ async def _run_intel_bundle_briefing(bundle_id: str, force: bool, as_json: bool)
         collection = collection_store.get_collection(ref.collection_id)
         if collection is not None:
             collections.append(collection)
-    source_history = _build_source_history_local(lookback_days=14, region=bundle.region_id)
+    source_history = _build_source_history_local(
+        lookback_days=14, region=bundle.region_id
+    )
     annotation_lookup = {}
     for collection in collections:
         for item in resolve_collection_items(snapshot, collection):
-            if item.get("ref", {}).get("kind") != "organization" or not item.get("resolved", {}).get("item_id"):
+            if item.get("ref", {}).get("kind") != "organization" or not item.get(
+                "resolved", {}
+            ).get("item_id"):
                 continue
             target_id = item["resolved"]["item_id"]
-            annotation = analyst_store.get_annotation(target_kind="organization", target_id=target_id)
+            annotation = analyst_store.get_annotation(
+                target_kind="organization", target_id=target_id
+            )
             if annotation is not None:
                 annotation_lookup[target_id] = annotation
     pack = build_bundle_briefing_pack(
@@ -357,20 +448,26 @@ async def _run_intel_bundle_briefing(bundle_id: str, force: bool, as_json: bool)
 
 
 async def _run_intel_source_incidents(region: RegionId | None, as_json: bool) -> int:
-    incidents = build_source_incidents(_build_source_history_local(lookback_days=14, region=region), region=region)
+    incidents = build_source_incidents(
+        _build_source_history_local(lookback_days=14, region=region), region=region
+    )
     payload = [item.model_dump() for item in incidents]
     if as_json:
         json.dump({"incidents": payload}, sys.stdout, indent=2)
         sys.stdout.write("\n")
         return 0
     for item in payload[:20]:
-        print(f"- [{item['severity']}] {item['name']} | {item['incident_type']} | {item['summary']}")
+        print(
+            f"- [{item['severity']}] {item['name']} | {item['incident_type']} | {item['summary']}"
+        )
     return 0
 
 
 async def _run_intel_region_changes(region: RegionId | None, as_json: bool) -> int:
     records = RegionalIntelHistoryStore().load_records(lookback_days=14)
-    changes = [item.model_dump() for item in build_region_changes(records, region=region)]
+    changes = [
+        item.model_dump() for item in build_region_changes(records, region=region)
+    ]
     if as_json:
         json.dump({"changes": changes}, sys.stdout, indent=2)
         sys.stdout.write("\n")
@@ -380,36 +477,55 @@ async def _run_intel_region_changes(region: RegionId | None, as_json: bool) -> i
     return 0
 
 
-async def _run_intel_entity_changes(region: RegionId | None, kind: str | None, item_id: str | None, as_json: bool) -> int:
+async def _run_intel_entity_changes(
+    region: RegionId | None, kind: str | None, item_id: str | None, as_json: bool
+) -> int:
     records = RegionalIntelHistoryStore().load_records(lookback_days=14)
     changes = [
         item.model_dump()
-        for item in build_entity_changes(records, region=region, kind=kind, item_id=item_id)
+        for item in build_entity_changes(
+            records, region=region, kind=kind, item_id=item_id
+        )
     ]
     if as_json:
         json.dump({"changes": changes}, sys.stdout, indent=2)
         sys.stdout.write("\n")
         return 0
     for item in changes[:20]:
-        print(f"- [{item['region_id']}] [{item['kind']}] {item['title']} | {item['change_type']} | {item['summary']}")
+        print(
+            f"- [{item['region_id']}] [{item['kind']}] {item['title']} | {item['change_type']} | {item['summary']}"
+        )
     return 0
 
 
-async def _run_intel_monitor_rules(force: bool, region: RegionId | None, as_json: bool) -> int:
+async def _run_intel_monitor_rules(
+    force: bool, region: RegionId | None, as_json: bool
+) -> int:
     snapshot = await _build_intel_snapshot(force=force)
-    rules = [rule for rule in IntelMonitorStore().list_rules() if region is None or rule.region_id in {None, region}]
+    rules = [
+        rule
+        for rule in IntelMonitorStore().list_rules()
+        if region is None or rule.region_id in {None, region}
+    ]
     source_history = _build_source_history_local(lookback_days=14, region=region)
     history_records = RegionalIntelHistoryStore().load_records(lookback_days=14)
     evaluations = [
         item.model_dump()
-        for item in build_monitor_evaluations(snapshot, rules=rules, history_records=history_records, source_history=source_history)
+        for item in build_monitor_evaluations(
+            snapshot,
+            rules=rules,
+            history_records=history_records,
+            source_history=source_history,
+        )
     ]
     if as_json:
         json.dump({"rules": evaluations}, sys.stdout, indent=2)
         sys.stdout.write("\n")
         return 0
     for item in evaluations[:20]:
-        print(f"- {item['rule']['title']} | matches={len(item['matches'])} | {item['summary']}")
+        print(
+            f"- {item['rule']['title']} | matches={len(item['matches'])} | {item['summary']}"
+        )
     return 0
 
 
@@ -425,7 +541,10 @@ async def _run_intel_foundry_export(
     else:
         latest_record = RegionalIntelHistoryStore().load_latest_record()
         if latest_record is None:
-            print("No stored regional intel snapshot found. Run `regional-intel intel-collect` first.", file=sys.stderr)
+            print(
+                "No stored regional intel snapshot found. Run `regional-intel intel-collect` first.",
+                file=sys.stderr,
+            )
             return 2
         snapshot = RegionalIntelSnapshot.model_validate(latest_record)
 
@@ -448,7 +567,10 @@ async def _run_intel_ooda_packet(
 ) -> int:
     latest_record = RegionalIntelHistoryStore().load_latest_record()
     if latest_record is None:
-        print("No stored regional intel snapshot found. Run `regional-intel intel-collect` first.", file=sys.stderr)
+        print(
+            "No stored regional intel snapshot found. Run `regional-intel intel-collect` first.",
+            file=sys.stderr,
+        )
         return 2
     snapshot = RegionalIntelSnapshot.model_validate(latest_record)
     packet = build_regional_ooda_packet(snapshot, region=region)
@@ -461,10 +583,14 @@ async def _run_intel_ooda_packet(
     orient = packet["orient"]
     print(f"Regional OODA packet for {packet['region'] or 'all regions'}")
     print(f"- Snapshot: {packet['snapshot_updated_at']}")
-    print(f"- Rows dropped: {observe['dropped_rows']['total']} {observe['dropped_rows']['by_reason']}")
+    print(
+        f"- Rows dropped: {observe['dropped_rows']['total']} {observe['dropped_rows']['by_reason']}"
+    )
     print(f"- Source health: {orient['source_health']['status']}")
     for object_type, info in observe["export_object_types"].items():
-        print(f"- {object_type}: {info['rows']} rows | file_sha256={info['file_sha256']}")
+        print(
+            f"- {object_type}: {info['rows']} rows | file_sha256={info['file_sha256']}"
+        )
     print("Safe act recommendations:")
     for item in packet["act"]["recommendations"]:
         print(f"- {item['title']}: {item['rationale']}")
@@ -512,22 +638,48 @@ def _build_source_history_local(lookback_days: int, region: RegionId | None):
                 bucket["empty_runs"] += 1
             elif status == "manual":
                 bucket["manual_runs"] += 1
-            bucket["points"].append({"updated_at": updated_at, "status": status, "item_count": item_count})
+            bucket["points"].append(
+                {"updated_at": updated_at, "status": status, "item_count": item_count}
+            )
     output = list(sources.values())
-    output.sort(key=lambda item: (item["category"], -(item["non_empty_runs"] + item["last_item_count"]), item["name"] or ""))
+    output.sort(
+        key=lambda item: (
+            item["category"],
+            -(item["non_empty_runs"] + item["last_item_count"]),
+            item["name"] or "",
+        )
+    )
     return output
 
 
 def _resolve_watchlist_local(snapshot):
     entries = IntelWatchlistStore().list_entries()
     by_id = {}
-    for collection_name in ["organizations", "businesses", "contacts", "news", "permits"]:
+    for collection_name in [
+        "organizations",
+        "businesses",
+        "contacts",
+        "news",
+        "permits",
+    ]:
         for item in getattr(snapshot, collection_name):
             by_id[item.item_id] = item.model_dump()
     items = []
     for entry in entries:
         resolved = by_id.get(entry.item_id or "", {})
-        items.append({"entry": entry.model_dump(), "resolved": resolved, "is_live": bool(resolved), "summary": resolved.get("summary") or resolved.get("address") or resolved.get("organization") or resolved.get("category") or resolved.get("permit_type") or ""})
+        items.append(
+            {
+                "entry": entry.model_dump(),
+                "resolved": resolved,
+                "is_live": bool(resolved),
+                "summary": resolved.get("summary")
+                or resolved.get("address")
+                or resolved.get("organization")
+                or resolved.get("category")
+                or resolved.get("permit_type")
+                or "",
+            }
+        )
     return items
 
 
@@ -540,15 +692,29 @@ def main(argv: list[str] | None = None) -> int:
     serve_parser.add_argument("--host", default=settings.host)
     serve_parser.add_argument("--port", type=int, default=settings.port)
 
-    collect_parser = subparsers.add_parser("collect", help="Refresh and persist the latest snapshot.")
-    collect_parser.add_argument("--force", action="store_true", help="Bypass the in-process TTL cache.")
+    collect_parser = subparsers.add_parser(
+        "collect", help="Refresh and persist the latest snapshot."
+    )
+    collect_parser.add_argument(
+        "--force", action="store_true", help="Bypass the in-process TTL cache."
+    )
 
-    snapshot_parser = subparsers.add_parser("snapshot", help="Print the latest snapshot summary or JSON.")
-    snapshot_parser.add_argument("--force", action="store_true", help="Bypass the in-process TTL cache.")
-    snapshot_parser.add_argument("--json", action="store_true", help="Print the raw snapshot JSON.")
+    snapshot_parser = subparsers.add_parser(
+        "snapshot", help="Print the latest snapshot summary or JSON."
+    )
+    snapshot_parser.add_argument(
+        "--force", action="store_true", help="Bypass the in-process TTL cache."
+    )
+    snapshot_parser.add_argument(
+        "--json", action="store_true", help="Print the raw snapshot JSON."
+    )
 
-    digest_parser = subparsers.add_parser("digest", help="Print a bot-friendly digest for the current week.")
-    digest_parser.add_argument("--force", action="store_true", help="Bypass the in-process TTL cache.")
+    digest_parser = subparsers.add_parser(
+        "digest", help="Print a bot-friendly digest for the current week."
+    )
+    digest_parser.add_argument(
+        "--force", action="store_true", help="Bypass the in-process TTL cache."
+    )
     digest_parser.add_argument(
         "--format",
         choices=("text", "telegram", "json"),
@@ -559,88 +725,167 @@ def main(argv: list[str] | None = None) -> int:
     digest_parser.add_argument("--supernova", type=float, default=None)
     digest_parser.add_argument("--fullsail", type=float, default=None)
 
-    intel_collect_parser = subparsers.add_parser("intel-collect", help="Refresh the regional intelligence snapshot.")
-    intel_collect_parser.add_argument("--force", action="store_true", help="Bypass the in-process TTL cache.")
+    intel_collect_parser = subparsers.add_parser(
+        "intel-collect", help="Refresh the regional intelligence snapshot."
+    )
+    intel_collect_parser.add_argument(
+        "--force", action="store_true", help="Bypass the in-process TTL cache."
+    )
 
-    intel_snapshot_parser = subparsers.add_parser("intel-snapshot", help="Print the regional intelligence snapshot summary or JSON.")
-    intel_snapshot_parser.add_argument("--force", action="store_true", help="Bypass the in-process TTL cache.")
-    intel_snapshot_parser.add_argument("--json", action="store_true", help="Print the raw snapshot JSON.")
+    intel_snapshot_parser = subparsers.add_parser(
+        "intel-snapshot",
+        help="Print the regional intelligence snapshot summary or JSON.",
+    )
+    intel_snapshot_parser.add_argument(
+        "--force", action="store_true", help="Bypass the in-process TTL cache."
+    )
+    intel_snapshot_parser.add_argument(
+        "--json", action="store_true", help="Print the raw snapshot JSON."
+    )
     intel_snapshot_parser.add_argument(
         "--region",
         choices=("austin_tx", "houston_tx", "gunnison_valley_co"),
         default=None,
         help="Filter output to a single region.",
     )
-    intel_search_parser = subparsers.add_parser("intel-search", help="Search the current regional intelligence snapshot.")
+    intel_search_parser = subparsers.add_parser(
+        "intel-search", help="Search the current regional intelligence snapshot."
+    )
     intel_search_parser.add_argument("query", help="Search query text.")
-    intel_search_parser.add_argument("--force", action="store_true", help="Bypass the in-process TTL cache.")
+    intel_search_parser.add_argument(
+        "--force", action="store_true", help="Bypass the in-process TTL cache."
+    )
     intel_search_parser.add_argument(
         "--region",
         choices=("austin_tx", "houston_tx", "gunnison_valley_co"),
         default=None,
         help="Filter output to a single region.",
     )
-    intel_opportunities_parser = subparsers.add_parser("intel-opportunities", help="Print ranked intelligence opportunities.")
-    intel_opportunities_parser.add_argument("--force", action="store_true", help="Bypass the in-process TTL cache.")
-    intel_opportunities_parser.add_argument("--json", action="store_true", help="Print the raw opportunity JSON.")
+    intel_opportunities_parser = subparsers.add_parser(
+        "intel-opportunities", help="Print ranked intelligence opportunities."
+    )
+    intel_opportunities_parser.add_argument(
+        "--force", action="store_true", help="Bypass the in-process TTL cache."
+    )
+    intel_opportunities_parser.add_argument(
+        "--json", action="store_true", help="Print the raw opportunity JSON."
+    )
     intel_opportunities_parser.add_argument(
         "--region",
         choices=("austin_tx", "houston_tx", "gunnison_valley_co"),
         default=None,
         help="Filter output to a single region.",
     )
-    intel_briefing_parser = subparsers.add_parser("intel-briefing", help="Print an analyst-ready briefing pack for one organization.")
-    intel_briefing_parser.add_argument("item_id", help="Organization item_id from the intel graph/search output.")
-    intel_briefing_parser.add_argument("--force", action="store_true", help="Bypass the in-process TTL cache.")
-    intel_briefing_parser.add_argument("--json", action="store_true", help="Print the raw briefing JSON.")
-    intel_alerts_parser = subparsers.add_parser("intel-alerts", help="Print operational alerts for the regional intel system.")
-    intel_alerts_parser.add_argument("--force", action="store_true", help="Bypass the in-process TTL cache.")
-    intel_alerts_parser.add_argument("--json", action="store_true", help="Print the raw alerts JSON.")
+    intel_briefing_parser = subparsers.add_parser(
+        "intel-briefing",
+        help="Print an analyst-ready briefing pack for one organization.",
+    )
+    intel_briefing_parser.add_argument(
+        "item_id", help="Organization item_id from the intel graph/search output."
+    )
+    intel_briefing_parser.add_argument(
+        "--force", action="store_true", help="Bypass the in-process TTL cache."
+    )
+    intel_briefing_parser.add_argument(
+        "--json", action="store_true", help="Print the raw briefing JSON."
+    )
+    intel_alerts_parser = subparsers.add_parser(
+        "intel-alerts", help="Print operational alerts for the regional intel system."
+    )
+    intel_alerts_parser.add_argument(
+        "--force", action="store_true", help="Bypass the in-process TTL cache."
+    )
+    intel_alerts_parser.add_argument(
+        "--json", action="store_true", help="Print the raw alerts JSON."
+    )
     intel_alerts_parser.add_argument(
         "--region",
         choices=("austin_tx", "houston_tx", "gunnison_valley_co"),
         default=None,
         help="Filter output to a single region.",
     )
-    intel_region_briefing_parser = subparsers.add_parser("intel-region-briefing", help="Print a regional briefing pack.")
+    intel_region_briefing_parser = subparsers.add_parser(
+        "intel-region-briefing", help="Print a regional briefing pack."
+    )
     intel_region_briefing_parser.add_argument(
         "--region",
         choices=("austin_tx", "houston_tx", "gunnison_valley_co"),
         required=True,
         help="Region to brief.",
     )
-    intel_region_briefing_parser.add_argument("--force", action="store_true", help="Bypass the in-process TTL cache.")
-    intel_region_briefing_parser.add_argument("--json", action="store_true", help="Print the raw briefing JSON.")
-    intel_collections_parser = subparsers.add_parser("intel-collections", help="List saved intelligence collections.")
-    intel_collections_parser.add_argument("--json", action="store_true", help="Print the raw collection JSON.")
-    intel_collection_briefing_parser = subparsers.add_parser("intel-collection-briefing", help="Print a saved collection briefing pack.")
-    intel_collection_briefing_parser.add_argument("collection_id", help="Collection id from the saved collection shelf.")
-    intel_collection_briefing_parser.add_argument("--force", action="store_true", help="Bypass the in-process TTL cache.")
-    intel_collection_briefing_parser.add_argument("--json", action="store_true", help="Print the raw briefing JSON.")
-    intel_bundles_parser = subparsers.add_parser("intel-bundles", help="List saved briefing bundles.")
-    intel_bundles_parser.add_argument("--json", action="store_true", help="Print the raw bundle JSON.")
-    intel_bundle_briefing_parser = subparsers.add_parser("intel-bundle-briefing", help="Print a saved bundle briefing pack.")
-    intel_bundle_briefing_parser.add_argument("bundle_id", help="Bundle id from the bundle shelf.")
-    intel_bundle_briefing_parser.add_argument("--force", action="store_true", help="Bypass the in-process TTL cache.")
-    intel_bundle_briefing_parser.add_argument("--json", action="store_true", help="Print the raw briefing JSON.")
-    intel_source_incidents_parser = subparsers.add_parser("intel-source-incidents", help="Print source incident diagnostics from source history.")
-    intel_source_incidents_parser.add_argument("--json", action="store_true", help="Print the raw source incident JSON.")
+    intel_region_briefing_parser.add_argument(
+        "--force", action="store_true", help="Bypass the in-process TTL cache."
+    )
+    intel_region_briefing_parser.add_argument(
+        "--json", action="store_true", help="Print the raw briefing JSON."
+    )
+    intel_collections_parser = subparsers.add_parser(
+        "intel-collections", help="List saved intelligence collections."
+    )
+    intel_collections_parser.add_argument(
+        "--json", action="store_true", help="Print the raw collection JSON."
+    )
+    intel_collection_briefing_parser = subparsers.add_parser(
+        "intel-collection-briefing", help="Print a saved collection briefing pack."
+    )
+    intel_collection_briefing_parser.add_argument(
+        "collection_id", help="Collection id from the saved collection shelf."
+    )
+    intel_collection_briefing_parser.add_argument(
+        "--force", action="store_true", help="Bypass the in-process TTL cache."
+    )
+    intel_collection_briefing_parser.add_argument(
+        "--json", action="store_true", help="Print the raw briefing JSON."
+    )
+    intel_bundles_parser = subparsers.add_parser(
+        "intel-bundles", help="List saved briefing bundles."
+    )
+    intel_bundles_parser.add_argument(
+        "--json", action="store_true", help="Print the raw bundle JSON."
+    )
+    intel_bundle_briefing_parser = subparsers.add_parser(
+        "intel-bundle-briefing", help="Print a saved bundle briefing pack."
+    )
+    intel_bundle_briefing_parser.add_argument(
+        "bundle_id", help="Bundle id from the bundle shelf."
+    )
+    intel_bundle_briefing_parser.add_argument(
+        "--force", action="store_true", help="Bypass the in-process TTL cache."
+    )
+    intel_bundle_briefing_parser.add_argument(
+        "--json", action="store_true", help="Print the raw briefing JSON."
+    )
+    intel_source_incidents_parser = subparsers.add_parser(
+        "intel-source-incidents",
+        help="Print source incident diagnostics from source history.",
+    )
+    intel_source_incidents_parser.add_argument(
+        "--json", action="store_true", help="Print the raw source incident JSON."
+    )
     intel_source_incidents_parser.add_argument(
         "--region",
         choices=("austin_tx", "houston_tx", "gunnison_valley_co"),
         default=None,
         help="Filter output to a single region.",
     )
-    intel_region_changes_parser = subparsers.add_parser("intel-region-changes", help="Print regional snapshot count deltas over time.")
-    intel_region_changes_parser.add_argument("--json", action="store_true", help="Print the raw region change JSON.")
+    intel_region_changes_parser = subparsers.add_parser(
+        "intel-region-changes", help="Print regional snapshot count deltas over time."
+    )
+    intel_region_changes_parser.add_argument(
+        "--json", action="store_true", help="Print the raw region change JSON."
+    )
     intel_region_changes_parser.add_argument(
         "--region",
         choices=("austin_tx", "houston_tx", "gunnison_valley_co"),
         default=None,
         help="Filter output to a single region.",
     )
-    intel_entity_changes_parser = subparsers.add_parser("intel-entity-changes", help="Print entity-level snapshot diffs.")
-    intel_entity_changes_parser.add_argument("--json", action="store_true", help="Print the raw entity change JSON.")
+    intel_entity_changes_parser = subparsers.add_parser(
+        "intel-entity-changes", help="Print entity-level snapshot diffs."
+    )
+    intel_entity_changes_parser.add_argument(
+        "--json", action="store_true", help="Print the raw entity change JSON."
+    )
     intel_entity_changes_parser.add_argument(
         "--region",
         choices=("austin_tx", "houston_tx", "gunnison_valley_co"),
@@ -653,10 +898,20 @@ def main(argv: list[str] | None = None) -> int:
         default=None,
         help="Filter output to a single kind.",
     )
-    intel_entity_changes_parser.add_argument("--item-id", default=None, help="Filter output to a single item_id.")
-    intel_monitor_rules_parser = subparsers.add_parser("intel-monitor-rules", help="List saved monitor rules with current matches.")
-    intel_monitor_rules_parser.add_argument("--force", action="store_true", help="Bypass the in-process TTL cache.")
-    intel_monitor_rules_parser.add_argument("--json", action="store_true", help="Print the raw monitor-rule evaluation JSON.")
+    intel_entity_changes_parser.add_argument(
+        "--item-id", default=None, help="Filter output to a single item_id."
+    )
+    intel_monitor_rules_parser = subparsers.add_parser(
+        "intel-monitor-rules", help="List saved monitor rules with current matches."
+    )
+    intel_monitor_rules_parser.add_argument(
+        "--force", action="store_true", help="Bypass the in-process TTL cache."
+    )
+    intel_monitor_rules_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Print the raw monitor-rule evaluation JSON.",
+    )
     intel_monitor_rules_parser.add_argument(
         "--region",
         choices=("austin_tx", "houston_tx", "gunnison_valley_co"),
@@ -678,7 +933,9 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Refresh from public sources before exporting; default uses latest stored snapshot.",
     )
-    intel_foundry_export_parser.add_argument("--json", action="store_true", help="Print the export manifest JSON.")
+    intel_foundry_export_parser.add_argument(
+        "--json", action="store_true", help="Print the export manifest JSON."
+    )
     intel_foundry_export_parser.add_argument(
         "--region",
         choices=("austin_tx", "houston_tx", "gunnison_valley_co"),
@@ -689,7 +946,9 @@ def main(argv: list[str] | None = None) -> int:
         "intel-ooda-packet",
         help="Print a read-only regional OODA packet from the latest stored snapshot.",
     )
-    intel_ooda_packet_parser.add_argument("--json", action="store_true", help="Print the raw OODA packet JSON.")
+    intel_ooda_packet_parser.add_argument(
+        "--json", action="store_true", help="Print the raw OODA packet JSON."
+    )
     intel_ooda_packet_parser.add_argument(
         "--region",
         choices=("austin_tx", "houston_tx", "gunnison_valley_co"),
@@ -721,33 +980,74 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "intel-collect":
         return asyncio.run(_run_intel_collect(force=args.force))
     if args.command == "intel-snapshot":
-        return asyncio.run(_run_intel_snapshot(force=args.force, as_json=args.json, region=args.region))
+        return asyncio.run(
+            _run_intel_snapshot(force=args.force, as_json=args.json, region=args.region)
+        )
     if args.command == "intel-search":
-        return asyncio.run(_run_intel_search(force=args.force, region=args.region, query=args.query))
+        return asyncio.run(
+            _run_intel_search(force=args.force, region=args.region, query=args.query)
+        )
     if args.command == "intel-opportunities":
-        return asyncio.run(_run_intel_opportunities(force=args.force, region=args.region, as_json=args.json))
+        return asyncio.run(
+            _run_intel_opportunities(
+                force=args.force, region=args.region, as_json=args.json
+            )
+        )
     if args.command == "intel-briefing":
-        return asyncio.run(_run_intel_briefing(force=args.force, item_id=args.item_id, as_json=args.json))
+        return asyncio.run(
+            _run_intel_briefing(
+                force=args.force, item_id=args.item_id, as_json=args.json
+            )
+        )
     if args.command == "intel-alerts":
-        return asyncio.run(_run_intel_alerts(force=args.force, region=args.region, as_json=args.json))
+        return asyncio.run(
+            _run_intel_alerts(force=args.force, region=args.region, as_json=args.json)
+        )
     if args.command == "intel-region-briefing":
-        return asyncio.run(_run_intel_region_briefing(force=args.force, region=args.region, as_json=args.json))
+        return asyncio.run(
+            _run_intel_region_briefing(
+                force=args.force, region=args.region, as_json=args.json
+            )
+        )
     if args.command == "intel-collections":
         return asyncio.run(_run_intel_collections(as_json=args.json))
     if args.command == "intel-collection-briefing":
-        return asyncio.run(_run_intel_collection_briefing(collection_id=args.collection_id, force=args.force, as_json=args.json))
+        return asyncio.run(
+            _run_intel_collection_briefing(
+                collection_id=args.collection_id, force=args.force, as_json=args.json
+            )
+        )
     if args.command == "intel-bundles":
         return asyncio.run(_run_intel_bundles(as_json=args.json))
     if args.command == "intel-bundle-briefing":
-        return asyncio.run(_run_intel_bundle_briefing(bundle_id=args.bundle_id, force=args.force, as_json=args.json))
+        return asyncio.run(
+            _run_intel_bundle_briefing(
+                bundle_id=args.bundle_id, force=args.force, as_json=args.json
+            )
+        )
     if args.command == "intel-source-incidents":
-        return asyncio.run(_run_intel_source_incidents(region=args.region, as_json=args.json))
+        return asyncio.run(
+            _run_intel_source_incidents(region=args.region, as_json=args.json)
+        )
     if args.command == "intel-region-changes":
-        return asyncio.run(_run_intel_region_changes(region=args.region, as_json=args.json))
+        return asyncio.run(
+            _run_intel_region_changes(region=args.region, as_json=args.json)
+        )
     if args.command == "intel-entity-changes":
-        return asyncio.run(_run_intel_entity_changes(region=args.region, kind=args.kind, item_id=args.item_id, as_json=args.json))
+        return asyncio.run(
+            _run_intel_entity_changes(
+                region=args.region,
+                kind=args.kind,
+                item_id=args.item_id,
+                as_json=args.json,
+            )
+        )
     if args.command == "intel-monitor-rules":
-        return asyncio.run(_run_intel_monitor_rules(force=args.force, region=args.region, as_json=args.json))
+        return asyncio.run(
+            _run_intel_monitor_rules(
+                force=args.force, region=args.region, as_json=args.json
+            )
+        )
     if args.command == "intel-foundry-export":
         return asyncio.run(
             _run_intel_foundry_export(
@@ -758,7 +1058,9 @@ def main(argv: list[str] | None = None) -> int:
             )
         )
     if args.command == "intel-ooda-packet":
-        return asyncio.run(_run_intel_ooda_packet(region=args.region, as_json=args.json))
+        return asyncio.run(
+            _run_intel_ooda_packet(region=args.region, as_json=args.json)
+        )
 
     parser.error("Unknown command")
     return 2

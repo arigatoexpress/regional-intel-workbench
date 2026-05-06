@@ -15,15 +15,22 @@ class IntelAnalystStore:
         self.path = path or base_dir / "data" / "intel_annotations.json"
         self._lock = Lock()
 
-    def get_annotation(self, *, target_kind: str, target_id: str) -> IntelAnalystAnnotation | None:
+    def get_annotation(
+        self, *, target_kind: str, target_id: str
+    ) -> IntelAnalystAnnotation | None:
         with self._lock:
             payload = self._read_unlocked()
         for item in payload:
-            if item.get("target_kind") == target_kind and item.get("target_id") == target_id:
+            if (
+                item.get("target_kind") == target_kind
+                and item.get("target_id") == target_id
+            ):
                 return IntelAnalystAnnotation.model_validate(item)
         return None
 
-    def save_annotation(self, *, target_kind: str, target_id: str, note: str, tags: list[str]) -> IntelAnalystAnnotation:
+    def save_annotation(
+        self, *, target_kind: str, target_id: str, note: str, tags: list[str]
+    ) -> IntelAnalystAnnotation:
         now = utc_now_iso()
         cleaned_tags = []
         seen: set[str] = set()
@@ -36,7 +43,10 @@ class IntelAnalystStore:
         with self._lock:
             payload = self._read_unlocked()
             for item in payload:
-                if item.get("target_kind") == target_kind and item.get("target_id") == target_id:
+                if (
+                    item.get("target_kind") == target_kind
+                    and item.get("target_id") == target_id
+                ):
                     item["updated_at"] = now
                     item["note"] = note
                     item["tags"] = cleaned_tags
@@ -58,7 +68,14 @@ class IntelAnalystStore:
     def delete_annotation(self, *, target_kind: str, target_id: str) -> bool:
         with self._lock:
             payload = self._read_unlocked()
-            retained = [item for item in payload if not (item.get("target_kind") == target_kind and item.get("target_id") == target_id)]
+            retained = [
+                item
+                for item in payload
+                if not (
+                    item.get("target_kind") == target_kind
+                    and item.get("target_id") == target_id
+                )
+            ]
             if len(retained) == len(payload):
                 return False
             self._write_unlocked(retained)

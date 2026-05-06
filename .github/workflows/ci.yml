@@ -9,10 +9,10 @@ on:
   pull_request:
 
 jobs:
-  test:
+  lint:
     if: ${{ vars.SAPPHIRE_RUNNER != '' }}
     runs-on: ${{ fromJSON(vars.SAPPHIRE_RUNNER || '["self-hosted","sapphire-disabled"]') }}
-    timeout-minutes: 20
+    timeout-minutes: 10
 
     steps:
       - name: Checkout
@@ -23,18 +23,102 @@ jobs:
         with:
           python-version: '3.11'
 
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: 'latest'
+
       - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e .
-          python -m playwright install --with-deps chromium
+        run: uv sync --frozen
+
+      - name: Run ruff check
+        run: uv run ruff check app/ tests/
+
+      - name: Run ruff format check
+        run: uv run ruff format --check app/ tests/
+
+  type-check:
+    if: ${{ vars.SAPPHIRE_RUNNER != '' }}
+    runs-on: ${{ fromJSON(vars.SAPPHIRE_RUNNER || '["self-hosted","sapphire-disabled"]') }}
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: 'latest'
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Run mypy
+        run: uv run mypy app/ tests/
+
+  test:
+    if: ${{ vars.SAPPHIRE_RUNNER != '' }}
+    runs-on: ${{ fromJSON(vars.SAPPHIRE_RUNNER || '["self-hosted","sapphire-disabled"]') }}
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: 'latest'
+
+      - name: Install dependencies
+        run: uv sync --frozen
 
       - name: Run API tests
-        run: python -m unittest discover -s tests -v
+        run: uv run python -m pytest tests/ -v
+
+  ui-smoke:
+    if: >-
+      ${{
+        vars.SAPPHIRE_RUNNER != '' &&
+        (github.event_name == 'workflow_dispatch' || vars.REGIONAL_INTEL_UI_SMOKE_ENABLED == 'true')
+      }}
+    runs-on: ${{ fromJSON(vars.SAPPHIRE_RUNNER || '["self-hosted","sapphire-disabled"]') }}
+    needs: test
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: 'latest'
+
+      - name: Install dependencies
+        run: |
+          uv sync --frozen
+          uv run python -m playwright install --with-deps chromium
 
       - name: Start app
         run: |
-          python -m uvicorn app.main:app --host 127.0.0.1 --port 8768 > /tmp/regional-intel.log 2>&1 &
+          uv run python -m uvicorn app.main:app --host 127.0.0.1 --port 8768 > /tmp/regional-intel.log 2>&1 &
           for i in $(seq 1 30); do
             if curl -fsS http://127.0.0.1:8768/api/intel/health > /dev/null; then
               exit 0
@@ -46,4 +130,4 @@ jobs:
           exit 1
 
       - name: Run UI smoke
-        run: python scripts/ui_smoke.py
+        run: uv run python scripts/ui_smoke.py

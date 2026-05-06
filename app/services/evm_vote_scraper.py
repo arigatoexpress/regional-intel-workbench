@@ -68,7 +68,7 @@ async def fetch_evm_protocol_snapshots() -> list[ProtocolSnapshot]:
 async def _launch_browser(playwright: Playwright) -> Browser:
     chromium = playwright.chromium
     launch_errors: list[str] = []
-    launch_options = {"headless": True}
+    launch_options: dict[str, object] = {"headless": True}
     candidates: list[dict[str, object]] = []
 
     configured_executable = os.getenv("VE_MONITOR_CHROMIUM_EXECUTABLE")
@@ -79,7 +79,10 @@ async def _launch_browser(playwright: Playwright) -> Browser:
         candidates.extend(
             [
                 {"channel": "chrome", **launch_options},
-                {"executable_path": "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", **launch_options},
+                {
+                    "executable_path": "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+                    **launch_options,
+                },
             ]
         )
     elif sys.platform.startswith("linux"):
@@ -95,7 +98,7 @@ async def _launch_browser(playwright: Playwright) -> Browser:
 
     for candidate in candidates:
         try:
-            return await chromium.launch(**candidate)
+            return await chromium.launch(**candidate)  # type: ignore[arg-type]
         except Exception as exc:  # noqa: BLE001
             launch_errors.append(str(exc))
 
@@ -143,9 +146,17 @@ async def _scrape_protocol(page: Page, config: EvmProtocolConfig) -> ProtocolSna
     key_stats = [
         KeyStat(label="Votes cast", value=_format_vote_window(meta["total_votes"])),
         KeyStat(label="Total fees", value=meta["summary_map"].get("Total Fees", "--")),
-        KeyStat(label="Total rewards", value=meta["summary_map"].get("Total Rewards", "--")),
-        KeyStat(label="Total incentives", value=meta["summary_map"].get("Total Incentives", "--")),
-        KeyStat(label="Total emissions", value=meta["summary_map"].get("Total Emissions", "--")),
+        KeyStat(
+            label="Total rewards", value=meta["summary_map"].get("Total Rewards", "--")
+        ),
+        KeyStat(
+            label="Total incentives",
+            value=meta["summary_map"].get("Total Incentives", "--"),
+        ),
+        KeyStat(
+            label="Total emissions",
+            value=meta["summary_map"].get("Total Emissions", "--"),
+        ),
         KeyStat(label="Pages scraped", value=str(total_pages)),
     ]
 
@@ -174,7 +185,10 @@ async def _scrape_protocol(page: Page, config: EvmProtocolConfig) -> ProtocolSna
             )
         )
 
-    pools.sort(key=lambda pool: (pool.ranking_score, pool.total_rewards_usd or 0.0), reverse=True)
+    pools.sort(
+        key=lambda pool: (pool.ranking_score, pool.total_rewards_usd or 0.0),
+        reverse=True,
+    )
     for index, pool in enumerate(pools, start=1):
         pool.rank = index
 

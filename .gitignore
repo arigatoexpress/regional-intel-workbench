@@ -4,7 +4,6 @@ __pycache__/
 *.py[cod]
 .DS_Store
 .openclaw/
-AGENTS.md
 HEARTBEAT.md
 IDENTITY.md
 MEMORY.md

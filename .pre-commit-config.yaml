@@ -1,9 +1,30 @@
 repos:
   - repo: local
     hooks:
-      - id: unittest
-        name: unittest
-        entry: python -m unittest discover -s tests -v
+      - id: ruff-check
+        name: ruff check
+        entry: uv run ruff check app/ tests/
+        language: system
+        pass_filenames: false
+        files: ^(app|tests)/.*\.py$
+
+      - id: ruff-format-check
+        name: ruff format check
+        entry: uv run ruff format --check app/ tests/
+        language: system
+        pass_filenames: false
+        files: ^(app|tests)/.*\.py$
+
+      - id: mypy
+        name: mypy
+        entry: uv run mypy app/ tests/
+        language: system
+        pass_filenames: false
+        files: ^(app|tests)/.*\.py$
+
+      - id: pytest
+        name: pytest
+        entry: uv run python -m pytest tests/ -v
         language: system
         pass_filenames: false
         files: ^(app|tests)/.*\.py$

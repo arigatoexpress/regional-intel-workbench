@@ -164,7 +164,93 @@ regional-intel intel-ooda-packet --region austin_tx --json
 regional-intel serve --port 8768
 ```
 
-`intel-foundry-export` writes NDJSON for `Region`, `IntelItem`, and `IntelSourceHealth` from the latest stored snapshot. Manifest includes row hashes, file hashes, provenance drop counts, and a source-health summary. `--refresh` only when you want to refresh public sources first.
+`intel-foundry-export` writes local Foundry-ready NDJSON files for `Region`, `IntelItem`, and `IntelSourceHealth` from the latest stored snapshot by default. The manifest includes row hashes, file hashes, provenance drop counts, and a source-health summary. Add `--refresh` only when you want to refresh public sources before exporting.
+
+`intel-ooda-packet` is read-only. It uses the latest stored regional snapshot, performs no external refresh, performs no Foundry/GCS/BQ writes, and returns safe act recommendations only.
+
+## API Highlights
+
+Interactive API documentation is available when the app is running:
+
+- **Swagger UI:** `/docs`
+- **ReDoc:** `/redoc`
+
+Read-mostly demo endpoints:
+
+```text
+GET /api/intel/health
+GET /api/intel/regions
+GET /api/intel/sources
+GET /api/intel/snapshot
+GET /api/intel/recent
+GET /api/intel/search
+GET /api/intel/graph
+GET /api/intel/opportunities
+GET /api/intel/alerts
+GET /api/intel/briefs
+GET /api/intel/region-briefing/{region_id}
+GET /api/intel/briefing/{item_id}
+GET /api/intel/items/{kind}/{item_id}
+GET /api/intel/timeline/{item_id}
+GET /api/intel/ooda-packet
+```
+
+Source and change diagnostics:
+
+```text
+GET /api/intel/source-health
+GET /api/intel/source-history
+GET /api/intel/source-incidents
+GET /api/intel/trends
+GET /api/intel/region-changes
+GET /api/intel/entity-changes
+```
+
+Client and analyst workflow views:
+
+```text
+GET /api/client-views
+GET /api/client-views/{view_id}
+GET /api/intel/watchlist
+GET /api/intel/watchlist-items
+GET /api/intel/collections
+GET /api/intel/bundles
+GET /api/intel/monitor-rules
+GET /client-views/{view_id}
+```
+
+`/api/intel/recent?limit=10&region=austin_tx` returns a compact feed for external dashboards, including item identity, kind, region, title, timestamp, severity, score, source provenance, tags, and a deep link back into `/intel`.
+
+`/api/client-views/blanga_austin` returns the curated Austin client feed as JSON, including metrics, feed sections, item scores, public source URLs, recommended human-review actions, and deep links back into the shared console.
+
+### Demo-Safe Surface Boundary
+
+Default demo-safe surfaces are read-only browser pages, default `GET` API calls,
+and OODA packet generation from stored snapshots. Use `/intel`, `/blanga/austin`,
+`/client-views/blanga_austin`, `/api/client-views/blanga_austin`,
+`/api/intel/recent?region=austin_tx`, and
+`/api/intel/ooda-packet?region=austin_tx` when you want a clean read-only demo.
+
+Analyst-store endpoints are different: `POST` and `DELETE` calls under
+`/api/intel/annotations`, `/api/intel/watchlist-items`,
+`/api/intel/collections`, `/api/intel/bundles`, and
+`/api/intel/monitor-rules` mutate local analyst JSON stores. They are safe for a
+local analyst workflow, but they are not read-only demo surfaces. Avoid
+`force=true`, `intel-collect`, and `intel-foundry-export --refresh` unless the
+conversation is specifically about source refreshes or local export handoff.
+
+## Friend-Demo Checklist
+
+Before showing the repo to a friend, buyer, or collaborator:
+
+- Start locally with `uv run --no-project --python 3.11 --with-editable . regional-intel serve --port 8768`.
+- Open `/intel`, `/blanga/austin`, and `/api/client-views/blanga_austin` in three tabs.
+- Use the committed screenshots in `docs/assets/` if the room is noisy, offline, or short on time.
+- Say plainly that this is a local-first demo, not a hosted deployment claim.
+- Point out source URLs, source health, and the public-source-only guardrails before discussing recommendations.
+- Show one CLI read path, such as `uv run --no-project --python 3.11 --with-editable . regional-intel intel-ooda-packet --region austin_tx --json`.
+- Avoid live external refreshes during the demo unless the audience specifically wants to discuss source adapters.
+- Do not add private customer data, secrets, login-gated sources, or real outreach actions to make the demo look richer.
 
 ## Validation
 

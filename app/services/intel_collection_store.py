@@ -20,7 +20,14 @@ class IntelCollectionStore:
         with self._lock:
             payload = self._read_unlocked()
         collections = [IntelCollection.model_validate(item) for item in payload]
-        collections.sort(key=lambda item: (item.status == "active", item.updated_at, item.title.lower()), reverse=True)
+        collections.sort(
+            key=lambda item: (
+                item.status == "active",
+                item.updated_at,
+                item.title.lower(),
+            ),
+            reverse=True,
+        )
         return collections
 
     def get_collection(self, collection_id: str) -> IntelCollection | None:
@@ -45,7 +52,10 @@ class IntelCollectionStore:
         with self._lock:
             payload = self._read_unlocked()
             for raw in payload:
-                if clean_text(raw.get("title", "")).strip().lower() != cleaned_title.lower():
+                if (
+                    clean_text(raw.get("title", "")).strip().lower()
+                    != cleaned_title.lower()
+                ):
                     continue
                 raw["updated_at"] = now
                 raw["title"] = cleaned_title
@@ -74,7 +84,9 @@ class IntelCollectionStore:
     def delete_collection(self, collection_id: str) -> bool:
         with self._lock:
             payload = self._read_unlocked()
-            retained = [item for item in payload if item.get("collection_id") != collection_id]
+            retained = [
+                item for item in payload if item.get("collection_id") != collection_id
+            ]
             if len(retained) == len(payload):
                 return False
             self._write_unlocked(retained)
@@ -99,7 +111,11 @@ class IntelCollectionStore:
                     continue
                 items = raw.setdefault("items", [])
                 for item in items:
-                    if item_id and item.get("kind") == kind and item.get("item_id") == item_id:
+                    if (
+                        item_id
+                        and item.get("kind") == kind
+                        and item.get("item_id") == item_id
+                    ):
                         item["updated_at"] = now
                         item["label"] = label or item.get("label") or "Saved item"
                         if region_id is not None:

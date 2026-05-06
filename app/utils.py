@@ -39,7 +39,13 @@ def coefficient_of_variation(values: list[float]) -> float | None:
 def parse_compact_number(value: str | None) -> float | None:
     if value is None:
         return None
-    cleaned = value.strip().replace("~", "").replace("$", "").replace("%", "").replace(" ", "")
+    cleaned = (
+        value.strip()
+        .replace("~", "")
+        .replace("$", "")
+        .replace("%", "")
+        .replace(" ", "")
+    )
     if not cleaned or cleaned in {"--", "-", "N/A"}:
         return None
     match = COMPACT_RE.search(cleaned)
@@ -108,7 +114,11 @@ def normalize_fullsail_prediction_usd(
     number = float(value)
     if number <= 0:
         return 0.0
-    if weekly_volume_usd and weekly_volume_usd > 0 and number / weekly_volume_usd > 1_000:
+    if (
+        weekly_volume_usd
+        and weekly_volume_usd > 0
+        and number / weekly_volume_usd > 1_000
+    ):
         return number / 1_000_000
     if number >= 1_000_000_000:
         return number / 1_000_000
@@ -157,13 +167,17 @@ def forecast_volume_from_history(
     if predicted_volume_usd and predicted_volume_usd > 0:
         weighted_components.append((predicted_volume_usd, 0.20))
     if predictions:
-        weighted_components.append((mean(predictions[-min(3, len(predictions)) :]), 0.10))
+        weighted_components.append(
+            (mean(predictions[-min(3, len(predictions)) :]), 0.10)
+        )
 
     if not weighted_components:
         return None, None, None
 
     total_weight = sum(weight for _, weight in weighted_components)
-    forecast = sum(value * weight for value, weight in weighted_components) / total_weight
+    forecast = (
+        sum(value * weight for value, weight in weighted_components) / total_weight
+    )
 
     recent_actuals = actuals[-min(6, len(actuals)) :]
     volatility = coefficient_of_variation(recent_actuals) if recent_actuals else None
