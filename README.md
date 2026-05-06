@@ -1,259 +1,156 @@
 <div align="center">
 
-<img src="docs/assets/regional-intel-workbench-card.svg" alt="Regional Intelligence Workbench product card" width="100%">
+<img src="docs/assets/regional-intel-workbench-card.svg" alt="Regional Intelligence Workbench" width="100%">
 
 # Regional Intelligence Workbench
 
-**A public-source regional intelligence console for local markets, client feeds, and provenance-ready decision packets.**
-
-[![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-3776AB?style=for-the-badge&logo=python&logoColor=white)](pyproject.toml)
-[![FastAPI](https://img.shields.io/badge/FastAPI-analyst%20console-009688?style=for-the-badge&logo=fastapi&logoColor=white)](app/main.py)
-[![Tests](https://img.shields.io/badge/tests-37%2F37%20passing-16A34A?style=for-the-badge)](tests)
-[![UI smoke](https://img.shields.io/badge/UI%20smoke-Playwright%20verified-2563EB?style=for-the-badge)](scripts/ui_smoke.py)
-[![Public source only](https://img.shields.io/badge/guardrail-public%20source%20only-0F766E?style=for-the-badge)](#ethics-and-provenance)
-[![Foundry ready](https://img.shields.io/badge/export-Foundry%20NDJSON-7C3AED?style=for-the-badge)](app/services/foundry_export.py)
-[![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-111827?style=for-the-badge)](LICENSE)
-
 </div>
 
-Regional Intelligence Workbench turns public regional signals into a practical analyst surface: permits, local news, open business data, source health, entity timelines, client-specific feeds, and read-only OODA packets. It is designed for high-context local-market research where every surfaced item needs provenance a human can inspect before acting.
+[![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-3776AB)](pyproject.toml)
+[![FastAPI](https://img.shields.io/badge/FastAPI-analyst%20console-009688)](app/main.py)
+[![Tests](https://img.shields.io/badge/tests-47%20passing-16A34A)](tests)
+[![Public source only](https://img.shields.io/badge/guardrail-public%20source%20only-0F766E)](#ethics-and-provenance)
+[![Foundry ready](https://img.shields.io/badge/export-Foundry%20NDJSON-7C3AED)](app/services/foundry_export.py)
+[![Live admin](https://img.shields.io/badge/admin-regional.sapphirealpha.xyz-2563EB)](https://regional.sapphirealpha.xyz/admin)
+[![License](https://img.shields.io/badge/license-Apache--2.0-111827)](LICENSE)
 
-The current workspace covers **Austin**, **Houston**, and **Gunnison / Crested Butte Valley**. Its first polished client feed is the **Blanga Austin STNL + Redevelopment Feed** at `/blanga/austin`; the legacy `ve-vote-monitor` dashboard remains available at `/vote-monitor` for compatibility.
+**A public-source regional intelligence console with provenance you can inspect before acting.**
+Permits, local news, public business data, source-health diagnostics, entity timelines, and read-only OODA packets — all anchored to source URLs a human can verify.
+Palantir Foundry costs millions and gates access; this exports Foundry-ready NDJSON from public data, runs on a laptop, and refuses to lie about source health.
 
-> Showcase posture: this repo is presented as a **local-first demo and analyst workbench**. The screenshots, CLI, FastAPI app, and committed sample history are demoable from a laptop; this README does not claim a hosted production deployment.
+---
 
-## Demo Preview
+## Live
 
-<p align="center">
-  <img src="docs/assets/regional-intel-console.png" alt="Regional Intelligence Workbench analyst console showing Austin regional intelligence controls" width="92%">
-</p>
+| Surface | URL |
+|---|---|
+| Admin frontend | <https://regional.sapphirealpha.xyz/admin> |
+| Health | <https://regional.sapphirealpha.xyz/healthz/> |
+| Local console | `/intel` (start with `regional-intel serve --port 8768`) |
+| Local client feed | `/blanga/austin` (curated brokerage view) |
+| Local API | `/api/intel/*`, `/api/client-views/*` |
 
-<p align="center">
-  <img src="docs/assets/blanga-austin-feed.png" alt="Blanga Austin client intelligence feed with deal radar metrics and map" width="92%">
-</p>
+Coverage today: **Austin, TX** · **Houston, TX** · **Gunnison / Crested Butte Valley, CO**.
 
-## Current Snapshot
+## What sets this apart
 
-The committed public-source snapshot was refreshed on **2026-04-29 at 05:44 UTC** after repairing Austin's moved Small Business Division URL and compacting malformed legacy history records.
+| | This | Palantir Foundry | Hunter / Apollo / ZoomInfo | Notion + RSS |
+|---|---|---|---|---|
+| **Cost** | $0 (public sources) | seven figures | per-seat SaaS | per-seat SaaS |
+| **Public-source-only guardrail** | enforced in code | no | no | n/a |
+| **Source-health visibility** | first-class panel + history | analyst-side | hidden | none |
+| **Login-gated scraping** | refused | n/a | yes | n/a |
+| **Foundry-ready export** | NDJSON with row hashes + manifest | native | no | no |
+| **Read-only OODA recommendations** | yes (no external writes) | yes | n/a | n/a |
+| **Local-first demo path** | yes (`regional-intel serve`) | no | no | no |
 
-| Metric | Current value |
-| --- | ---: |
-| Regions | 3 |
-| News items | 7 |
-| Permit items | 120 |
-| Public business leads | 240 |
-| Public professional contacts | 7 |
-| Organization profiles | 180 |
-| Source-health rows | 20 |
+The differentiator is **provenance discipline**. Every signal carries source name, source URL, source-health row, and history — surfaced where the analyst is reading, not buried in a debug page. Stale and failing sources are visible, not hidden.
 
-## At a Glance
+## Quickstart (5 minutes)
 
-| Surface | What it does |
-| --- | --- |
-| `/intel` | Shared analyst console for search, graph exploration, opportunities, briefs, monitor rules, watchlists, annotations, collections, and source diagnostics. |
-| `/blanga/austin` | Curated Austin brokerage feed for single-tenant retail, redevelopment, vacancy, commercial permit, and operator lead signals. |
-| `/api/intel/*` | JSON endpoints for health, snapshots, recent signals, graph data, alerts, OODA packets, briefings, trends, source history, and analyst stores. |
-| `regional-intel` | CLI for refreshes, search, opportunity ranking, briefing packs, Foundry export, and read-only OODA packets. |
-| Foundry export | Local NDJSON export with row hashes, file hashes, source-health summary, and provenance drop reporting. |
+Python 3.11+. macOS or Linux.
 
-## What To Show First
+```bash
+# 1. Install
+pip install -e .
+python -m playwright install chromium       # for ui_smoke + analyst console
 
-| Moment | Proof point |
-| --- | --- |
-| Shared console | `/intel` shows one regional intelligence model with search, source diagnostics, graph context, watchlists, collections, and briefing flows. |
-| Client view | `/blanga/austin` shows how the same graph becomes a polished, audience-specific workflow without forking the collector. |
-| API surface | `/api/client-views/blanga_austin` and `/api/intel/recent?region=austin_tx` expose the same intelligence as JSON for external tools. |
-| Provenance | Source names, source URLs, source-health rows, and history records are kept close to the surfaced signal. |
-| Safety boundary | OODA packets are read-only recommendations from stored snapshots; they do not refresh sources or write to external systems. |
+# 2. Serve
+uvicorn app.main:app --reload --port 8768
 
-## Local Demo Path
+# 3. Open three tabs
+#   /intel             → shared analyst console
+#   /blanga/austin     → curated client feed
+#   /admin             → operator dashboard (Leaflet map + source health)
 
-For a quick demo, start the app locally, open `/intel` to show the shared regional console, then open `/blanga/austin` to show how the same graph becomes a polished client workflow. The strongest talking points are public-source guardrails, source-level provenance, the Austin redevelopment feed, and the read-only OODA packet path.
+# 4. Read-only OODA packet from the latest stored snapshot
+regional-intel intel-ooda-packet --region austin_tx --json
 
-No explicit virtualenv activation is required for the demo path:
+# 5. Export to Foundry-ready NDJSON
+regional-intel intel-foundry-export --region austin_tx \
+    --output-dir data/foundry/regional-intel
+```
 
+`uv` users:
 ```bash
 uv run --no-project --python 3.11 --with-editable . regional-intel serve --port 8768
-uv run --no-project --python 3.11 --with-editable . regional-intel intel-ooda-packet --region austin_tx --json
 ```
-
-Run these from the repo root. The `--no-project --with-editable .` form keeps
-the checkout clean when no `uv.lock` is present. If you already have the editable
-package installed, the shorter `regional-intel` commands still work.
-
-See [`docs/SHOWCASE.md`](docs/SHOWCASE.md) for a tighter demo script,
-CLI snippets, screenshot policy, and provenance guardrails.
-
-## Intelligence Loop
-
-```mermaid
-flowchart LR
-    A["Public sources<br/>open data, RSS, public pages, OSM"] --> B["Regional collector<br/>retry-aware source pulls"]
-    B --> C["Snapshot + history<br/>regions, signals, source health"]
-    C --> D["Analyst console<br/>search, graph, briefs, timelines"]
-    C --> E["Client feeds<br/>Blanga Austin"]
-    C --> F["Foundry export<br/>NDJSON + manifest"]
-    C --> G["OODA packet<br/>read-only recommendations"]
-    D --> H["Human review<br/>verify provenance before action"]
-    E --> H
-    G --> H
-```
-
-## Product Surfaces
-
-### Intelligence Console
-
-The shared analyst workspace at `/intel` supports cross-entity search across news, permits, businesses, contacts, and organizations. It also includes relationship graph exploration, opportunity scoring, regional briefs, entity timelines, source history, incident tracking, monitor rules, saved watchlists, analyst annotations, collections, and multi-collection briefing bundles.
-
-### Client-Specific Feeds
-
-Client feeds are curated views on top of the shared intelligence graph. The current feed is:
-
-| Feed | Audience | Focus |
-| --- | --- | --- |
-| `/blanga/austin` | Single-tenant retail and redevelopment brokerage in the Austin MSA | Deal radar, vacancy and closure signals, retail construction, tenant-improvement activity, redevelopment watch, operator discovery, public contact paths, and recent change tracking. |
-
-### Admin Console
-
-The dedicated admin frontend lives at `/admin` and is the operator-facing dashboard for production. It is read-only for now and ships:
-
-- **Region selector** dropdown wired to `/api/admin/regions` (every region returns `bbox`, `center`, and `bounds` for map rendering).
-- **Map view** (Leaflet, dark CARTO basemap) showing the active region's bounding box.
-- **Latest intel feed** grouped by category (news / permit / business / organization / contact) with score + source + timestamp.
-- **Source health panel** combining the live `source_health` snapshot with 14d history (`non_empty_runs`, last fetch).
-- **Trends panel** with sparkline charts per category over the last 14 daily snapshots.
-- **Search bar** that filters items via `/api/admin/search`.
-- **Monitor rules** list pulled from `/api/admin/overview` (read-only — mutation endpoints are intentionally not exposed in the admin surface).
-- **"How to interpret" modal** documenting every panel.
-
-Admin auth is a stub `X-Admin-Token` header gate (env var `ADMIN_TOKEN`) that will be replaced by WebAuthn. When `ADMIN_TOKEN` is unset the gate is open (dev mode); when set, every `/api/admin/*` route requires the matching header. The page itself is unauthenticated so the operator can land and supply the token via the in-page prompt (stored in `localStorage`). Health probe lives at `/healthz/` and returns `Cache-Control: no-store`.
-
-#### Run locally
-
-```bash
-pip install -e .
-uvicorn app.main:app --reload --port 8000
-# open http://localhost:8000/admin
-# (optional) export ADMIN_TOKEN=changeme  -- then click "Set token" in the UI
-```
-
-#### Build + deploy to Cloud Run
-
-```bash
-docker build -t regional-intel-admin .
-docker run --rm -p 8080:8080 -e ADMIN_TOKEN=changeme regional-intel-admin
-# then: open http://localhost:8080/admin
-
-# Or one-shot via Cloud Build:
-gcloud builds submit --config cloudbuild.yaml \
-  --substitutions=_REGION=us-central1,_SERVICE=regional-intel-admin
-
-# After first deploy, wire ADMIN_TOKEN to Secret Manager:
-gcloud run services update regional-intel-admin --region=us-central1 \
-  --update-secrets=ADMIN_TOKEN=regional-intel-admin-token:latest
-
-# Map the production domain:
-gcloud beta run domain-mappings create --service=regional-intel-admin \
-  --region=us-central1 --domain=regional.sapphirealpha.xyz
-```
-
-### Legacy Vote Monitor
-
-The original vote-monitor surface remains available at `/vote-monitor` and is still served by the same FastAPI app. Active development is now centered on the regional intelligence platform.
-
-## Regional Coverage
-
-| Region | Live / adapted coverage | Current limits |
-| --- | --- | --- |
-| Austin, Texas | Austin Open Data permits, Hays County public permits, Williamson County public permits, Google News RSS filtering, OpenStreetMap / Overpass, Austin public economic-development contacts. | Subscription business outlets remain manual-reference only. |
-| Houston, Texas | Houston public planning development spreadsheets, Houston-area public news signals, OpenStreetMap / Overpass, public economic-development and innovation contacts. | The generic Houston permitting portal is cataloged, but live extraction is limited to anonymous public planning artifacts. |
-| Gunnison / Crested Butte Valley, Colorado | Public local news signals, official Gunnison County and Town of Crested Butte pages, OpenStreetMap / Overpass, public community-development contacts. | Live permit extraction still needs a stable anonymous public adapter. |
-
-## Ethics and Provenance
-
-This product is intentionally constrained:
-
-- Public-source collection only.
-- No login-gated scraping.
-- No paywall bypass.
-- No private-person dossiering.
-- Public professional and business contacts only.
-- Source name and source URL retained for surfaced signals.
-- Source-health and source-history views make stale or failing sources visible instead of hiding them.
-- Foundry export reports provenance drops rather than silently promoting incomplete rows.
-- OODA packets are read-only and do not perform external refreshes or external writes.
-- Humans verify provenance before any outreach, transaction, publication, or operational action.
-
-The intent is to support disciplined regional research, not automated targeting. The workbench should make a reviewer faster at asking the right follow-up questions while keeping source context visible.
 
 ## Architecture
 
 ```mermaid
-flowchart TB
-    CLI["regional-intel CLI"] --> Service["RegionalIntelService"]
-    API["FastAPI app"] --> Service
-    Service --> Sources["Public source adapters"]
-    Sources --> Snapshot["RegionalIntelSnapshot"]
-    Snapshot --> History["regional_intel_history.jsonl"]
-    Snapshot --> Analyst["Analyst stores<br/>watchlist, annotations, collections, monitor rules"]
-    Snapshot --> Insights["Insights layer<br/>alerts, opportunities, graph, timelines"]
-    Insights --> UI["/intel and client views"]
-    Insights --> Export["Foundry NDJSON export"]
-    Insights --> OODA["Regional OODA packet"]
+flowchart LR
+    Sources["Public sources<br/>open data, RSS, public pages, OSM"] --> Collector
+    Collector["Regional collector<br/>retry-aware"] --> Snapshot["Snapshot + history"]
+    Snapshot --> Console["/intel analyst console"]
+    Snapshot --> Client["/blanga/austin client feed"]
+    Snapshot --> Admin["/admin operator dashboard"]
+    Snapshot --> Export["Foundry NDJSON<br/>row + file hashes"]
+    Snapshot --> OODA["OODA packet<br/>read-only recommendations"]
+    Console --> Human["Human verifies provenance"]
+    Client --> Human
+    OODA --> Human
 ```
 
-Key modules:
+| Module | Role |
+|---|---|
+| `app/main.py` | FastAPI routes, HTML surfaces, JSON endpoints |
+| `app/services/regional_intel.py` | Region profiles, source catalog, ethics rules, snapshots |
+| `app/services/client_views.py` | Curated client feed composition (Blanga Austin) |
+| `app/services/intel_insights.py` | Graph, opportunities, alerts, timelines, briefings |
+| `app/services/foundry_export.py` | Foundry-ready NDJSON + manifest |
+| `app/services/regional_ooda.py` | Read-only regional OODA packet generation |
 
-| Path | Role |
-| --- | --- |
-| `app/main.py` | FastAPI routes, HTML surfaces, and JSON API endpoints. |
-| `app/services/regional_intel.py` | Region profiles, public source catalog, collection logic, ethics rules, and snapshots. |
-| `app/services/client_views.py` | Curated client-feed composition, currently Blanga Austin. |
-| `app/services/intel_insights.py` | Graph, opportunities, alerts, changes, timelines, briefings, and monitor evaluations. |
-| `app/services/foundry_export.py` | Foundry-ready NDJSON export and manifest generation. |
-| `app/services/regional_ooda.py` | Read-only regional OODA packet generation from stored snapshots. |
+## Surfaces
 
-Design principles:
+### `/intel` — analyst console
+Cross-entity search across news, permits, businesses, contacts, organizations. Relationship graph, opportunity scoring, regional briefs, entity timelines, source history, incidents, monitor rules, watchlists, annotations, collections, briefing bundles.
 
-- **Local demo first:** the reliable path is `regional-intel serve --port 8768` plus committed screenshots and local JSON endpoints.
-- **Shared graph, tailored views:** client feeds are composed from the shared regional snapshot instead of becoming one-off scrapers.
-- **Provenance near the signal:** source name, URL, source health, item IDs, history, and deep links stay visible across UI, API, CLI, and export paths.
-- **Read-only recommendations:** analysis packets can suggest safe next steps, but they do not execute outreach, trades, writes, or refreshes.
-- **Graceful source failure:** source-health rows and incident views are part of the product surface, so a demo can explain what is fresh, degraded, or manual-reference only.
+### `/blanga/austin` — client feed
+Curated view of the shared graph for an Austin single-tenant retail + redevelopment brokerage. Deal radar, vacancy / closure signals, retail construction, tenant-improvement activity, redevelopment watch, operator discovery, public contact paths.
 
-## Quick Start
+### `/admin` — operator dashboard
+Region selector, Leaflet dark-CARTO map with bounding boxes, latest intel feed grouped by category, source-health panel with 14d history, trends sparklines, search, monitor-rules list, "how to interpret" modal. Auth gate via `X-Admin-Token` (env `ADMIN_TOKEN`); WebAuthn migration planned. Health at `/healthz/` returns `Cache-Control: no-store`.
 
-```bash
-cd /Users/aribs/Code/regional-intel-workbench
-python -m venv .venv
-source .venv/bin/activate
-pip install -e .
-python -m playwright install chromium
-uvicorn app.main:app --reload --port 8768
+### Legacy `/vote-monitor`
+Original surface preserved for compatibility. Active development is on the regional intelligence platform.
+
+## Coverage
+
+| Region | Live coverage | Limits |
+|---|---|---|
+| Austin, TX | Open Data permits, Hays + Williamson public permits, Google News RSS, OSM/Overpass, public econ-dev contacts | Subscription outlets are manual-reference only |
+| Houston, TX | Houston public planning spreadsheets, public news, OSM/Overpass, public econ-dev + innovation contacts | Generic permitting portal cataloged; live extraction is anonymous-only |
+| Gunnison / Crested Butte, CO | Public local news, official Gunnison County + Town of CB pages, OSM/Overpass, community-dev contacts | Live permit extraction needs a stable anonymous adapter |
+
+## Ethics and provenance
+
+This product is intentionally constrained:
+- Public-source collection only · no login-gated scraping · no paywall bypass.
+- No private-person dossiering. Public professional and business contacts only.
+- Source name + URL retained on every surfaced signal.
+- Source-health and history make stale or failing sources visible.
+- Foundry export reports provenance drops rather than silently promoting incomplete rows.
+- OODA packets are read-only and perform no external refresh or writes.
+- Humans verify provenance before any outreach, transaction, publication, or operational action.
+
+## API highlights
+
+```text
+GET /api/intel/health           GET /api/intel/recent
+GET /api/intel/snapshot         GET /api/intel/search
+GET /api/intel/graph            GET /api/intel/opportunities
+GET /api/intel/alerts           GET /api/intel/briefs
+GET /api/intel/region-briefing/{region_id}
+GET /api/intel/timeline/{item_id}
+GET /api/intel/ooda-packet
+GET /api/intel/source-health    GET /api/intel/source-history
+GET /api/client-views           GET /api/client-views/{view_id}
 ```
 
-Open:
-
-- [http://127.0.0.1:8768](http://127.0.0.1:8768)
-- [http://127.0.0.1:8768/intel](http://127.0.0.1:8768/intel)
-- [http://127.0.0.1:8768/blanga/austin](http://127.0.0.1:8768/blanga/austin)
-- [http://127.0.0.1:8768/vote-monitor](http://127.0.0.1:8768/vote-monitor)
+`/api/client-views/blanga_austin` returns the full curated feed as JSON — metrics, sections, item scores, public source URLs, recommended human-review actions, deep links back into the console.
 
 ## CLI
-
-Primary CLI:
-
-```bash
-regional-intel --help
-```
-
-Compatibility alias:
-
-```bash
-ve-vote-monitor --help
-```
-
-Useful commands:
 
 ```bash
 regional-intel intel-collect --force
@@ -262,8 +159,6 @@ regional-intel intel-search "Amy's Ice Creams" --region austin_tx
 regional-intel intel-opportunities --region houston_tx
 regional-intel intel-alerts --region austin_tx
 regional-intel intel-region-briefing --region austin_tx
-regional-intel intel-briefing <item_id>
-regional-intel intel-monitor-rules --region austin_tx
 regional-intel intel-foundry-export --region austin_tx --output-dir data/foundry/regional-intel
 regional-intel intel-ooda-packet --region austin_tx --json
 regional-intel serve --port 8768
@@ -359,38 +254,51 @@ Before showing the repo to a friend, buyer, or collaborator:
 
 ## Validation
 
-API regression:
+```bash
+uv run --python 3.11 python -m unittest discover -s tests -v   # 47 tests
+python scripts/ui_smoke.py                                      # Playwright UI smoke
+```
+
+UI smoke covers `/blanga/austin` desktop + mobile, `/intel?region=austin_tx` desktop, map presence, key metric rendering, horizontal-overflow regressions.
+
+## Cloud Run deploy
 
 ```bash
-uv run --python 3.11 python -m unittest discover -s tests -v
+docker build -t regional-intel-admin .
+gcloud builds submit --config cloudbuild.yaml \
+  --substitutions=_REGION=us-central1,_SERVICE=regional-intel-admin
+
+# Wire ADMIN_TOKEN to Secret Manager after first deploy
+gcloud run services update regional-intel-admin --region=us-central1 \
+  --update-secrets=ADMIN_TOKEN=regional-intel-admin-token:latest
+
+# Domain mapping
+gcloud beta run domain-mappings create --service=regional-intel-admin \
+  --region=us-central1 --domain=regional.sapphirealpha.xyz
 ```
 
-Headless UI smoke:
+## Status
 
-```bash
-python scripts/ui_smoke.py
-```
+- **47 tests passing** locally; admin frontend live at <https://regional.sapphirealpha.xyz>.
+- 3 regions covered; Foundry NDJSON export with row hashes shipped.
+- Local-first demo path stable; OODA packet is read-only by design.
 
-The dependable validation path is local. The UI smoke covers `/blanga/austin` on desktop and mobile, `/intel?region=austin_tx` on desktop, map presence, key metric rendering, and horizontal overflow regressions.
+### Roadmap
 
-## Repository Layout
-
-```text
-app/        FastAPI app, templates, static frontend, services, and presenters
-data/       Local snapshot history and runtime analyst stores
-deploy/     Legacy/local deployment assets
-scripts/    UI smoke and utility scripts
-tests/      API, export, resilience, and workflow-gate regression tests
-```
-
-## Roadmap
-
-- Scheduled refresh and notification workflow for monitor-rule matches.
+- Scheduled refresh + notification workflow for monitor-rule matches.
 - Stronger permit/news address enrichment for client feeds.
 - Additional client-specific views beyond Blanga Austin.
-- A stable anonymous public adapter for Gunnison / Crested Butte permit activity.
-- Eventual repo extraction / rename once the intelligence platform fully outgrows the legacy vote-monitor identity.
+- Stable anonymous public adapter for Gunnison / CB permit activity.
+- WebAuthn admin auth replacing the `X-Admin-Token` stub.
+
+## Cross-link
+
+This workbench is the **regional intelligence silo** of Sapphire's [Brain](https://sapphirealpha.xyz/api/brain/synthesis). Sapphire orchestrates and federates; this satellite stands alone with its own deploy, its own auth, and its own data discipline.
+
+- [Sapphire](https://github.com/arigatoexpress/Sapphire) — capital intelligence + content + autonomous ops monorepo
+- [cyber-threat-bot](https://github.com/arigatoexpress/cyber-threat-bot) — CISA KEV / NVD / MITRE feed aggregator
+- [wildfire-watch](https://github.com/arigatoexpress/wildfire-watch) — county-scale autonomous drone fleet
 
 ## License
 
-Apache-2.0. See [LICENSE](LICENSE).
+[Apache-2.0](LICENSE).
