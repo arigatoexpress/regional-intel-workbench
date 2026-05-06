@@ -97,11 +97,15 @@ gcloud builds submit --config cloudbuild.yaml \
 ## CI/CD
 
 GitHub Actions workflow (`.github/workflows/ci.yml`):
-- **lint** job: `ruff check` + `ruff format --check` (runs on `ubuntu-latest`)
-- **type-check** job: `mypy app/ tests/` (runs on `ubuntu-latest`)
-- **test** job: pytest + UI smoke (requires self-hosted runner when `SAPPHIRE_RUNNER` is set)
+- **lint** job: `ruff check` + `ruff format --check` (Sapphire runner only)
+- **type-check** job: `mypy app/ tests/` (Sapphire runner only)
+- **test** job: API/unit pytest only (Sapphire runner only)
+- **ui-smoke** job: Playwright/browser smoke, gated by manual
+  `workflow_dispatch` or `REGIONAL_INTEL_UI_SMOKE_ENABLED=true`
 
 All jobs install dependencies with `uv sync --frozen` from `uv.lock`.
+Browser dependency installation is intentionally outside the default test job so
+normal CI stays cheap and does not surprise-install system browser packages.
 
 ## Useful Commands
 
