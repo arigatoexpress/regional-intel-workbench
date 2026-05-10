@@ -122,6 +122,10 @@ class IntelAppTestCase(unittest.TestCase):
         landing = self.client.get("/")
         self.assertEqual(landing.status_code, 200)
         self.assertIn("Regional Intelligence Workbench", landing.text)
+        self.assertIn("surface-shell", landing.text)
+        self.assertIn("Open analyst console", landing.text)
+        self.assertIn("Open admin dashboard", landing.text)
+        self.assertIn("Public-source only", landing.text)
         self.assertIn("/blanga/austin", landing.text)
         self.assertIn("/vote-monitor", landing.text)
 

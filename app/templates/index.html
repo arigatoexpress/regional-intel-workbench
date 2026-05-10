@@ -12,71 +12,64 @@
     />
     <link rel="stylesheet" href="/static/app.css" />
   </head>
-  <body>
+  <body class="workbench-home">
     <div class="backdrop"></div>
-    <main class="shell launch-shell">
-      <section class="hero launch-hero">
-        <div class="hero-copy">
+    <main class="surface-shell">
+      <section class="surface-board" aria-label="Regional intelligence command board">
+        <div class="surface-copy">
           <p class="eyebrow">Regional Intelligence Workbench</p>
-          <h1>Ethical regional intelligence, client feeds, and operator-grade workflows.</h1>
-          <p class="lede">
-            This workspace now centers on a public-source intelligence platform for Austin, Houston, and the Gunnison / Crested Butte Valley.
-            It supports analyst workflows, relationship mapping, watchlists, bundles, and client-specific feeds like the Blanga Austin brokerage view.
+          <h1>Public-source regional intelligence, routed to the right working surface.</h1>
+          <p>
+            Coverage, client feeds, source health, watchlists, briefing bundles, and Foundry-ready exports stay separated by purpose.
+            Every path here is read-mostly, provenance-aware, and bounded to public-source collection.
           </p>
-          <div class="launch-pill-row">
-            <span class="launch-pill">Public-source only</span>
-            <span class="launch-pill">Client-specific feeds</span>
-            <span class="launch-pill">Graph + timeline workflow</span>
-            <span class="launch-pill">Briefings, bundles, and monitor rules</span>
-          </div>
         </div>
-        <div class="hero-actions launch-actions">
-          <a href="/intel" class="primary-button">Open Intelligence Console</a>
-          <a href="/blanga/austin" class="ghost-button">Open Blanga Austin Feed</a>
-          <a href="/vote-monitor" class="ghost-button">Open Legacy Vote Monitor</a>
-          <div class="status-card">
-            <div class="status-label">Primary surface</div>
-            <div class="status-value">Regional intelligence</div>
+        <dl class="surface-readiness">
+          <div>
+            <dt>Primary workflow</dt>
+            <dd>Analyst console</dd>
           </div>
-          <div class="status-card">
-            <div class="status-label">Coverage</div>
-            <div class="status-value">Austin, Houston, Gunnison Valley</div>
+          <div>
+            <dt>Coverage</dt>
+            <dd>Austin, Houston, Gunnison Valley</dd>
           </div>
-        </div>
+          <div>
+            <dt>Guardrail</dt>
+            <dd>Public-source only</dd>
+          </div>
+          <div>
+            <dt>Delivery</dt>
+            <dd>Feeds, briefs, Foundry NDJSON</dd>
+          </div>
+        </dl>
       </section>
 
-      <section class="protocols-panel launch-panel-grid">
-        <article class="intel-card launch-card">
-          <div class="status-label">Core product</div>
-          <h2>Intelligence Console</h2>
-          <p>
-            Search across businesses, organizations, public contacts, news, and permit activity. Inspect relationships, timelines,
-            change history, opportunity scores, and source reliability from one place.
-          </p>
-          <a href="/intel" class="ghost-button">Explore /intel</a>
-        </article>
-        <article class="intel-card launch-card">
-          <div class="status-label">Client workflow</div>
-          <h2>Blanga Austin Feed</h2>
-          <p>
-            Austin brokerage-focused feed tuned for STNL retail, redevelopment, vacancies, openings, construction activity,
-            and public contact paths. Designed as a composable client view, not a one-off prototype.
-          </p>
-          <a href="/blanga/austin" class="ghost-button">Explore /blanga/austin</a>
-        </article>
-        <article class="intel-card launch-card">
-          <div class="status-label">Compatibility</div>
-          <h2>Legacy Vote Monitor</h2>
-          <p>
-            The original cross-protocol vote-monitor dashboard is still available for local use. It remains in this repo as a secondary surface while the intelligence platform becomes the primary product.
-          </p>
-          <a href="/vote-monitor" class="ghost-button">Open vote monitor</a>
-        </article>
+      <section class="surface-route-grid" aria-label="Workbench routes">
+        <a href="/intel" class="surface-route primary-route">
+          <span class="status-label">Work now</span>
+          <strong>Open analyst console</strong>
+          <span>Search, map, inspect provenance, build watchlists, create collections, and prepare briefing bundles.</span>
+        </a>
+        <a href="/blanga/austin" class="surface-route">
+          <span class="status-label">Client feed</span>
+          <strong>Open Blanga Austin feed</strong>
+          <span>Use the curated Austin brokerage view for STNL retail, redevelopment, vacancy, permit, and public-contact signals.</span>
+        </a>
+        <a href="/admin" class="surface-route">
+          <span class="status-label">Operator</span>
+          <strong>Open admin dashboard</strong>
+          <span>Inspect source health, region coverage, trends, recent feed density, and monitor-rule state.</span>
+        </a>
+        <a href="/vote-monitor" class="surface-route secondary-route">
+          <span class="status-label">Legacy</span>
+          <strong>Open vote monitor</strong>
+          <span>Compatibility surface for the original cross-protocol vote monitor while regional intelligence remains primary.</span>
+        </a>
       </section>
 
-      <section class="protocols-panel launch-panel-grid">
-        <article class="intel-card launch-card">
-          <div class="status-label">Ethics guardrails</div>
+      <section class="surface-split">
+        <article class="surface-panel">
+          <div class="status-label">Operating guardrails</div>
           <ul class="launch-list">
             <li>No login-gated scraping</li>
             <li>No paywall bypass</li>
@@ -84,19 +77,19 @@
             <li>Source provenance retained on every signal</li>
           </ul>
         </article>
-        <article class="intel-card launch-card">
-          <div class="status-label">What the system produces</div>
+        <article class="surface-panel">
+          <div class="status-label">Produced artifacts</div>
           <ul class="launch-list">
             <li>Regional briefs and opportunity queues</li>
-            <li>Relationship graphs and timelines</li>
+            <li>Relationship graphs and entity timelines</li>
             <li>Watchlists, collections, and briefing bundles</li>
             <li>Client-specific feeds and monitor-rule matches</li>
           </ul>
         </article>
-        <article class="intel-card launch-card">
-          <div class="status-label">Best next step</div>
+        <article class="surface-panel">
+          <div class="status-label">Best next click</div>
           <p>
-            Start with the Blanga Austin feed if you want a guided, client-oriented workflow. Start with the intel console if you want the full analyst surface.
+            Use the analyst console for open-ended work, the Blanga feed for brokerage review, and the admin dashboard for source-health operations.
           </p>
         </article>
       </section>

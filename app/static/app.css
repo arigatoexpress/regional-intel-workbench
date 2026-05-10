@@ -1315,6 +1315,186 @@ tbody tr:hover {
   color: var(--muted);
 }
 
+.workbench-home {
+  min-height: 100vh;
+  color: #111817;
+  background:
+    linear-gradient(90deg, rgba(17, 24, 23, 0.04) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(17, 24, 23, 0.03) 1px, transparent 1px),
+    linear-gradient(135deg, #f8fbf8 0%, #eef4f0 46%, #f7f8f2 100%);
+  background-size: 48px 48px, 48px 48px, auto;
+  font-family: "Chakra Petch", system-ui, sans-serif;
+}
+
+html:has(body.workbench-home) {
+  background:
+    linear-gradient(90deg, rgba(17, 24, 23, 0.04) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(17, 24, 23, 0.03) 1px, transparent 1px),
+    linear-gradient(135deg, #f8fbf8 0%, #eef4f0 46%, #f7f8f2 100%);
+  background-size: 48px 48px, 48px 48px, auto;
+}
+
+.workbench-home .backdrop {
+  background-image: none;
+}
+
+.surface-shell {
+  width: min(1480px, calc(100vw - 32px));
+  margin: 0 auto;
+  padding: 16px 0 34px;
+  display: grid;
+  gap: 14px;
+}
+
+.surface-board,
+.surface-route,
+.surface-panel {
+  border: 1px solid #d4dfd8;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, .86);
+  box-shadow: 0 18px 42px rgba(17, 24, 23, 0.08);
+}
+
+.surface-board {
+  display: grid;
+  grid-template-columns: minmax(420px, 1fr) minmax(520px, .92fr);
+  gap: 1px;
+  overflow: hidden;
+  background: #d4dfd8;
+}
+
+.surface-copy,
+.surface-readiness > div {
+  background: rgba(255, 255, 255, .86);
+}
+
+.surface-copy {
+  display: grid;
+  gap: 12px;
+  align-content: center;
+  padding: 22px;
+}
+
+.surface-copy .eyebrow {
+  color: #1e7a4e;
+}
+
+.surface-copy h1 {
+  max-width: 850px;
+  margin: 0;
+  color: #111817;
+  font-size: 34px;
+  line-height: 1.04;
+}
+
+.surface-copy p {
+  max-width: 850px;
+  margin: 0;
+  color: #5f6d66;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.surface-readiness {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  margin: 0;
+  background: #d4dfd8;
+}
+
+.surface-readiness > div {
+  min-height: 116px;
+  padding: 16px;
+}
+
+.surface-readiness dt,
+.surface-route .status-label,
+.surface-panel .status-label {
+  color: #5f6d66;
+}
+
+.surface-readiness dt {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11px;
+  font-weight: 700;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+}
+
+.surface-readiness dd {
+  margin: 0;
+  color: #111817;
+  font-size: 22px;
+  font-weight: 720;
+  line-height: 1.12;
+}
+
+.surface-route-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.surface-route {
+  min-height: 218px;
+  display: grid;
+  gap: 10px;
+  align-content: start;
+  padding: 16px;
+  color: #111817;
+  text-decoration: none;
+}
+
+.surface-route:hover {
+  border-color: #1e7a4e;
+  transform: translateY(-1px);
+}
+
+.surface-route strong {
+  font-size: 22px;
+  line-height: 1.12;
+}
+
+.surface-route span:last-child {
+  color: #5f6d66;
+  line-height: 1.5;
+}
+
+.primary-route {
+  background: #111817;
+  color: white;
+}
+
+.primary-route .status-label,
+.primary-route span:last-child {
+  color: #b9c8c0;
+}
+
+.secondary-route {
+  background: rgba(248, 251, 248, .76);
+}
+
+.surface-split {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.surface-panel {
+  min-height: 190px;
+  padding: 16px;
+}
+
+.surface-panel p {
+  color: #5f6d66;
+  line-height: 1.55;
+}
+
+.workbench-home .launch-list {
+  color: #5f6d66;
+}
+
 @media (max-width: 1040px) {
   .hero {
     grid-template-columns: 1fr;
@@ -1325,7 +1505,10 @@ tbody tr:hover {
   }
 
   .launch-actions,
-  .launch-panel-grid {
+  .launch-panel-grid,
+  .surface-board,
+  .surface-route-grid,
+  .surface-split {
     grid-template-columns: 1fr;
   }
 }
@@ -1359,6 +1542,18 @@ tbody tr:hover {
 
   table {
     min-width: 1260px;
+  }
+
+  .surface-shell {
+    width: min(100vw - 20px, 1480px);
+  }
+
+  .surface-copy h1 {
+    font-size: 30px;
+  }
+
+  .surface-readiness {
+    grid-template-columns: 1fr;
   }
 
   .intel-search-row {
