@@ -10,6 +10,7 @@ from typing import Literal
 from fastapi import Depends, FastAPI, Request
 from fastapi import HTTPException
 from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
+from fastapi.routing import APIRoute
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
@@ -21,6 +22,7 @@ from app.intel_models import IntelAnalystAnnotation
 from app.intel_models import RegionId
 from app.intel_models import RegionalIntelSnapshot
 from app.presenters.digest import build_digest_payload
+from app.route_contracts import build_route_readiness_contract
 from app.services.aggregator import DashboardService
 from app.services.intel_graph import build_intel_graph
 from app.services.intel_insights import build_operational_alerts
@@ -184,6 +186,25 @@ async def api_health():
 @app.get("/api/intel/health")
 async def api_intel_health():
     return {"status": "ok"}
+
+
+def _runtime_route_inventory() -> list[dict[str, Any]]:
+    routes = []
+    for route in app.routes:
+        if not isinstance(route, APIRoute):
+            continue
+        methods = sorted(
+            method
+            for method in route.methods or []
+            if method not in {"HEAD", "OPTIONS"}
+        )
+        routes.append({"path": route.path, "methods": methods, "name": route.name})
+    return sorted(routes, key=lambda item: (item["path"], item["name"] or ""))
+
+
+@app.get("/api/intel/contracts")
+async def api_intel_contracts():
+    return build_route_readiness_contract(_runtime_route_inventory()).model_dump()
 
 
 # ---------------------------------------------------------------------------
