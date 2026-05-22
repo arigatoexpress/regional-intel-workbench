@@ -118,6 +118,16 @@ ROUTE_CONTRACTS: tuple[RouteContract, ...] = (
         purpose="Analyst console for map, search, provenance, and briefing workflows.",
     ),
     _route(
+        "/field-ops",
+        ["GET"],
+        access_class="public_preview",
+        response_contract="text/html",
+        purpose="Unified read-only regional, wildfire-watch, and UAS readiness workbench.",
+        integration_notes=[
+            "No dispatch, drone command, LoRa command, or external notification control is exposed.",
+        ],
+    ),
+    _route(
         "/client-views/{view_id}",
         ["GET"],
         access_class="public_preview",
@@ -146,6 +156,18 @@ ROUTE_CONTRACTS: tuple[RouteContract, ...] = (
         response_contract=CONTRACT_SCHEMA_ID,
         purpose="Machine-readable route, provenance, and readiness contract.",
         integration_notes=["Preferred integration discovery endpoint."],
+    ),
+    _route(
+        "/api/intel/field-ops",
+        ["GET"],
+        access_class="public_read",
+        side_effects="read_through_refresh",
+        response_contract="regional_intel.field_ops.v1",
+        purpose="Unified derived field-ops payload for regional context, wildfire-watch overlays, and UAS readiness state.",
+        integration_notes=[
+            "Derived analysis only; no raw payload resale.",
+            "No drone commands, dispatch sends, fire-dept notifications, Telegram sends, or external writes are allowed.",
+        ],
     ),
     _route(
         "/api/snapshot",
@@ -663,9 +685,16 @@ def build_route_readiness_contract(
         missing_declared_paths=missing_declared_paths,
     )
     return RouteReadinessContract(
-        human_surfaces=["/", "/intel", "/client-views/{view_id}", "/admin"],
+        human_surfaces=[
+            "/",
+            "/intel",
+            "/field-ops",
+            "/client-views/{view_id}",
+            "/admin",
+        ],
         machine_surfaces=[
             "/api/intel/contracts",
+            "/api/intel/field-ops",
             "/api/client-views",
             "/api/client-views/{view_id}",
             "/api/intel/recent",

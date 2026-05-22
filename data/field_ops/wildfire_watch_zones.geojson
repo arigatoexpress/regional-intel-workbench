@@ -1,0 +1,108 @@
+{
+  "type": "FeatureCollection",
+  "name": "gunnison-crested-butte-corridor",
+  "description": "Derived from wildfire-watch missions/zones/gunnison_crested_butte_corridor.geojson. West-elk-wilderness-exclusion is a hard no-fly reference zone; authoritative wilderness boundaries must come from USFS GIS before any live operation.",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "zone_id": "slate-river-drainage",
+        "fuel_load_class": "high",
+        "primary_risk": "beetle-kill spruce/fir",
+        "elevation_min_m": 2743,
+        "elevation_max_m": 3200,
+        "phase": 0
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [-107.0060, 38.9035],
+          [-107.0060, 38.9165],
+          [-106.9940, 38.9165],
+          [-106.9940, 38.9035],
+          [-107.0060, 38.9035]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "zone_id": "cement-creek-drainage",
+        "fuel_load_class": "moderate-high",
+        "primary_risk": "dispersed dead-timber",
+        "elevation_min_m": 2680,
+        "elevation_max_m": 3050,
+        "phase": 0
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [-106.9100, 38.8400],
+          [-106.9100, 38.8550],
+          [-106.8950, 38.8550],
+          [-106.8950, 38.8400],
+          [-106.9100, 38.8400]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "zone_id": "east-river-corridor",
+        "fuel_load_class": "low-moderate",
+        "primary_risk": "wildlife/ecology baseline",
+        "elevation_min_m": 2700,
+        "elevation_max_m": 2900,
+        "phase": 0
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [-106.9700, 38.8800],
+          [-106.9700, 38.9050],
+          [-106.9500, 38.9050],
+          [-106.9500, 38.8800],
+          [-106.9700, 38.8800]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "zone_id": "west-elk-wilderness-exclusion",
+        "exclusion": true,
+        "regulatory_basis": "36 CFR 261.16",
+        "note": "Hard no-fly reference zone. Simplified bounding box, not authoritative GIS."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [-107.2500, 38.7500],
+          [-107.2500, 38.8800],
+          [-107.0500, 38.8800],
+          [-107.0500, 38.7500],
+          [-107.2500, 38.7500]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "zone_id": "kguc-class-e-surface-area",
+        "exclusion": false,
+        "regulatory_basis": "FAA LAANC required below 1200 ft AGL within 5nm of KGUC",
+        "note": "Coordination zone, not a hard exclusion."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [-107.0500, 38.4800],
+          [-107.0500, 38.6100],
+          [-106.8000, 38.6100],
+          [-106.8000, 38.4800],
+          [-107.0500, 38.4800]
+        ]]
+      }
+    }
+  ]
+}

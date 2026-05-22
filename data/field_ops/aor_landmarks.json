@@ -1,0 +1,79 @@
+{
+  "source_id": "wildfire_watch_aor_landmarks",
+  "retrieved_at": "2026-05-20T00:00:00Z",
+  "description": "Planning landmarks derived from the wildfire-watch Gunnison / Crested Butte AOR notes and local project fixtures. Coordinates are approximate map anchors for analyst orientation, not surveyed operational coordinates.",
+  "landmarks": [
+    {
+      "landmark_id": "crested-butte-town",
+      "label": "Crested Butte",
+      "kind": "town",
+      "lat": 38.8697,
+      "lon": -106.9878,
+      "elevation_m": 2715,
+      "summary": "Primary north-valley civic anchor and likely human review hub for wildfire-watch planning."
+    },
+    {
+      "landmark_id": "mount-crested-butte",
+      "label": "Mount Crested Butte",
+      "kind": "town",
+      "lat": 38.8975,
+      "lon": -106.9647,
+      "elevation_m": 2857,
+      "summary": "Upper-valley population and terrain anchor near the East River and Gothic corridors."
+    },
+    {
+      "landmark_id": "gunnison-town",
+      "label": "Gunnison",
+      "kind": "town",
+      "lat": 38.5458,
+      "lon": -106.9253,
+      "elevation_m": 2348,
+      "summary": "County-seat anchor for public-source context, airport coordination, and south-valley logistics."
+    },
+    {
+      "landmark_id": "kguc-airport",
+      "label": "Gunnison-Crested Butte Regional Airport",
+      "kind": "airspace",
+      "lat": 38.5339,
+      "lon": -106.9332,
+      "elevation_m": 2341,
+      "summary": "KGUC airspace coordination anchor. The surrounding Class E/LAANC overlay remains a reference until FAA status is checked live."
+    },
+    {
+      "landmark_id": "cbfpd-station-reference",
+      "label": "CBFPD Station Reference",
+      "kind": "public_safety",
+      "lat": 38.8688,
+      "lon": -106.9873,
+      "elevation_m": 2715,
+      "summary": "Reference marker for fire-district coordination context. This workbench does not send notifications or dispatch messages."
+    },
+    {
+      "landmark_id": "slate-river-anchor",
+      "label": "Slate River Drainage",
+      "kind": "drainage",
+      "lat": 38.91,
+      "lon": -107.0,
+      "elevation_m": 2950,
+      "summary": "High-fuel drainage zone with beetle-kill spruce/fir emphasis in the local wildfire-watch fixture."
+    },
+    {
+      "landmark_id": "cement-creek-anchor",
+      "label": "Cement Creek Drainage",
+      "kind": "drainage",
+      "lat": 38.848,
+      "lon": -106.902,
+      "elevation_m": 2860,
+      "summary": "Dispersed dead-timber planning zone southeast of Crested Butte."
+    },
+    {
+      "landmark_id": "west-elk-exclusion-anchor",
+      "label": "West Elk Wilderness No-Fly Reference",
+      "kind": "exclusion",
+      "lat": 38.815,
+      "lon": -107.15,
+      "elevation_m": null,
+      "summary": "Hard no-fly reference marker matching the simplified exclusion overlay; authoritative USFS GIS is still required before any live operation."
+    }
+  ]
+}

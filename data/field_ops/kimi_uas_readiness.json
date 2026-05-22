@@ -1,0 +1,119 @@
+{
+  "source_packet": "Kimi_Agent_Amazon Shopping List.zip",
+  "derived_at": "2026-05-20",
+  "architecture": {
+    "platform": "DJI Mavic Mini with Raspberry Pi companion and fixed ground station",
+    "control_boundary": "Mavic Mini flight controller is closed; this workbench is planning/readiness only and does not issue virtual-stick, LoRa, DJI SDK, dispatch, or external notification commands.",
+    "safe_control_path": "Any future live flight path must stay behind separate operator authorization, FAA/TFR/LAANC checks, VLOS/BVLOS constraints, and hardware bench validation."
+  },
+  "assets": [
+    {
+      "asset_id": "gcs-pi4-starlink",
+      "label": "Ground Station Pi 4 + Starlink",
+      "layer": "ground_station",
+      "status": "needs_live_check",
+      "lat": 38.8697,
+      "lon": -106.9878,
+      "summary": "Fixed property-side ground station concept with LoRa serial manager, weather sensor inputs, dashboard, logs, and Starlink/VPN backhaul.",
+      "readiness": {
+        "network": "starlink_or_ethernet_required",
+        "serial": "RYLR998 on UART or USB serial must be detected",
+        "persistence": "service manager required for unattended runs"
+      }
+    },
+    {
+      "asset_id": "uas-mavic-mini-companion",
+      "label": "Mavic Mini + Pi Zero 2 W companion",
+      "layer": "uas_payload",
+      "status": "reference_only",
+      "lat": 38.91,
+      "lon": -106.998,
+      "summary": "Phase 0 airframe concept with Pi Zero 2 W, RYLR998 LoRa bridge, lightweight mount, and no direct mission upload.",
+      "readiness": {
+        "payload_budget": "25g target, 30g hard review point",
+        "flight_control": "DJI MSDK v4 virtual-stick only, not exposed by this workbench",
+        "bench_test": "LoRa ping and telemetry loop required before flight"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [-106.9878, 38.8697]
+      },
+      "properties": {
+        "asset_id": "mavic-pi-node-01",
+        "label": "Mavic Mini / Pi Bench Node",
+        "layer": "uas_payload",
+        "status": "bench_verified",
+        "comms_link": "LoRa",
+        "last_update_utc": "2026-05-20T21:45:00Z",
+        "summary": "Mock GeoJSON readiness point for the Mavic Mini plus Raspberry Pi companion concept. Read-only bench state only; no flight, command, or dispatch authority is exposed.",
+        "readiness": {
+          "battery_pct": "84",
+          "comms_link": "LoRa",
+          "bench_state": "mock bench verified fixture",
+          "flight_control": "none exposed by this workbench",
+          "operator_boundary": "copy/read only, no tasking or command controls"
+        }
+      }
+    },
+    {
+      "asset_id": "lora-915-c2",
+      "label": "915 MHz LoRa C2 / telemetry link",
+      "layer": "communications",
+      "status": "needs_live_check",
+      "lat": 38.8975,
+      "lon": -106.9647,
+      "summary": "RYLR998 point-to-point command/telemetry concept using JSON-over-LoRa for observability and low-rate resilience.",
+      "readiness": {
+        "band": "915 MHz ISM",
+        "part15": "must remain within applicable power limits",
+        "rate": "critical telemetry only under degraded RSSI"
+      }
+    },
+    {
+      "asset_id": "dish-directional-feed",
+      "label": "Repurposed Dish directional LoRa antenna",
+      "layer": "communications",
+      "status": "reference_only",
+      "lat": 38.879,
+      "lon": -106.97,
+      "summary": "Static 915 MHz dish-feed concept for primary corridor coverage; motorized tracking is intentionally out of v1 scope.",
+      "readiness": {
+        "mode": "static_directional_reference",
+        "gain_estimate": "Kimi research estimated roughly 16 dBi, requires RF validation"
+      }
+    }
+  ],
+  "weather_gates": [
+    {
+      "gate_id": "wind-speed",
+      "label": "Wind speed",
+      "status": "requires_live_sensor",
+      "threshold": "Normal ops below 8.0 m/s; hard review near Mavic Mini rating around 10.7 m/s.",
+      "summary": "Ground-station anemometer should be treated as a go/no-go input, not a decorative metric."
+    },
+    {
+      "gate_id": "rain-detect",
+      "label": "Rain detection",
+      "status": "requires_live_sensor",
+      "threshold": "Any detected rain blocks Phase 0 Mavic Mini operations.",
+      "summary": "Rain sensor state should render as a blocking preflight gate once live hardware is connected."
+    },
+    {
+      "gate_id": "humidity-fog",
+      "label": "Humidity / fog risk",
+      "status": "requires_live_sensor",
+      "threshold": "Humidity above 90 percent requires lens and visibility review.",
+      "summary": "BME280 humidity belongs in the readiness rail because fog and condensation degrade evidence quality."
+    },
+    {
+      "gate_id": "pressure-trend",
+      "label": "Pressure trend",
+      "status": "requires_live_sensor",
+      "threshold": "Rapidly falling pressure triggers weather-front caution.",
+      "summary": "Barometric trend is useful context for flight timing and altitude baseline review."
+    }
+  ]
+}

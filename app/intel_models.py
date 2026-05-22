@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from typing import Any
 from typing import Literal
 
 from pydantic import BaseModel, Field
@@ -470,6 +471,174 @@ class ClientView(BaseModel):
     playbook: list[str] = Field(default_factory=list)
     hero_metrics: list[ClientViewMetric] = Field(default_factory=list)
     sections: list[ClientFeedSection] = Field(default_factory=list)
+    notes: list[str] = Field(default_factory=list)
+
+
+class FieldOpsPosture(BaseModel):
+    mode: Literal["read_only_planning"] = "read_only_planning"
+    public_source_only: bool = True
+    external_actions_allowed: bool = False
+    drone_command_allowed: bool = False
+    dispatch_allowed: bool = False
+    live_flight_authorization_required: bool = True
+    notes: list[str] = Field(default_factory=list)
+
+
+class FieldOpsSource(BaseModel):
+    source_id: str
+    owner: str
+    title: str
+    source_url: str | None = None
+    retrieval_mode: str
+    retrieved_at: str
+    license_or_rights: str
+    freshness_ttl: str
+    output_policy: str
+    caveats: list[str] = Field(default_factory=list)
+
+
+class FieldOpsMetric(BaseModel):
+    label: str
+    value: str
+    detail: str
+    status: Literal["ready", "review", "blocked", "safe"] = "review"
+
+
+class FieldOpsLayer(BaseModel):
+    layer_id: str
+    label: str
+    description: str
+    item_count: int = 0
+    enabled_default: bool = True
+    source_ids: list[str] = Field(default_factory=list)
+
+
+class FieldOpsZone(BaseModel):
+    zone_id: str
+    label: str
+    region_id: RegionId
+    zone_type: Literal["mission_zone", "exclusion", "coordination"]
+    bbox: list[float]
+    centroid: list[float]
+    geometry: dict[str, Any] = Field(default_factory=dict)
+    fuel_load_class: str | None = None
+    primary_risk: str | None = None
+    phase: int | None = None
+    regulatory_basis: str | None = None
+    source_id: str
+    notes: list[str] = Field(default_factory=list)
+
+
+class FieldOpsSignal(BaseModel):
+    signal_id: str
+    region_id: RegionId
+    zone_id: str
+    signal_type: str
+    title: str
+    summary: str
+    timestamp: str
+    lat: float
+    lon: float
+    target_lat: float | None = None
+    target_lon: float | None = None
+    confidence: float
+    risk_score: float
+    severity: Literal["low", "medium", "high", "critical"]
+    recommended_action: str
+    safe_action_label: str
+    source_id: str
+    source_url: str | None = None
+    evidence_refs: list[str] = Field(default_factory=list)
+    notes: list[str] = Field(default_factory=list)
+
+
+class FieldOpsAsset(BaseModel):
+    asset_id: str
+    label: str
+    layer: str
+    status: Literal[
+        "ready",
+        "needs_live_check",
+        "not_connected",
+        "reference_only",
+        "bench_verified",
+        "field_verified",
+        "offline",
+    ]
+    summary: str
+    lat: float | None = None
+    lon: float | None = None
+    geometry: dict[str, Any] = Field(default_factory=dict)
+    comms_link: str | None = None
+    last_update_utc: str | None = None
+    readiness: dict[str, Any] = Field(default_factory=dict)
+    source_id: str
+    notes: list[str] = Field(default_factory=list)
+
+
+class FieldOpsWeatherGate(BaseModel):
+    gate_id: str
+    label: str
+    status: Literal["requires_live_sensor", "ready", "blocked", "review"]
+    threshold: str
+    summary: str
+    source_id: str
+    notes: list[str] = Field(default_factory=list)
+
+
+class FieldOpsLandmark(BaseModel):
+    landmark_id: str
+    label: str
+    kind: str
+    lat: float
+    lon: float
+    elevation_m: int | None = None
+    summary: str
+    source_id: str
+    notes: list[str] = Field(default_factory=list)
+
+
+class FieldOpsExternalReference(BaseModel):
+    reference_id: str
+    label: str
+    kind: str
+    status: str
+    summary: str
+    source_id: str
+    source_url: str | None = None
+    lat: float | None = None
+    lon: float | None = None
+    facts: dict[str, Any] = Field(default_factory=dict)
+    notes: list[str] = Field(default_factory=list)
+
+
+class FieldOpsAction(BaseModel):
+    action_id: str
+    label: str
+    status: Literal["safe_next_step", "blocked_until_human", "reference_only"]
+    summary: str
+    source_ids: list[str] = Field(default_factory=list)
+    notes: list[str] = Field(default_factory=list)
+
+
+class FieldOpsSnapshot(BaseModel):
+    schema_id: str = "regional_intel.field_ops.v1"
+    generated_at: str
+    region_id: RegionId
+    region_name: str
+    posture: FieldOpsPosture
+    metrics: list[FieldOpsMetric] = Field(default_factory=list)
+    layers: list[FieldOpsLayer] = Field(default_factory=list)
+    zones: list[FieldOpsZone] = Field(default_factory=list)
+    signals: list[FieldOpsSignal] = Field(default_factory=list)
+    assets: list[FieldOpsAsset] = Field(default_factory=list)
+    landmarks: list[FieldOpsLandmark] = Field(default_factory=list)
+    weather_gates: list[FieldOpsWeatherGate] = Field(default_factory=list)
+    external_references: list[FieldOpsExternalReference] = Field(default_factory=list)
+    regional_context: list[dict[str, Any]] = Field(default_factory=list)
+    action_queue: list[FieldOpsAction] = Field(default_factory=list)
+    sources: list[FieldOpsSource] = Field(default_factory=list)
+    provenance_summary: dict[str, Any] = Field(default_factory=dict)
     notes: list[str] = Field(default_factory=list)
 
 

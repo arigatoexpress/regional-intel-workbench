@@ -1,0 +1,62 @@
+{
+  "source_id": "osiris_and_onchain_reference",
+  "retrieved_at": "2026-05-20T21:17:53Z",
+  "references": [
+    {
+      "reference_id": "osiris-live-romania-view",
+      "label": "OSIRIS public map reference",
+      "kind": "source_app_reference",
+      "status": "public_reference_mined_for_patterns",
+      "lat": 46.203,
+      "lon": 24.5298,
+      "source_url": "https://www.osirisai.live/?lat=46.2030&lon=24.5298&zoom=6.50&layers=cctv%2Clive_news%2Cearthquakes%2Cglobal_incidents%2Cday_night",
+      "summary": "Public OSIRIS view centered near Romania with CCTV, live news, earthquakes, global incidents, and day/night layers enabled. Used as a design and taxonomy reference, not as copied application code.",
+      "facts": {
+        "viewport": {
+          "lat": 46.203,
+          "lon": 24.5298,
+          "zoom": 6.5
+        },
+        "active_layers": [
+          "cctv",
+          "live_news",
+          "earthquakes",
+          "global_incidents",
+          "day_night"
+        ],
+        "mined_patterns": [
+          "grouped layer toggles with counts",
+          "severity-coded glow markers",
+          "live alert inspector rail",
+          "visible coordinate and source posture HUD",
+          "day/night context overlay"
+        ],
+        "public_repo": "https://github.com/simplifaisoul/osiris"
+      },
+      "notes": [
+        "OSIRIS is external public reference material; local output keeps its own provenance and safety posture.",
+        "No OSIRIS private data, credentials, or external write routes are used."
+      ]
+    },
+    {
+      "reference_id": "provided-onchain-address",
+      "label": "Provided on-chain address",
+      "kind": "onchain_address",
+      "status": "eoa_unverified_app_context",
+      "source_url": "https://basescan.org/address/0x8B5aA9E8bc720360fB64181E0738CD1CFA98B77C",
+      "summary": "Public explorer/RPC checks identify the provided address as an externally owned account reference, not a verified application contract. It is retained as provenance only.",
+      "facts": {
+        "address": "0x8B5aA9E8bc720360fB64181E0738CD1CFA98B77C",
+        "explorer_summary": "Address (EOA) | Balance: $4.5 across 2 Chains | Transactions: 1 | As at May-20-2026 09:17:53 PM (UTC)",
+        "base_rpc_code": "0x",
+        "base_rpc_balance_eth": "0.001108197605730797",
+        "base_rpc_transaction_count": "0x0",
+        "arbitrum_rpc_code": "0x"
+      },
+      "notes": [
+        "No contract code was observed from Base or Arbitrum public RPC checks.",
+        "Do not use this address to infer ownership, authority, funding, or application identity without fresh explorer verification."
+      ]
+    }
+  ]
+}
