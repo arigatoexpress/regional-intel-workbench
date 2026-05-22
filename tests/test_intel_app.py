@@ -137,6 +137,8 @@ class IntelAppTestCase(unittest.TestCase):
 
         intel = self.client.get("/intel")
         self.assertEqual(intel.status_code, 200)
+        self.assertIn("Sapphire Command Surface", intel.text)
+        self.assertIn("command-map-canvas", intel.text)
         self.assertIn("Intelligence Map", intel.text)
         self.assertIn("intel-map-canvas", intel.text)
         self.assertIn("/static/intel_map.js", intel.text)
@@ -174,6 +176,11 @@ class IntelAppTestCase(unittest.TestCase):
             routes["/api/intel/contracts"]["response_contract"],
             "regional_intel.route_readiness.v1",
         )
+        self.assertEqual(
+            routes["/api/intel/command-surface"]["response_contract"],
+            "regional_intel.command_surface.v1",
+        )
+        self.assertIn("/api/intel/command-surface", payload["machine_surfaces"])
         self.assertEqual(
             routes["/api/client-views/{view_id}"]["access_class"], "public_read"
         )
@@ -239,6 +246,48 @@ class IntelAppTestCase(unittest.TestCase):
                 for item in feed_items
             )
         )
+
+        command = self.client.get(
+            "/api/intel/command-surface",
+            params={
+                "region": "gunnison_valley_co",
+                "layers": "wildfire_watch,source_health",
+                "lat": 38.82,
+                "lon": -106.92,
+                "zoom": 9.5,
+            },
+        )
+        self.assertEqual(command.status_code, 200)
+        command_payload = command.json()
+        self.assertEqual(
+            command_payload["surface_id"], "regional_intel.command_surface.v1"
+        )
+        self.assertEqual(command_payload["mode"], "read_only_command_surface")
+        self.assertEqual(command_payload["region"], "gunnison_valley_co")
+        self.assertEqual(command_payload["viewport"]["center_lat"], 38.82)
+        self.assertEqual(command_payload["viewport"]["center_lon"], -106.92)
+        self.assertEqual(command_payload["viewport"]["zoom"], 9.5)
+        active_layers = {
+            item["layer_id"] for item in command_payload["layers"] if item["enabled"]
+        }
+        self.assertEqual(active_layers, {"wildfire_watch", "source_health"})
+        self.assertTrue(
+            any(
+                item["layer_id"] == "wildfire_watch"
+                for item in command_payload["entities"]
+            )
+        )
+        self.assertTrue(command_payload["feed"])
+        self.assertTrue(
+            all(
+                item["layer_id"] in active_layers
+                for item in command_payload["entities"]
+            )
+        )
+        guardrails = {item["key"]: item for item in command_payload["guardrails"]}
+        self.assertEqual(guardrails["read_only"]["status"], "enforced")
+        self.assertIn("wildfire_boundary", guardrails)
+        self.assertIn("total", command_payload["source_summary"])
 
     def test_client_view_reuses_loaded_history_records(self) -> None:
         original_load_records = main.regional_intel_service.history_store.load_records

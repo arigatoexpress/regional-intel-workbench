@@ -42,6 +42,7 @@ from app.services.intel_analyst_store import IntelAnalystStore
 from app.services.intel_bundle_store import IntelBundleStore
 from app.services.client_views import available_client_views
 from app.services.client_views import build_client_view
+from app.services.command_surface import build_command_surface
 from app.services.intel_collection_store import IntelCollectionStore
 from app.services.intel_monitor_store import IntelMonitorStore
 from app.services.regional_ooda import build_regional_ooda_packet
@@ -1353,6 +1354,26 @@ async def api_client_view(view_id: str, force: bool = False):
 async def api_intel_snapshot(force: bool = False, region: RegionId | None = None):
     snapshot = await regional_intel_service.get_snapshot(force_refresh=force)
     return _filter_region_snapshot(snapshot, region)
+
+
+@app.get("/api/intel/command-surface")
+async def api_intel_command_surface(
+    force: bool = False,
+    region: RegionId | None = None,
+    layers: str | None = None,
+    lat: float | None = None,
+    lon: float | None = None,
+    zoom: float | None = None,
+):
+    snapshot = await regional_intel_service.get_snapshot(force_refresh=force)
+    return build_command_surface(
+        snapshot,
+        region=region,
+        layers=layers,
+        lat=lat,
+        lon=lon,
+        zoom=zoom,
+    ).model_dump()
 
 
 @app.get("/api/intel/recent")

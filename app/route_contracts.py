@@ -182,6 +182,18 @@ ROUTE_CONTRACTS: tuple[RouteContract, ...] = (
         integration_notes=["Limit is capped server-side at 50 items."],
     ),
     _route(
+        "/api/intel/command-surface",
+        ["GET"],
+        access_class="public_read",
+        side_effects="read_through_refresh",
+        response_contract="regional_intel.command_surface.v1",
+        purpose="Layered regional and wildfire command surface for map-style analyst workbenches.",
+        integration_notes=[
+            "Accepts region, layers, lat, lon, and zoom query params.",
+            "Wildfire layer is read-only planning posture; no dispatch or drone action.",
+        ],
+    ),
+    _route(
         "/api/intel/source-health",
         ["GET"],
         access_class="public_read",
@@ -669,6 +681,7 @@ def build_route_readiness_contract(
             "/api/client-views",
             "/api/client-views/{view_id}",
             "/api/intel/recent",
+            "/api/intel/command-surface",
             "/api/intel/source-health",
             "/api/intel/ooda-packet",
         ],
