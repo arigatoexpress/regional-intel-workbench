@@ -145,6 +145,7 @@ GET /api/intel/region-briefing/{region_id}
 GET /api/intel/timeline/{item_id}
 GET /api/intel/ooda-packet
 GET /api/intel/source-health    GET /api/intel/source-history
+GET /api/intel/sources          GET /api/intel/source-catalog
 GET /api/client-views           GET /api/client-views/{view_id}
 ```
 
