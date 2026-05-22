@@ -53,7 +53,7 @@ Python 3.11+. macOS or Linux.
 ```bash
 # 1. Install
 pip install -e .
-python -m playwright install chromium       # for ui_smoke + analyst console
+python -m playwright install chromium       # for browser smoke + analyst console
 
 # 2. Serve
 uvicorn app.main:app --reload --port 8768
@@ -257,10 +257,10 @@ Before showing the repo to a friend, buyer, or collaborator:
 
 ```bash
 uv run --python 3.11 python -m unittest discover -s tests -v   # 47 tests
-python scripts/ui_smoke.py                                      # Playwright UI smoke
+python scripts/browser_smoke.py                                 # Playwright UI smoke
 ```
 
-UI smoke covers `/blanga/austin` desktop + mobile, `/intel?region=austin_tx` desktop, map presence, key metric rendering, horizontal-overflow regressions.
+Browser smoke covers `/blanga/austin` desktop + mobile, `/intel?region=austin_tx` desktop, map presence, key metric rendering, horizontal-overflow regressions.
 
 ## Cloud Run deploy
 

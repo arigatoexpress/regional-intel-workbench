@@ -129,5 +129,5 @@ jobs:
           cat /tmp/regional-intel.log
           exit 1
 
-      - name: Run UI smoke
-        run: uv run python scripts/ui_smoke.py
+      - name: Run browser smoke
+        run: uv run python scripts/browser_smoke.py
