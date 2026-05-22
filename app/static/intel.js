@@ -7,6 +7,12 @@ const clientViewGrid = document.querySelector("#client-view-grid");
 const intelMapCanvas = document.querySelector("#intel-map-canvas");
 const intelMapLegend = document.querySelector("#intel-map-legend");
 const intelMapTopPoints = document.querySelector("#intel-map-top-points");
+const commandSurfaceStatus = document.querySelector("#command-surface-status");
+const commandLayerList = document.querySelector("#command-layer-list");
+const commandMapCanvas = document.querySelector("#command-map-canvas");
+const commandInspector = document.querySelector("#command-inspector");
+const commandGuardrails = document.querySelector("#command-guardrails");
+const commandFeed = document.querySelector("#command-feed");
 const regionSummaries = document.querySelector("#region-summaries");
 const briefGrid = document.querySelector("#brief-grid");
 const watchlistGrid = document.querySelector("#watchlist-grid");
@@ -62,6 +68,9 @@ const initialSearchParam = initialParams.get("search") || "";
 const initialDetailKindParam = resolveDetailKind(initialParams.get("detail_kind") || "");
 const initialDetailIdParam = initialParams.get("detail_id") || "";
 let initialNavigationHandled = false;
+let commandSurfacePayload = null;
+let selectedCommandEntityId = "";
+let activeCommandLayers = new Set(parseCommandLayers(initialParams.get("layers")));
 
 if (regionFilter && initialRegionParam) {
   regionFilter.value = initialRegionParam;
@@ -118,6 +127,45 @@ function relativeAge(isoString) {
   return `${Math.floor(ageSeconds / 3600)}h ago`;
 }
 
+function parseCommandLayers(value) {
+  const fallback = [
+    "businesses",
+    "organizations",
+    "regional_news",
+    "development_permits",
+    "wildfire_watch",
+    "source_health",
+  ];
+  const parsed = String(value || "")
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+  return parsed.length ? parsed : fallback;
+}
+
+function commandLayerQuery() {
+  return Array.from(activeCommandLayers).sort().join(",");
+}
+
+function commandViewportQuery() {
+  const params = [];
+  ["lat", "lon", "zoom"].forEach((key) => {
+    const value = initialParams.get(key);
+    if (value) {
+      params.push(`${key}=${encodeURIComponent(value)}`);
+    }
+  });
+  return params.length ? `&${params.join("&")}` : "";
+}
+
+function currentRegionQuery() {
+  return regionFilter?.value ? `&region=${encodeURIComponent(regionFilter.value)}` : "";
+}
+
+function commandSurfaceApiUrl(force = false) {
+  return `/api/intel/command-surface?force=${force ? "true" : "false"}${currentRegionQuery()}&layers=${encodeURIComponent(commandLayerQuery())}${commandViewportQuery()}`;
+}
+
 async function fetchJson(path) {
   const response = await fetch(path);
   if (!response.ok) {
@@ -164,6 +212,13 @@ function syncIntelUrl(updates = {}) {
     } else {
       params.delete("detail_kind");
       params.delete("detail_id");
+    }
+  }
+  if (Object.prototype.hasOwnProperty.call(updates, "layers")) {
+    if (updates.layers) {
+      params.set("layers", updates.layers);
+    } else {
+      params.delete("layers");
     }
   }
   const next = params.toString() ? `${window.location.pathname}?${params.toString()}` : window.location.pathname;
@@ -240,6 +295,228 @@ function renderClientViews(payload) {
       `
     )
     .join("");
+}
+
+function commandSeverityRank(value) {
+  return { high: 3, medium: 2, low: 1 }[value] || 0;
+}
+
+function commandProjectPoint(entity, viewport) {
+  const bbox = viewport?.bbox || [];
+  const fallback = [
+    Number(viewport?.center_lat || 39) - 0.35,
+    Number(viewport?.center_lon || -98) - 0.35,
+    Number(viewport?.center_lat || 39) + 0.35,
+    Number(viewport?.center_lon || -98) + 0.35,
+  ];
+  const [south, west, north, east] = bbox.length === 4 ? bbox : fallback;
+  const lonSpan = Math.max(0.0001, east - west);
+  const latSpan = Math.max(0.0001, north - south);
+  return {
+    left: Math.max(3, Math.min(97, ((entity.lon - west) / lonSpan) * 100)),
+    top: Math.max(5, Math.min(95, 100 - ((entity.lat - south) / latSpan) * 100)),
+  };
+}
+
+function commandLayerClass(layerId) {
+  return String(layerId || "").replace(/[^a-z0-9_-]/g, "-");
+}
+
+function renderCommandInspector(entity, payload) {
+  if (!commandInspector) {
+    return;
+  }
+  if (!entity) {
+    commandInspector.innerHTML = `<div class="subtle">No visible entity selected.</div>`;
+    return;
+  }
+  const facts = Object.entries(entity.facts || {});
+  commandInspector.innerHTML = `
+    <div class="status-label">Inspector</div>
+    <h3>${escapeHtml(entity.title)}</h3>
+    <p>${escapeHtml(entity.summary || "")}</p>
+    <div class="intel-tag-row">
+      <span class="intel-tag">${escapeHtml(entity.layer_id)}</span>
+      <span class="intel-tag ${entity.severity === "high" ? "manual" : entity.severity === "low" ? "live" : ""}">${escapeHtml(entity.severity)}</span>
+      <span class="intel-tag">score ${escapeHtml(entity.score)}</span>
+    </div>
+    <div class="command-fact-grid">
+      ${
+        facts.length
+          ? facts
+              .slice(0, 6)
+              .map(
+                ([key, value]) => `
+                  <div class="intel-map-fact">
+                    <span>${escapeHtml(key)}</span>
+                    <strong>${escapeHtml(value || "--")}</strong>
+                  </div>
+                `
+              )
+              .join("")
+          : `<div class="subtle">No additional facts attached.</div>`
+      }
+    </div>
+    <ul class="intel-list command-note-list">
+      ${(entity.notes || []).slice(0, 4).map((note) => `<li class="intel-item"><div class="subtle">${escapeHtml(note)}</div></li>`).join("")}
+    </ul>
+    <div class="client-feed-actions">
+      ${entity.intel_url ? `<a class="ghost-button" href="${escapeHtml(entity.intel_url)}">Open in Intel</a>` : ""}
+      ${entity.source_url ? `<a class="intel-link" href="${escapeHtml(entity.source_url)}" target="_blank" rel="noreferrer">Source</a>` : ""}
+    </div>
+    <div class="subtle mono command-inspector-meta">
+      ${escapeHtml(entity.source_name || "No source label")} | ${escapeHtml(payload.surface_id || "")}
+    </div>
+  `;
+}
+
+function renderCommandSurface(payload) {
+  commandSurfacePayload = payload;
+  if (!payload || !commandMapCanvas) {
+    return;
+  }
+  activeCommandLayers = new Set((payload.layers || []).filter((layer) => layer.enabled).map((layer) => layer.layer_id));
+  const entities = (payload.entities || []).slice().sort((left, right) => {
+    return (
+      commandSeverityRank(right.severity) - commandSeverityRank(left.severity) ||
+      right.score - left.score ||
+      left.title.localeCompare(right.title)
+    );
+  });
+  const mapped = entities.filter((item) => Number.isFinite(item.lat) && Number.isFinite(item.lon));
+  const selected =
+    entities.find((item) => item.entity_id === selectedCommandEntityId) ||
+    mapped[0] ||
+    entities[0] ||
+    null;
+  selectedCommandEntityId = selected?.entity_id || "";
+
+  if (commandSurfaceStatus) {
+    commandSurfaceStatus.innerHTML = `
+      <div class="status-label">Mode</div>
+      <div class="status-value">${escapeHtml(payload.mode || "read_only")}</div>
+      <div class="subtle mono">${escapeHtml(relativeAge(payload.updated_at))}</div>
+    `;
+  }
+
+  if (commandLayerList) {
+    commandLayerList.innerHTML = (payload.layers || [])
+      .map(
+        (layer) => `
+          <button class="command-layer-button ${layer.enabled ? "is-active" : ""}" type="button" data-command-layer-id="${escapeHtml(layer.layer_id)}">
+            <span>
+              <strong>${escapeHtml(layer.label)}</strong>
+              <small>${escapeHtml(layer.category)} | ${escapeHtml(layer.retrieval_mode)}</small>
+            </span>
+            <em>${escapeHtml(layer.count)}</em>
+          </button>
+        `
+      )
+      .join("");
+  }
+
+  const dots = mapped
+    .map((entity) => {
+      const point = commandProjectPoint(entity, payload.viewport);
+      const size = Math.max(11, Math.min(30, 10 + entity.score / 12));
+      return `
+        <button
+          class="command-dot command-dot-${escapeHtml(commandLayerClass(entity.layer_id))} ${entity.entity_id === selectedCommandEntityId ? "is-selected" : ""}"
+          type="button"
+          data-command-entity-id="${escapeHtml(entity.entity_id)}"
+          style="left:${point.left.toFixed(2)}%; top:${point.top.toFixed(2)}%; --dot-size:${size.toFixed(1)}px"
+          title="${escapeHtml(entity.title)}"
+          aria-label="${escapeHtml(entity.title)}"
+        >
+          <span></span>
+        </button>
+      `;
+    })
+    .join("");
+
+  commandMapCanvas.innerHTML = `
+    <div class="command-map-stage">
+      <div class="intel-map-grid"></div>
+      <div class="intel-map-axis intel-map-axis-x"></div>
+      <div class="intel-map-axis intel-map-axis-y"></div>
+      <div class="intel-map-overlay intel-map-overlay-top-left">
+        <div class="status-label">Viewport</div>
+        <strong>${escapeHtml(Number(payload.viewport?.center_lat || 0).toFixed(3))}, ${escapeHtml(Number(payload.viewport?.center_lon || 0).toFixed(3))}</strong>
+      </div>
+      <div class="intel-map-overlay intel-map-overlay-top-right">
+        <div class="status-label">Layers</div>
+        <strong>${escapeHtml(String(activeCommandLayers.size))} active</strong>
+      </div>
+      <div class="intel-map-overlay intel-map-overlay-bottom-left">
+        <div class="status-label">Entities</div>
+        <strong>${escapeHtml(String(entities.length))} visible</strong>
+      </div>
+      ${dots || `<div class="intel-map-empty-state"><div class="status-label">No mapped entities</div><strong>Selected layers are feed-only right now</strong></div>`}
+    </div>
+  `;
+
+  renderCommandInspector(selected, payload);
+
+  if (commandGuardrails) {
+    const sourceSummary = payload.source_summary || {};
+    commandGuardrails.innerHTML = `
+      <div class="status-label">Guardrails</div>
+      <ul class="intel-list">
+        ${(payload.guardrails || [])
+          .map(
+            (item) => `
+              <li class="intel-item">
+                <div class="intel-item-head">
+                  <strong>${escapeHtml(item.label)}</strong>
+                  <span class="intel-tag live">${escapeHtml(item.status)}</span>
+                </div>
+                <div class="subtle">${escapeHtml(item.detail)}</div>
+              </li>
+            `
+          )
+          .join("")}
+      </ul>
+      <div class="command-source-summary">
+        <span class="intel-tag">sources ${escapeHtml(sourceSummary.total || 0)}</span>
+        <span class="intel-tag live">live ${escapeHtml(sourceSummary.live || 0)}</span>
+        <span class="intel-tag">manual ${escapeHtml(sourceSummary.manual || 0)}</span>
+        <span class="intel-tag manual">empty ${escapeHtml(sourceSummary.empty || 0)}</span>
+      </div>
+    `;
+  }
+
+  if (commandFeed) {
+    const feed = payload.feed || [];
+    commandFeed.innerHTML = feed.length
+      ? feed
+          .slice(0, 18)
+          .map(
+            (entity) => `
+              <article class="command-feed-item ${entity.entity_id === selectedCommandEntityId ? "is-selected" : ""}">
+                <div class="intel-tag-row">
+                  <span class="intel-tag">${escapeHtml(entity.layer_id)}</span>
+                  <span class="intel-tag">${escapeHtml(entity.region_id || "multi_region")}</span>
+                  <span class="intel-tag ${entity.severity === "high" ? "manual" : entity.severity === "low" ? "live" : ""}">${escapeHtml(entity.severity)}</span>
+                </div>
+                <h3>${escapeHtml(entity.title)}</h3>
+                <p>${escapeHtml(entity.summary || "")}</p>
+                <div class="client-feed-actions">
+                  <button class="ghost-button" type="button" data-command-entity-id="${escapeHtml(entity.entity_id)}">Inspect</button>
+                  ${entity.intel_url ? `<a class="ghost-button" href="${escapeHtml(entity.intel_url)}">Open in Intel</a>` : ""}
+                  ${entity.source_url ? `<a class="intel-link" href="${escapeHtml(entity.source_url)}" target="_blank" rel="noreferrer">Source</a>` : ""}
+                </div>
+              </article>
+            `
+          )
+          .join("")
+      : `<div class="subtle">No command feed entities for the selected layers.</div>`;
+  }
+}
+
+async function loadCommandSurface(force = false) {
+  const payload = await fetchJson(commandSurfaceApiUrl(force));
+  renderCommandSurface(payload);
+  return payload;
 }
 
 function renderIntelligenceMap(snapshot) {
@@ -1678,7 +1955,8 @@ async function loadSnapshot(force = false) {
   refreshButton.disabled = true;
   try {
     const region = regionFilter.value ? `&region=${encodeURIComponent(regionFilter.value)}` : "";
-    const [snapshotPayload, watchlistPayload, trendPayload, sourceHistoryPayload, sourceIncidentPayload, regionChangePayload, entityChangePayload, alertPayload, graphPayload, opportunityPayload, savedWatchlistPayload, collectionsPayloadLocal, bundlesPayloadLocal, monitorRulesPayloadLocal, clientViewsPayload] = await Promise.all([
+    const [commandSurfacePayloadLocal, snapshotPayload, watchlistPayload, trendPayload, sourceHistoryPayload, sourceIncidentPayload, regionChangePayload, entityChangePayload, alertPayload, graphPayload, opportunityPayload, savedWatchlistPayload, collectionsPayloadLocal, bundlesPayloadLocal, monitorRulesPayloadLocal, clientViewsPayload] = await Promise.all([
+      fetchJson(commandSurfaceApiUrl(force)),
       fetchJson(`/api/intel/snapshot?force=${force ? "true" : "false"}${region}`),
       fetchJson(`/api/intel/watchlist?force=${force ? "true" : "false"}${region}`),
       fetchJson(`/api/intel/trends?days=7${region}`),
@@ -1697,6 +1975,7 @@ async function loadSnapshot(force = false) {
     ]);
     intelSnapshot = snapshotPayload;
     snapshotAge.textContent = relativeAge(intelSnapshot.updated_at);
+    renderCommandSurface(commandSurfacePayloadLocal);
     renderEthics(intelSnapshot);
     renderSources(intelSnapshot);
     renderBriefs(intelSnapshot);
@@ -1734,6 +2013,18 @@ async function loadSnapshot(force = false) {
     }
     if (clientViewGrid) {
       clientViewGrid.innerHTML = `<div class="subtle">Failed to load client feeds.</div>`;
+    }
+    if (commandMapCanvas) {
+      commandMapCanvas.innerHTML = `<div class="subtle">Failed to load command surface.</div>`;
+    }
+    if (commandLayerList) {
+      commandLayerList.innerHTML = `<div class="subtle">Layer controls unavailable.</div>`;
+    }
+    if (commandInspector) {
+      commandInspector.innerHTML = `<div class="subtle">Command inspector unavailable.</div>`;
+    }
+    if (commandFeed) {
+      commandFeed.innerHTML = `<div class="subtle">Command feed unavailable.</div>`;
     }
     if (intelMapCanvas) {
       intelMapCanvas.innerHTML = `<div class="subtle">Failed to load intelligence map.</div>`;
@@ -1908,6 +2199,39 @@ document.addEventListener("click", (event) => {
     return;
   }
   deleteMonitorRule(target.getAttribute("data-monitor-delete-id")).catch(() => {});
+});
+document.addEventListener("click", (event) => {
+  const target = event.target.closest("[data-command-layer-id]");
+  if (!target) {
+    return;
+  }
+  const layerId = target.getAttribute("data-command-layer-id");
+  if (!layerId) {
+    return;
+  }
+  if (activeCommandLayers.has(layerId)) {
+    activeCommandLayers.delete(layerId);
+  } else {
+    activeCommandLayers.add(layerId);
+  }
+  if (activeCommandLayers.size === 0) {
+    activeCommandLayers.add(layerId);
+  }
+  syncIntelUrl({ layers: commandLayerQuery() });
+  selectedCommandEntityId = "";
+  loadCommandSurface(false).catch(() => {
+    if (commandMapCanvas) {
+      commandMapCanvas.innerHTML = `<div class="subtle">Failed to load command surface.</div>`;
+    }
+  });
+});
+document.addEventListener("click", (event) => {
+  const target = event.target.closest("[data-command-entity-id]");
+  if (!target) {
+    return;
+  }
+  selectedCommandEntityId = target.getAttribute("data-command-entity-id") || "";
+  renderCommandSurface(commandSurfacePayload);
 });
 document.addEventListener("click", (event) => {
   const target = event.target.closest("[data-annotation-target-id].intel-annotation-save-button");

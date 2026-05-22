@@ -138,6 +138,67 @@ class SourceHealth(BaseModel):
     notes: list[str] = Field(default_factory=list)
 
 
+class CommandSurfaceViewport(BaseModel):
+    center_lat: float
+    center_lon: float
+    zoom: float
+    bbox: list[float] = Field(default_factory=list)
+
+
+class CommandSurfaceLayer(BaseModel):
+    layer_id: str
+    label: str
+    category: str
+    description: str
+    enabled: bool = False
+    status: str = "available"
+    count: int = 0
+    retrieval_mode: str = "stored_snapshot"
+    rights: str = "public_source_derived"
+    source_ids: list[str] = Field(default_factory=list)
+    caveats: list[str] = Field(default_factory=list)
+
+
+class CommandSurfaceEntity(BaseModel):
+    entity_id: str
+    layer_id: str
+    kind: str
+    region_id: RegionId | None = None
+    title: str
+    summary: str = ""
+    lat: float | None = None
+    lon: float | None = None
+    score: float = 0.0
+    severity: str = "low"
+    source_name: str = ""
+    source_url: str | None = None
+    intel_url: str | None = None
+    tags: list[str] = Field(default_factory=list)
+    facts: dict[str, str] = Field(default_factory=dict)
+    notes: list[str] = Field(default_factory=list)
+
+
+class CommandSurfaceGuardrail(BaseModel):
+    key: str
+    label: str
+    status: str
+    detail: str
+
+
+class CommandSurfacePayload(BaseModel):
+    surface_id: str = "regional_intel.command_surface.v1"
+    mode: str = "read_only_command_surface"
+    updated_at: str
+    region: RegionId | None = None
+    viewport: CommandSurfaceViewport
+    layers: list[CommandSurfaceLayer] = Field(default_factory=list)
+    entities: list[CommandSurfaceEntity] = Field(default_factory=list)
+    feed: list[CommandSurfaceEntity] = Field(default_factory=list)
+    guardrails: list[CommandSurfaceGuardrail] = Field(default_factory=list)
+    source_summary: dict[str, int] = Field(default_factory=dict)
+    notes: list[str] = Field(default_factory=list)
+
+
 class RegionBrief(BaseModel):
     region_id: RegionId
     headline: str
