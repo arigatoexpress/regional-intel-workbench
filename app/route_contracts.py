@@ -219,6 +219,14 @@ ROUTE_CONTRACTS: tuple[RouteContract, ...] = (
         purpose="Ethics rules and public-source catalog.",
     ),
     _route(
+        "/api/intel/source-catalog",
+        ["GET"],
+        access_class="public_read",
+        response_contract="regional_intel.sources.v1",
+        purpose="Probe-friendly alias for the ethics and public-source catalog.",
+        integration_notes=["Alias of /api/intel/sources."],
+    ),
+    _route(
         "/api/intel/snapshot",
         ["GET"],
         access_class="public_read",
@@ -582,6 +590,22 @@ ROUTE_CONTRACTS: tuple[RouteContract, ...] = (
         access_class="health_read",
         response_contract="regional_intel.health.v1",
         purpose="Simple local health check.",
+        source_health_visible=False,
+    ),
+    _route(
+        "/health",
+        ["GET"],
+        access_class="health_read",
+        response_contract="regional_intel.health.v1",
+        purpose="Simple root-level health check alias.",
+        source_health_visible=False,
+    ),
+    _route(
+        "/healthz",
+        ["GET"],
+        access_class="health_read",
+        response_contract="regional_intel.health.v1",
+        purpose="Cloud Run and Kubernetes style health probe alias.",
         source_health_visible=False,
     ),
     _route(

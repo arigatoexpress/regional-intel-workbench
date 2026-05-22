@@ -155,6 +155,7 @@ class IntelAppTestCase(unittest.TestCase):
         self.assertEqual(payload["openapi_path"], "/openapi.json")
         self.assertEqual(payload["readiness"]["status"], "ready")
         self.assertTrue(payload["readiness"]["declared_paths_present"])
+        self.assertEqual(payload["readiness"]["undeclared_app_paths"], [])
         self.assertGreaterEqual(payload["readiness"]["route_count"], 20)
         self.assertGreaterEqual(payload["readiness"]["local_write_route_count"], 5)
         self.assertGreaterEqual(payload["readiness"]["admin_route_count"], 3)
@@ -182,6 +183,14 @@ class IntelAppTestCase(unittest.TestCase):
             routes["/api/intel/recent"]["side_effects"], "read_through_refresh"
         )
         self.assertEqual(routes["/api/intel/ooda-packet"]["side_effects"], "none")
+        self.assertEqual(
+            routes["/api/intel/source-catalog"]["response_contract"],
+            "regional_intel.sources.v1",
+        )
+        self.assertIn(
+            "Alias of /api/intel/sources.",
+            routes["/api/intel/source-catalog"]["integration_notes"],
+        )
         self.assertEqual(
             routes["/api/intel/watchlist-items"]["access_class"], "local_write"
         )
