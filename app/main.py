@@ -178,6 +178,7 @@ async def api_snapshot(force: bool = False):
     return snapshot.model_dump()
 
 
+@app.get("/health")
 @app.get("/api/health")
 async def api_health():
     return {"status": "ok"}
@@ -212,6 +213,7 @@ async def api_intel_contracts():
 # ---------------------------------------------------------------------------
 
 
+@app.get("/healthz")
 @app.get("/healthz/")
 async def healthz():
     """Cloud Run / k8s style health probe.
@@ -1874,6 +1876,7 @@ async def api_intel_regions():
     }
 
 
+@app.get("/api/intel/source-catalog")
 @app.get("/api/intel/sources")
 async def api_intel_sources():
     return {

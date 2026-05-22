@@ -206,6 +206,18 @@ class IntelAppTestCase(unittest.TestCase):
         self.assertEqual(openapi.status_code, 200)
         self.assertIn("/api/intel/contracts", openapi.json()["paths"])
 
+    def test_health_aliases_and_source_catalog_are_probe_friendly(self) -> None:
+        for path in ("/health", "/healthz", "/healthz/", "/api/health"):
+            response = self.client.get(path, follow_redirects=False)
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.json()["status"], "ok")
+
+        response = self.client.get("/api/intel/source-catalog")
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertIn("ethics_rules", payload)
+        self.assertIn("sources", payload)
+
     def test_snapshot_region_filter_and_client_view_shape(self) -> None:
         snapshot = self.client.get(
             "/api/intel/snapshot", params={"region": "austin_tx"}
