@@ -18,6 +18,7 @@ class WorkflowRunnerGateTests(unittest.TestCase):
         self.assertIn(expected_runner, text)
         self.assertIn("REGIONAL_INTEL_UI_SMOKE_ENABLED", text)
         self.assertIn("github.event_name == 'workflow_dispatch'", text)
+        self.assertIn("scripts/browser_smoke.py", text)
         self.assertNotIn("runs-on: ${{ fromJSON(vars.SAPPHIRE_RUNNER) }}", text)
         self.assertNotIn("macos-latest", text)
         self.assertNotIn("windows-latest", text)

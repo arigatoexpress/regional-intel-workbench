@@ -111,7 +111,8 @@ GitHub Actions workflow (`.github/workflows/ci.yml`):
 - **lint** job: `ruff check` + `ruff format --check` (Sapphire runner only)
 - **type-check** job: `mypy app/ tests/` (Sapphire runner only)
 - **test** job: API/unit pytest only (Sapphire runner only)
-- **ui-smoke** job: Playwright/browser smoke, gated by manual
+- **ui-smoke** job: Playwright/browser smoke via
+  `scripts/browser_smoke.py`, gated by manual
   `workflow_dispatch` or `REGIONAL_INTEL_UI_SMOKE_ENABLED=true`
 
 All jobs install dependencies with `uv sync --frozen` from `uv.lock`.

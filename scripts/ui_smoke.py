@@ -24,10 +24,20 @@ class PageResult:
     inner_width: int
 
 
-def _inspect_page(page, *, name: str, url: str, map_selector: str, sections_selector: str, metrics_selector: str) -> PageResult:
+def _inspect_page(
+    page,
+    *,
+    name: str,
+    url: str,
+    map_selector: str,
+    sections_selector: str,
+    metrics_selector: str,
+) -> PageResult:
     page.goto(url, wait_until="domcontentloaded", timeout=30_000)
     page.wait_for_timeout(2_500)
-    overflow = page.evaluate("() => ({inner: window.innerWidth, doc: document.documentElement.scrollWidth})")
+    overflow = page.evaluate(
+        "() => ({inner: window.innerWidth, doc: document.documentElement.scrollWidth})"
+    )
     return PageResult(
         name=name,
         url=url,
@@ -88,9 +98,20 @@ def main() -> int:
         if result.sections < 1:
             failures.append(f"{result.name}: sections missing")
         if result.doc_width > result.inner_width + 2:
-            failures.append(f"{result.name}: horizontal overflow {result.doc_width}>{result.inner_width}")
+            failures.append(
+                f"{result.name}: horizontal overflow {result.doc_width}>{result.inner_width}"
+            )
 
-    print(json.dumps({"base_url": BASE_URL, "results": [asdict(item) for item in results], "failures": failures}, indent=2))
+    print(
+        json.dumps(
+            {
+                "base_url": BASE_URL,
+                "results": [asdict(item) for item in results],
+                "failures": failures,
+            },
+            indent=2,
+        )
+    )
     return 1 if failures else 0
 
 
