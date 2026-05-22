@@ -125,6 +125,8 @@ class IntelAppTestCase(unittest.TestCase):
         self.assertIn("surface-shell", landing.text)
         self.assertIn("Open analyst console", landing.text)
         self.assertIn("Open admin dashboard", landing.text)
+        self.assertIn("Open wildfire + UAS workbench", landing.text)
+        self.assertIn("/field-ops", landing.text)
         self.assertIn("Inspect route contract", landing.text)
         self.assertIn("/api/intel/contracts", landing.text)
         self.assertIn("Public-source only", landing.text)
@@ -139,7 +141,17 @@ class IntelAppTestCase(unittest.TestCase):
         self.assertEqual(intel.status_code, 200)
         self.assertIn("Intelligence Map", intel.text)
         self.assertIn("intel-map-canvas", intel.text)
+        self.assertIn("Open Field Ops", intel.text)
         self.assertIn("/static/intel_map.js", intel.text)
+
+        field_ops = self.client.get("/field-ops")
+        self.assertEqual(field_ops.status_code, 200)
+        self.assertIn("Unified Regional Field Intelligence", field_ops.text)
+        self.assertIn("field-map", field_ops.text)
+        self.assertIn("leaflet@1.9.4", field_ops.text)
+        self.assertIn("field-reference-panel", field_ops.text)
+        self.assertIn("inspector-panel", field_ops.text)
+        self.assertIn("/static/field_ops.js", field_ops.text)
 
         client_view = self.client.get("/blanga/austin")
         self.assertEqual(client_view.status_code, 200)
@@ -174,6 +186,16 @@ class IntelAppTestCase(unittest.TestCase):
             routes["/api/intel/contracts"]["response_contract"],
             "regional_intel.route_readiness.v1",
         )
+        self.assertEqual(routes["/field-ops"]["access_class"], "public_preview")
+        self.assertEqual(
+            routes["/api/intel/field-ops"]["response_contract"],
+            "regional_intel.field_ops.v1",
+        )
+        self.assertEqual(
+            routes["/api/intel/field-ops"]["side_effects"], "read_through_refresh"
+        )
+        self.assertIn("/field-ops", payload["human_surfaces"])
+        self.assertIn("/api/intel/field-ops", payload["machine_surfaces"])
         self.assertEqual(
             routes["/api/client-views/{view_id}"]["access_class"], "public_read"
         )
@@ -205,6 +227,101 @@ class IntelAppTestCase(unittest.TestCase):
         openapi = self.client.get(payload["openapi_path"])
         self.assertEqual(openapi.status_code, 200)
         self.assertIn("/api/intel/contracts", openapi.json()["paths"])
+        self.assertIn("/api/intel/field-ops", openapi.json()["paths"])
+
+    def test_field_ops_unifies_regional_wildfire_and_uas_readiness(self) -> None:
+        response = self.client.get("/api/intel/field-ops")
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+
+        self.assertEqual(payload["schema_id"], "regional_intel.field_ops.v1")
+        self.assertEqual(payload["region_id"], "gunnison_valley_co")
+        self.assertEqual(payload["posture"]["mode"], "read_only_planning")
+        self.assertFalse(payload["posture"]["external_actions_allowed"])
+        self.assertFalse(payload["posture"]["drone_command_allowed"])
+        self.assertFalse(payload["posture"]["dispatch_allowed"])
+
+        layer_ids = {item["layer_id"] for item in payload["layers"]}
+        self.assertIn("regional-context", layer_ids)
+        self.assertIn("wildfire-zones", layer_ids)
+        self.assertIn("wildfire-signals", layer_ids)
+        self.assertIn("uas-readiness", layer_ids)
+        self.assertIn("aor-landmarks", layer_ids)
+        self.assertIn("osiris-reference", layer_ids)
+
+        source_ids = set(payload["provenance_summary"]["source_ids"])
+        self.assertIn("regional_intel_snapshot", source_ids)
+        self.assertIn("wildfire_watch_fixture", source_ids)
+        self.assertIn("wildfire_watch_aor", source_ids)
+        self.assertIn("kimi_uas_readiness", source_ids)
+        self.assertIn("wildfire_watch_aor_landmarks", source_ids)
+        self.assertIn("osiris_and_onchain_reference", source_ids)
+        self.assertFalse(payload["provenance_summary"]["external_writes_allowed"])
+        self.assertFalse(payload["provenance_summary"]["raw_payload_resale_allowed"])
+
+        zones = {item["zone_id"]: item for item in payload["zones"]}
+        self.assertEqual(
+            zones["west-elk-wilderness-exclusion"]["zone_type"], "exclusion"
+        )
+        self.assertEqual(
+            zones["kguc-class-e-surface-area"]["zone_type"], "coordination"
+        )
+        self.assertEqual(zones["slate-river-drainage"]["geometry"]["type"], "Polygon")
+
+        landmark_ids = {item["landmark_id"] for item in payload["landmarks"]}
+        self.assertIn("kguc-airport", landmark_ids)
+        self.assertIn("west-elk-exclusion-anchor", landmark_ids)
+
+        fire_signals = [
+            item
+            for item in payload["signals"]
+            if item["recommended_action"] == "notify_fire_dept"
+        ]
+        self.assertTrue(fire_signals)
+        self.assertIn("not sent", fire_signals[0]["safe_action_label"])
+        self.assertTrue(
+            all(
+                "No operational alert" in " ".join(item["notes"])
+                for item in payload["signals"]
+            )
+        )
+
+        self.assertTrue(
+            any(
+                item["status"] == "requires_live_sensor"
+                for item in payload["weather_gates"]
+            )
+        )
+        self.assertTrue(
+            any(item["asset_id"] == "gcs-pi4-starlink" for item in payload["assets"])
+        )
+        assets = {item["asset_id"]: item for item in payload["assets"]}
+        self.assertEqual(assets["mavic-pi-node-01"]["status"], "bench_verified")
+        self.assertEqual(assets["mavic-pi-node-01"]["comms_link"], "LoRa")
+        self.assertEqual(
+            assets["mavic-pi-node-01"]["geometry"]["type"],
+            "Point",
+        )
+        self.assertEqual(
+            assets["mavic-pi-node-01"]["last_update_utc"],
+            "2026-05-20T21:45:00Z",
+        )
+        references = {
+            item["reference_id"]: item for item in payload["external_references"]
+        }
+        self.assertEqual(
+            references["provided-onchain-address"]["facts"]["base_rpc_code"], "0x"
+        )
+        self.assertIn(
+            "cctv",
+            references["osiris-live-romania-view"]["facts"]["active_layers"],
+        )
+        self.assertTrue(
+            any(
+                item["context_id"] == "regional_summary"
+                for item in payload["regional_context"]
+            )
+        )
 
     def test_snapshot_region_filter_and_client_view_shape(self) -> None:
         snapshot = self.client.get(

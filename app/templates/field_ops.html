@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Unified Field Ops Intel</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="/static/app.css" />
+  </head>
+  <body class="field-ops-body">
+    <div class="backdrop"></div>
+    <main class="field-ops-shell">
+      <header class="field-ops-topbar">
+        <div>
+          <p class="eyebrow">Unified Regional Field Intelligence</p>
+          <h1>Gunnison wildfire, UAS readiness, and regional context in one analyst surface.</h1>
+        </div>
+        <nav class="field-ops-links" aria-label="Field ops routes">
+          <a class="ghost-button" href="/intel">Intel Console</a>
+          <a class="ghost-button" href="/api/intel/field-ops" target="_blank" rel="noreferrer">API</a>
+        </nav>
+      </header>
+
+      <section class="field-ops-status" aria-label="Posture and metrics">
+        <div class="field-ops-posture">
+          <div class="status-label">Posture</div>
+          <strong id="field-posture">Read-only planning</strong>
+          <p id="field-posture-copy">No drone commands, no dispatch, no external sends.</p>
+        </div>
+        <div id="field-metrics" class="field-metrics-grid"></div>
+      </section>
+
+      <section class="field-ops-workbench" aria-label="Unified field intelligence workbench">
+        <aside class="field-left-rail">
+          <div class="status-label">Layers</div>
+          <div id="field-layer-list" class="field-layer-list"></div>
+          <div class="status-label field-rail-label">Weather Gates</div>
+          <div id="field-weather-gates" class="field-weather-list"></div>
+          <div class="status-label field-rail-label">External References</div>
+          <div id="field-reference-panel" class="field-reference-list"></div>
+        </aside>
+
+        <section class="field-map-column">
+          <div id="field-map" class="field-map">
+            <div class="subtle">Field map loading...</div>
+          </div>
+          <div id="field-action-queue" class="field-action-grid"></div>
+        </section>
+
+        <aside class="field-right-rail">
+          <div id="inspector-panel" class="field-inspector">
+            <div class="status-label">Inspector</div>
+            <h2>Loading...</h2>
+          </div>
+          <div id="field-provenance" class="field-provenance">
+            <div class="status-label">Provenance</div>
+            <div class="subtle">Source rail loading...</div>
+          </div>
+        </aside>
+      </section>
+
+      <section class="protocols-panel field-context-panel">
+        <div class="panel-header">
+          <h2>Regional Context</h2>
+          <p>Public-source regional signals sit beside the wildfire layer so the map has business, permitting, source-health, and local context.</p>
+        </div>
+        <div id="field-regional-context" class="intel-grid"></div>
+      </section>
+    </main>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
+    <script src="/static/field_ops.js" defer></script>
+  </body>
+</html>

@@ -44,6 +44,7 @@ from app.services.client_views import available_client_views
 from app.services.client_views import build_client_view
 from app.services.intel_collection_store import IntelCollectionStore
 from app.services.intel_monitor_store import IntelMonitorStore
+from app.services.field_ops import build_field_ops_snapshot
 from app.services.regional_ooda import build_regional_ooda_packet
 from app.services.regional_intel import RegionalIntelService
 from app.services.intel_watchlist_store import IntelWatchlistStore
@@ -139,6 +140,11 @@ async def intel_page(request: Request) -> HTMLResponse:
     return templates.TemplateResponse(request, "intel.html", {})
 
 
+@app.get("/field-ops", response_class=HTMLResponse)
+async def field_ops_page(request: Request) -> HTMLResponse:
+    return templates.TemplateResponse(request, "field_ops.html", {})
+
+
 def _resolve_client_view_meta(view_id: str) -> dict:
     for item in available_client_views():
         if item["view_id"] == view_id:
@@ -205,6 +211,15 @@ def _runtime_route_inventory() -> list[dict[str, Any]]:
 @app.get("/api/intel/contracts")
 async def api_intel_contracts():
     return build_route_readiness_contract(_runtime_route_inventory()).model_dump()
+
+
+@app.get("/api/intel/field-ops")
+async def api_intel_field_ops(
+    region: RegionId = "gunnison_valley_co",
+    force: bool = False,
+):
+    snapshot = await regional_intel_service.get_snapshot(force_refresh=force)
+    return build_field_ops_snapshot(snapshot, region_id=region).model_dump()
 
 
 # ---------------------------------------------------------------------------
