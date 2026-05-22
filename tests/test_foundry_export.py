@@ -129,6 +129,7 @@ def _snapshot() -> RegionalIntelSnapshot:
                 contact_count=1,
                 permit_signal_count=1,
                 source_names=["OpenStreetMap", "Public News"],
+                source_urls=["https://example.test/org-source"],
                 latest_activity_at="2026-04-27T10:00:00Z",
                 organization_score=88.0,
             )
@@ -385,6 +386,35 @@ class FoundryExportProvenanceGuardTestCase(unittest.TestCase):
         kinds = {row["kind"] for row in items}
         self.assertIn("business", kinds)
         self.assertIn("contact", kinds)
+
+    def test_organization_source_url_falls_back_to_source_catalog(self) -> None:
+        snapshot = _snapshot()
+        snapshot.organizations.append(
+            OrganizationProfile(
+                item_id="org-osm-only",
+                region_id="austin_tx",
+                name="Map Only Shop",
+                categories=["retail"],
+                source_names=["OpenStreetMap"],
+                organization_score=44.0,
+            )
+        )
+        snapshot.sources.append(
+            IntelSource(
+                source_key="osm_business_contacts",
+                region_ids=["austin_tx"],
+                category="business",
+                name="OpenStreetMap",
+                collection_mode="open_licensed_api",
+                access="public",
+                live_pull=True,
+                url="https://overpass-api.de/api/interpreter",
+            )
+        )
+
+        items = intel_item_objects(snapshot, region="austin_tx")
+        row = next(item for item in items if item["item_id"] == "org-osm-only")
+        self.assertEqual(row["source_url"], "https://overpass-api.de/api/interpreter")
 
 
 class RegionalOodaPacketTestCase(unittest.TestCase):

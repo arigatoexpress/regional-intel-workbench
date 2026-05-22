@@ -38,6 +38,7 @@ from app.services.regional_intel import _news_signal_score
 from app.services.regional_intel import _normalize_entity_name
 from app.services.regional_intel import _now_utc
 from app.services.regional_intel import _organization_score
+from app.services.regional_intel import _osm_object_url
 from app.services.regional_intel import _parse_isoish
 from app.services.regional_intel import _parse_pubdate
 from app.services.regional_intel import _permit_signal_score
@@ -168,6 +169,13 @@ class RegionalIntelHelpersTestCase(unittest.TestCase):
 
     def test_business_category_default(self) -> None:
         self.assertEqual(_business_category({}), "business")
+
+    def test_osm_object_url_uses_stable_public_object_reference(self) -> None:
+        self.assertEqual(
+            _osm_object_url({"type": "way", "id": 12345}),
+            "https://www.openstreetmap.org/way/12345",
+        )
+        self.assertIsNone(_osm_object_url({"type": "area", "id": 12345}))
 
     def test_html_to_text_strips_tags(self) -> None:
         self.assertEqual(_html_to_text("<p>Hello</p>"), "Hello")
@@ -380,6 +388,8 @@ class RegionalIntelHelpersTestCase(unittest.TestCase):
         )
         self.assertEqual(len(result), 1)
         self.assertEqual(result[0].name, "Acme")
+        self.assertEqual(result[0].source_names, ["OSM"])
+        self.assertEqual(result[0].source_urls, ["https://osm.org"])
 
     def test_build_region_briefs(self) -> None:
         snapshot = RegionalIntelSnapshot(

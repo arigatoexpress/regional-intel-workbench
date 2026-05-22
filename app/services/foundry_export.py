@@ -460,6 +460,29 @@ def _contact_object(
     )
 
 
+def _source_url_lookup(snapshot: RegionalIntelSnapshot) -> dict[str, str]:
+    return {
+        item.name: item.url
+        for item in snapshot.sources
+        if item.name and isinstance(item.url, str) and item.url.strip()
+    }
+
+
+def _organization_source_url(
+    item: OrganizationProfile, snapshot: RegionalIntelSnapshot
+) -> str | None:
+    if item.source_urls:
+        return item.source_urls[0]
+    if item.website:
+        return item.website
+    lookup = _source_url_lookup(snapshot)
+    for source_name in item.source_names:
+        source_url = lookup.get(source_name)
+        if source_url:
+            return source_url
+    return None
+
+
 def _organization_object(
     item: OrganizationProfile, snapshot: RegionalIntelSnapshot
 ) -> dict[str, Any]:
@@ -476,7 +499,7 @@ def _organization_object(
         summary=summary,
         score=item.organization_score,
         source_name=", ".join(item.source_names) if item.source_names else None,
-        source_url=item.website,
+        source_url=_organization_source_url(item, snapshot),
         observed_at=item.latest_activity_at,
         snapshot=snapshot,
         attributes={
@@ -486,6 +509,7 @@ def _organization_object(
             "phone": item.phone,
             "email": item.email,
             "source_names": item.source_names,
+            "source_urls": item.source_urls,
         },
         notes=item.notes,
     )

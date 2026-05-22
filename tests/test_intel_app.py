@@ -122,6 +122,12 @@ class IntelAppTestCase(unittest.TestCase):
         landing = self.client.get("/")
         self.assertEqual(landing.status_code, 200)
         self.assertIn("Regional Intelligence Workbench", landing.text)
+        self.assertIn("surface-shell", landing.text)
+        self.assertIn("Open analyst console", landing.text)
+        self.assertIn("Open admin dashboard", landing.text)
+        self.assertIn("Inspect route contract", landing.text)
+        self.assertIn("/api/intel/contracts", landing.text)
+        self.assertIn("Public-source only", landing.text)
         self.assertIn("/blanga/austin", landing.text)
         self.assertIn("/vote-monitor", landing.text)
 
@@ -140,6 +146,77 @@ class IntelAppTestCase(unittest.TestCase):
         self.assertIn("Austin Intelligence Map", client_view.text)
         self.assertIn("client-view-map-canvas", client_view.text)
         self.assertIn("How To Use It", client_view.text)
+
+    def test_route_readiness_contract_labels_safe_integration_surfaces(self) -> None:
+        response = self.client.get("/api/intel/contracts")
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["schema_id"], "regional_intel.route_readiness.v1")
+        self.assertEqual(payload["openapi_path"], "/openapi.json")
+        self.assertEqual(payload["readiness"]["status"], "ready")
+        self.assertTrue(payload["readiness"]["declared_paths_present"])
+        self.assertGreaterEqual(payload["readiness"]["route_count"], 20)
+        self.assertGreaterEqual(payload["readiness"]["local_write_route_count"], 5)
+        self.assertGreaterEqual(payload["readiness"]["admin_route_count"], 3)
+
+        posture = payload["posture"]
+        self.assertTrue(posture["public_source_only"])
+        self.assertTrue(posture["provenance_required"])
+        self.assertTrue(posture["source_health_visible"])
+        self.assertFalse(posture["login_gated_scraping_allowed"])
+        self.assertFalse(posture["paywall_bypass_allowed"])
+        self.assertFalse(posture["private_person_dossiering_allowed"])
+        self.assertFalse(posture["external_writes_allowed"])
+
+        routes = {item["path"]: item for item in payload["routes"]}
+        self.assertEqual(routes["/api/intel/contracts"]["access_class"], "public_read")
+        self.assertEqual(
+            routes["/api/intel/contracts"]["response_contract"],
+            "regional_intel.route_readiness.v1",
+        )
+        self.assertEqual(
+            routes["/api/client-views/{view_id}"]["access_class"], "public_read"
+        )
+        self.assertIn("/api/client-views/{view_id}", payload["machine_surfaces"])
+        self.assertEqual(
+            routes["/api/intel/recent"]["side_effects"], "read_through_refresh"
+        )
+        self.assertEqual(routes["/api/intel/ooda-packet"]["side_effects"], "none")
+        self.assertEqual(
+            routes["/api/intel/watchlist-items"]["access_class"], "local_write"
+        )
+        self.assertEqual(
+            routes["/api/intel/watchlist-items"]["side_effects"],
+            "local_store_write",
+        )
+        self.assertEqual(routes["/api/admin/overview"]["auth"], "admin_token")
+        self.assertEqual(routes["/api/admin/overview"]["access_class"], "admin_read")
+        self.assertTrue(
+            all(
+                route["source_policy"]["public_source_only"]
+                and route["source_policy"]["provenance_required"]
+                and not route["source_policy"]["external_writes_allowed"]
+                for route in payload["routes"]
+            )
+        )
+
+        runtime_paths = {item["path"] for item in payload["runtime_routes"]}
+        self.assertIn("/api/intel/contracts", runtime_paths)
+        openapi = self.client.get(payload["openapi_path"])
+        self.assertEqual(openapi.status_code, 200)
+        self.assertIn("/api/intel/contracts", openapi.json()["paths"])
+
+    def test_health_aliases_and_source_catalog_are_probe_friendly(self) -> None:
+        for path in ("/health", "/healthz", "/healthz/", "/api/health"):
+            response = self.client.get(path, follow_redirects=False)
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.json()["status"], "ok")
+
+        response = self.client.get("/api/intel/source-catalog")
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertIn("ethics_rules", payload)
+        self.assertIn("sources", payload)
 
     def test_snapshot_region_filter_and_client_view_shape(self) -> None:
         snapshot = self.client.get(

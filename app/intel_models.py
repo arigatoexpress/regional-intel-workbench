@@ -121,6 +121,7 @@ class OrganizationProfile(BaseModel):
     contact_count: int = 0
     permit_signal_count: int = 0
     source_names: list[str] = Field(default_factory=list)
+    source_urls: list[str] = Field(default_factory=list)
     latest_activity_at: str | None = None
     organization_score: float = 0.0
     notes: list[str] = Field(default_factory=list)

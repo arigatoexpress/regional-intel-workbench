@@ -794,6 +794,14 @@ def _business_category(tags: dict[str, Any]) -> str:
     return "business"
 
 
+def _osm_object_url(element: dict[str, Any]) -> str | None:
+    element_type = clean_text(str(element.get("type") or "")).lower()
+    element_id = clean_text(str(element.get("id") or ""))
+    if element_type not in {"node", "way", "relation"} or not element_id:
+        return None
+    return f"https://www.openstreetmap.org/{element_type}/{element_id}"
+
+
 def _html_to_text(html: str) -> str:
     stripped = re.sub(r"(?is)<script.*?>.*?</script>", " ", html)
     stripped = re.sub(r"(?is)<style.*?>.*?</style>", " ", stripped)
@@ -889,6 +897,14 @@ def _build_organization_profiles(
         if profile.latest_activity_at is None or timestamp > profile.latest_activity_at:
             profile.latest_activity_at = timestamp
 
+    def touch_source(
+        profile: OrganizationProfile, source_name: str, source_url: str
+    ) -> None:
+        if source_name and source_name not in profile.source_names:
+            profile.source_names.append(source_name)
+        if source_url and source_url not in profile.source_urls:
+            profile.source_urls.append(source_url)
+
     for biz in businesses:
         profile = ensure_profile(biz.region_id, biz.name)
         profile.business_lead_count += 1
@@ -906,8 +922,7 @@ def _build_organization_profiles(
             profile.phone = biz.phone
         if biz.email and not profile.email:
             profile.email = biz.email
-        if biz.source_name not in profile.source_names:
-            profile.source_names.append(biz.source_name)
+        touch_source(profile, biz.source_name, biz.source_url)
 
     for con in contacts:
         profile = ensure_profile(con.region_id, con.organization)
@@ -922,8 +937,7 @@ def _build_organization_profiles(
             profile.phone = con.phone
         if con.email and not profile.email:
             profile.email = con.email
-        if con.source_name not in profile.source_names:
-            profile.source_names.append(con.source_name)
+        touch_source(profile, con.source_name, con.source_url)
 
     for perm in permits:
         for org_name in _permit_related_organizations(perm):
@@ -931,8 +945,7 @@ def _build_organization_profiles(
             profile.permit_signal_count += 1
             if perm.signal_type and perm.signal_type not in profile.categories:
                 profile.categories.append(perm.signal_type)
-            if perm.source_name not in profile.source_names:
-                profile.source_names.append(perm.source_name)
+            touch_source(profile, perm.source_name, perm.source_url)
             touch_latest(profile, perm.status_date)
 
     for ns in news:
@@ -941,8 +954,7 @@ def _build_organization_profiles(
             profile.news_signal_count += 1
             if ns.signal_type and ns.signal_type not in profile.categories:
                 profile.categories.append(ns.signal_type)
-            if ns.source_name not in profile.source_names:
-                profile.source_names.append(ns.source_name)
+            touch_source(profile, ns.source_name, ns.source_url)
             touch_latest(profile, ns.published_at)
 
     output = list(profiles.values())
@@ -1975,6 +1987,16 @@ class RegionalIntelService:
                     clean_text(str(tags.get("addr:full") or ""))
                     or "Address not provided"
                 )
+            osm_source_url = _osm_object_url(element)
+            lead_tags = {
+                str(k): clean_text(str(v)) for k, v in tags.items() if str(v).strip()
+            }
+            osm_type = clean_text(str(element.get("type") or ""))
+            if osm_type:
+                lead_tags["osm_type"] = osm_type
+            osm_id = clean_text(str(element.get("id") or ""))
+            if osm_id:
+                lead_tags["osm_id"] = osm_id
             lead = BusinessLead(
                 item_id=key,
                 region_id=region.id,
@@ -1987,12 +2009,8 @@ class RegionalIntelService:
                 lat=lat_value,
                 lon=lon_value,
                 source_name="OpenStreetMap / Overpass",
-                source_url="https://overpass-api.de/api/interpreter",
-                tags={
-                    str(k): clean_text(str(v))
-                    for k, v in tags.items()
-                    if str(v).strip()
-                },
+                source_url=osm_source_url or OVERPASS_URL,
+                tags=lead_tags,
                 notes=["Public organization-level contact point from open map data."],
             )
             lead.lead_score = _business_lead_score(lead)
