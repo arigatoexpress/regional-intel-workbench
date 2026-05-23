@@ -148,6 +148,14 @@ ROUTE_CONTRACTS: tuple[RouteContract, ...] = (
         integration_notes=["Preferred integration discovery endpoint."],
     ),
     _route(
+        "/llms.txt",
+        ["GET"],
+        access_class="public_read",
+        response_contract="text/plain",
+        purpose="AI-agent context file for public regional-intelligence boundaries.",
+        source_health_visible=False,
+    ),
+    _route(
         "/api/snapshot",
         ["GET"],
         access_class="legacy_read",
@@ -690,6 +698,7 @@ def build_route_readiness_contract(
         human_surfaces=["/", "/intel", "/client-views/{view_id}", "/admin"],
         machine_surfaces=[
             "/api/intel/contracts",
+            "/llms.txt",
             "/api/client-views",
             "/api/client-views/{view_id}",
             "/api/intel/recent",
