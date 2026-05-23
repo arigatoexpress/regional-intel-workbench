@@ -7,6 +7,9 @@ import sys
 from pathlib import Path
 
 from app.config import get_settings, resolve_vote_powers
+from app.intel_models import LogisticsDataSourceSpec
+from app.intel_models import LogisticsForecastModel
+from app.intel_models import LogisticsSignal
 from app.intel_models import RegionId
 from app.intel_models import RegionalIntelSnapshot
 from app.presenters.digest import build_digest_payload
@@ -535,6 +538,7 @@ async def _run_intel_foundry_export(
     refresh: bool,
     region: RegionId | None,
     as_json: bool,
+    include_logistics_fixture: bool,
 ) -> int:
     if refresh:
         snapshot = await _build_intel_snapshot(force=True)
@@ -548,7 +552,17 @@ async def _run_intel_foundry_export(
             return 2
         snapshot = RegionalIntelSnapshot.model_validate(latest_record)
 
-    manifest = export_snapshot(snapshot, output_dir, region=region)
+    if include_logistics_fixture:
+        manifest = export_snapshot(
+            snapshot,
+            output_dir,
+            region=region,
+            logistics_sources=_logistics_fixture_sources(),
+            logistics_signals=_logistics_fixture_signals(),
+            logistics_models=_logistics_fixture_models(),
+        )
+    else:
+        manifest = export_snapshot(snapshot, output_dir, region=region)
     if as_json:
         json.dump(manifest, sys.stdout, indent=2)
         sys.stdout.write("\n")
@@ -558,6 +572,107 @@ async def _run_intel_foundry_export(
     for object_type, info in manifest["object_types"].items():
         print(f"- {object_type}: {info['rows']} rows -> {info['path']}")
     return 0
+
+
+def _logistics_fixture_sources() -> list[LogisticsDataSourceSpec]:
+    return [
+        LogisticsDataSourceSpec(
+            source_id="nws_alerts",
+            name="National Weather Service Alerts",
+            owner="NOAA/National Weather Service",
+            source_url="https://www.weather.gov/documentation/services-web-api",
+            retrieval_mode="public_api",
+            rights="U.S. government public weather data; cite NOAA/NWS.",
+            freshness_ttl="15 minutes",
+            output_policy="Store derived alert summaries, source URLs, and hashes.",
+            caveats=["Weather context requires human operations review."],
+        ),
+        LogisticsDataSourceSpec(
+            source_id="bts_faf",
+            name="BTS Freight Analysis Framework",
+            owner="Bureau of Transportation Statistics and FHWA",
+            source_url="https://www.bts.gov/faf",
+            retrieval_mode="public_download",
+            rights="Public DOT freight-flow dataset; cite BTS/FHWA.",
+            freshness_ttl="annual",
+            output_policy="Store derived freight context and links.",
+            caveats=["Long-run freight flow data is not live station volume."],
+        ),
+        LogisticsDataSourceSpec(
+            source_id="synthetic_station_baseline",
+            name="Synthetic Station Baseline",
+            owner="AI Efficiency Team",
+            source_url="https://github.com/arigatoexpress/AI-Efficiency",
+            retrieval_mode="synthetic_fixture",
+            rights="Synthetic demo data only.",
+            freshness_ttl="manual",
+            output_policy="Use for demos and tests only.",
+            caveats=["Not real FedEx volume, staffing, dispatch, or route data."],
+        ),
+    ]
+
+
+def _logistics_fixture_signals() -> list[LogisticsSignal]:
+    return [
+        LogisticsSignal(
+            signal_id="gunnison-weather-watch",
+            region_id="gunnison_valley_co",
+            signal_type="weather_alert",
+            title="Gunnison Valley public weather watch",
+            summary="Public weather context for manager verification before shift.",
+            source_id="nws_alerts",
+            source_name="National Weather Service",
+            source_url="https://api.weather.gov/alerts/active",
+            observed_at="2026-05-22T12:00:00Z",
+            data_classification="public",
+            confidence=0.9,
+            attributes={"verification": "Check current alert before use."},
+        ),
+        LogisticsSignal(
+            signal_id="western-co-freight-baseline",
+            region_id="gunnison_valley_co",
+            signal_type="freight_context",
+            title="Western Colorado freight-flow context",
+            summary="Long-run public freight context for synthetic baseline work.",
+            source_id="bts_faf",
+            source_name="BTS Freight Analysis Framework",
+            source_url="https://www.bts.gov/faf",
+            observed_at="2026-05-22T12:00:00Z",
+            data_classification="derived_public",
+            confidence=0.65,
+            attributes={"use": "Regional context only, not real station volume."},
+        ),
+        LogisticsSignal(
+            signal_id="synthetic-pm-sort-baseline",
+            region_id="gunnison_valley_co",
+            signal_type="synthetic_baseline",
+            title="Synthetic PM sort baseline",
+            summary="Demo-only baseline for load-estimation packet testing.",
+            source_id="synthetic_station_baseline",
+            source_name="Synthetic demo baseline",
+            source_url="https://github.com/arigatoexpress/AI-Efficiency",
+            observed_at="2026-05-22T12:00:00Z",
+            data_classification="synthetic",
+            confidence=1.0,
+            attributes={"baseline_packages": 1000, "real_fedex_data": False},
+        ),
+    ]
+
+
+def _logistics_fixture_models() -> list[LogisticsForecastModel]:
+    return [
+        LogisticsForecastModel(
+            model_id="seasonal-baseline-v0",
+            name="Seasonal Baseline V0",
+            purpose="Synthetic load-estimation baseline for public-data demos.",
+            source_url="https://github.com/arigatoexpress/AI-Efficiency",
+            license_or_rights="Synthetic methodology; no real FedEx data.",
+            input_policy="Public, synthetic, or derived-public inputs only.",
+            output_policy="Label outputs as estimates requiring human verification.",
+            supported_horizons=["same_shift", "next_day"],
+            caveats=["Not calibrated on production FedEx volume."],
+        )
+    ]
 
 
 async def _run_intel_ooda_packet(
@@ -942,6 +1057,11 @@ def main(argv: list[str] | None = None) -> int:
         default=None,
         help="Filter output to a single region.",
     )
+    intel_foundry_export_parser.add_argument(
+        "--include-logistics-fixture",
+        action="store_true",
+        help="Include public/synthetic station-ops logistics object files.",
+    )
     intel_ooda_packet_parser = subparsers.add_parser(
         "intel-ooda-packet",
         help="Print a read-only regional OODA packet from the latest stored snapshot.",
@@ -1055,6 +1175,7 @@ def main(argv: list[str] | None = None) -> int:
                 refresh=args.refresh,
                 region=args.region,
                 as_json=args.json,
+                include_logistics_fixture=args.include_logistics_fixture,
             )
         )
     if args.command == "intel-ooda-packet":

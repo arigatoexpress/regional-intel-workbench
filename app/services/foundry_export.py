@@ -8,6 +8,9 @@ from pathlib import Path
 from typing import Any
 
 from app.intel_models import BusinessLead
+from app.intel_models import LogisticsDataSourceSpec
+from app.intel_models import LogisticsForecastModel
+from app.intel_models import LogisticsSignal
 from app.intel_models import NewsSignal
 from app.intel_models import OrganizationProfile
 from app.intel_models import PermitSignal
@@ -23,7 +26,12 @@ OBJECT_FILES = {
     "Region": "Region.ndjson",
     "IntelItem": "IntelItem.ndjson",
     "IntelSourceHealth": "IntelSourceHealth.ndjson",
+    "LogisticsDataSource": "LogisticsDataSource.ndjson",
+    "LogisticsSignal": "LogisticsSignal.ndjson",
+    "LogisticsForecastModel": "LogisticsForecastModel.ndjson",
 }
+
+ALLOWED_LOGISTICS_DATA_CLASSIFICATIONS = {"public", "synthetic", "derived_public"}
 
 # Item kinds that MUST carry both source_name and source_url. Business and
 # contact rows are validated by pydantic at ingestion (str fields, not Optional);
@@ -123,6 +131,10 @@ def _has_provenance(row: dict[str, Any]) -> bool:
     return bool(name and str(name).strip()) and bool(url and str(url).strip())
 
 
+def _has_text(value: object) -> bool:
+    return bool(value and str(value).strip())
+
+
 def _empty_drop_report() -> dict[str, Any]:
     return {"total": 0, "by_reason": {}, "details": []}
 
@@ -146,6 +158,39 @@ def _record_drop(
             "missing_fields": missing_fields,
         }
     )
+
+
+def _record_logistics_drop(
+    report: dict[str, Any],
+    *,
+    reason: str,
+    signal: LogisticsSignal,
+    missing_fields: list[str] | None = None,
+) -> None:
+    report["total"] += 1
+    report["by_reason"][reason] = report["by_reason"].get(reason, 0) + 1
+    report["details"].append(
+        {
+            "reason": reason,
+            "object_type": "LogisticsSignal",
+            "signal_id": signal.signal_id,
+            "region_id": signal.region_id,
+            "source_id": signal.source_id,
+            "data_classification": signal.data_classification,
+            "missing_fields": missing_fields or [],
+        }
+    )
+
+
+def _merge_drop_reports(*reports: dict[str, Any]) -> dict[str, Any]:
+    merged = _empty_drop_report()
+    for report in reports:
+        merged["total"] += int(report.get("total") or 0)
+        for reason, count in (report.get("by_reason") or {}).items():
+            merged["by_reason"][reason] = merged["by_reason"].get(reason, 0) + count
+        merged["details"].extend(report.get("details") or [])
+    merged["by_reason"] = dict(sorted(merged["by_reason"].items()))
+    return merged
 
 
 def _drop_missing_provenance_with_report(
@@ -246,6 +291,173 @@ def _source_health_summary(rows: list[dict[str, Any]]) -> dict[str, Any]:
         "by_category": dict(sorted(by_category.items())),
         "by_region": dict(sorted(by_region.items())),
     }
+
+
+def _logistics_source_summary(rows: list[dict[str, Any]]) -> dict[str, Any]:
+    by_retrieval_mode: dict[str, int] = {}
+    for row in rows:
+        key = str(row.get("retrieval_mode") or "unknown")
+        by_retrieval_mode[key] = by_retrieval_mode.get(key, 0) + 1
+    return {
+        "total_sources": len(rows),
+        "by_retrieval_mode": dict(sorted(by_retrieval_mode.items())),
+    }
+
+
+def _logistics_source_lookup(
+    sources: list[LogisticsDataSourceSpec],
+) -> dict[str, LogisticsDataSourceSpec]:
+    return {item.source_id: item for item in sources}
+
+
+def logistics_data_source_objects(
+    sources: list[LogisticsDataSourceSpec],
+) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = [
+        {
+            "object_id": f"regional-intel:logistics-source:{item.source_id}",
+            "source_id": item.source_id,
+            "name": item.name,
+            "owner": item.owner,
+            "source_url": item.source_url,
+            "retrieval_mode": item.retrieval_mode,
+            "rights": item.rights,
+            "freshness_ttl": item.freshness_ttl,
+            "output_policy": item.output_policy,
+            "caveats": item.caveats,
+        }
+        for item in sources
+    ]
+    rows.sort(key=lambda item: item["source_id"])
+    return rows
+
+
+def _logistics_signal_object(
+    signal: LogisticsSignal, source: LogisticsDataSourceSpec
+) -> dict[str, Any]:
+    return {
+        "object_id": f"regional-intel:logistics-signal:{signal.signal_id}",
+        "signal_id": signal.signal_id,
+        "region_id": signal.region_id,
+        "signal_type": signal.signal_type,
+        "title": signal.title,
+        "summary": signal.summary,
+        "source_id": signal.source_id,
+        "source_name": signal.source_name,
+        "source_url": signal.source_url,
+        "observed_at": signal.observed_at,
+        "data_classification": signal.data_classification,
+        "confidence": signal.confidence,
+        "attributes": signal.attributes,
+        "notes": signal.notes,
+        "provenance": {
+            "source_owner": source.owner,
+            "source_rights": source.rights,
+            "retrieval_mode": source.retrieval_mode,
+            "output_policy": source.output_policy,
+            "freshness_ttl": source.freshness_ttl,
+        },
+    }
+
+
+def logistics_signal_objects(
+    signals: list[LogisticsSignal],
+    sources: list[LogisticsDataSourceSpec],
+    *,
+    region: RegionId | None = None,
+    log_drops: bool = True,
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    source_by_id = _logistics_source_lookup(sources)
+    kept: list[dict[str, Any]] = []
+    drop_report = _empty_drop_report()
+
+    for signal in signals:
+        if not _region_allowed(signal.region_id, region):
+            continue
+
+        if signal.data_classification not in ALLOWED_LOGISTICS_DATA_CLASSIFICATIONS:
+            _record_logistics_drop(
+                drop_report,
+                reason="disallowed_data_classification",
+                signal=signal,
+            )
+            if log_drops:
+                logger.warning(
+                    "foundry_export: dropping logistics signal %s - disallowed "
+                    "data classification %r",
+                    signal.signal_id,
+                    signal.data_classification,
+                )
+            continue
+
+        missing_fields = [
+            field
+            for field in ("source_name", "source_url", "observed_at")
+            if not _has_text(getattr(signal, field))
+        ]
+        if missing_fields:
+            _record_logistics_drop(
+                drop_report,
+                reason="missing_provenance",
+                signal=signal,
+                missing_fields=missing_fields,
+            )
+            if log_drops:
+                logger.warning(
+                    "foundry_export: dropping logistics signal %s - missing %s",
+                    signal.signal_id,
+                    ", ".join(missing_fields),
+                )
+            continue
+
+        source = source_by_id.get(signal.source_id)
+        if source is None:
+            _record_logistics_drop(
+                drop_report,
+                reason="unknown_source",
+                signal=signal,
+            )
+            if log_drops:
+                logger.warning(
+                    "foundry_export: dropping logistics signal %s - unknown source %s",
+                    signal.signal_id,
+                    signal.source_id,
+                )
+            continue
+
+        kept.append(_logistics_signal_object(signal, source))
+
+    kept.sort(
+        key=lambda item: (
+            item["region_id"],
+            item["signal_type"],
+            item["signal_id"],
+            _row_hash(item),
+        )
+    )
+    return kept, drop_report
+
+
+def logistics_forecast_model_objects(
+    models: list[LogisticsForecastModel],
+) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = [
+        {
+            "object_id": f"regional-intel:logistics-model:{item.model_id}",
+            "model_id": item.model_id,
+            "name": item.name,
+            "purpose": item.purpose,
+            "source_url": item.source_url,
+            "license_or_rights": item.license_or_rights,
+            "input_policy": item.input_policy,
+            "output_policy": item.output_policy,
+            "supported_horizons": item.supported_horizons,
+            "caveats": item.caveats,
+        }
+        for item in models
+    ]
+    rows.sort(key=lambda item: item["model_id"])
+    return rows
 
 
 def _object_type_manifest_info(
@@ -521,6 +733,9 @@ def build_export_plan(
     region: RegionId | None = None,
     output_dir: Path | None = None,
     log_drops: bool = True,
+    logistics_sources: list[LogisticsDataSourceSpec] | None = None,
+    logistics_signals: list[LogisticsSignal] | None = None,
+    logistics_models: list[LogisticsForecastModel] | None = None,
 ) -> tuple[dict[str, list[dict[str, Any]]], dict[str, Any]]:
     """Build deterministic export rows plus manifest metadata without writing files."""
     intel_items, drop_report = _intel_item_objects_with_drop_report(
@@ -533,6 +748,29 @@ def build_export_plan(
         "IntelItem": intel_items,
         "IntelSourceHealth": source_health_objects(snapshot, region=region),
     }
+    logistics_drop_report = _empty_drop_report()
+    include_logistics = (
+        logistics_sources is not None
+        or logistics_signals is not None
+        or logistics_models is not None
+    )
+    if include_logistics:
+        logistics_source_rows = logistics_data_source_objects(logistics_sources or [])
+        logistics_signal_rows, logistics_drop_report = logistics_signal_objects(
+            logistics_signals or [],
+            logistics_sources or [],
+            region=region,
+            log_drops=log_drops,
+        )
+        rows_by_type.update(
+            {
+                "LogisticsDataSource": logistics_source_rows,
+                "LogisticsSignal": logistics_signal_rows,
+                "LogisticsForecastModel": logistics_forecast_model_objects(
+                    logistics_models or []
+                ),
+            }
+        )
     files = {
         object_type: _object_type_manifest_info(
             object_type=object_type,
@@ -547,12 +785,23 @@ def build_export_plan(
         "snapshot_updated_at": snapshot.updated_at,
         "region": region,
         "object_types": files,
-        "dropped_rows": drop_report,
+        "dropped_rows": _merge_drop_reports(drop_report, logistics_drop_report),
         "source_health_summary": _source_health_summary(
             rows_by_type["IntelSourceHealth"]
         ),
         "policy": _source_policy(snapshot),
     }
+    if include_logistics:
+        manifest["logistics_source_summary"] = _logistics_source_summary(
+            rows_by_type["LogisticsDataSource"]
+        )
+        manifest["logistics_policy"] = {
+            "allowed_data_classifications": sorted(
+                ALLOWED_LOGISTICS_DATA_CLASSIFICATIONS
+            ),
+            "no_internal_fedex_data": True,
+            "no_live_operational_actions": True,
+        }
     return rows_by_type, manifest
 
 
@@ -561,11 +810,19 @@ def export_snapshot(
     output_dir: Path,
     *,
     region: RegionId | None = None,
+    logistics_sources: list[LogisticsDataSourceSpec] | None = None,
+    logistics_signals: list[LogisticsSignal] | None = None,
+    logistics_models: list[LogisticsForecastModel] | None = None,
 ) -> dict[str, Any]:
     """Write Foundry-ready NDJSON exports and return a manifest."""
     output_dir.mkdir(parents=True, exist_ok=True)
     rows_by_type, manifest = build_export_plan(
-        snapshot, region=region, output_dir=output_dir
+        snapshot,
+        region=region,
+        output_dir=output_dir,
+        logistics_sources=logistics_sources,
+        logistics_signals=logistics_signals,
+        logistics_models=logistics_models,
     )
     for object_type, rows in rows_by_type.items():
         path = Path(manifest["object_types"][object_type]["path"])
