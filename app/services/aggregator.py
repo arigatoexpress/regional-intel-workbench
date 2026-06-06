@@ -5,7 +5,6 @@ import time
 
 from app.models import DashboardSnapshot, ProtocolSnapshot
 from app.services.evm_vote_scraper import PROTOCOLS, fetch_evm_protocol_snapshots
-from app.services.fullsail import fetch_fullsail_snapshot
 from app.services.history_store import SnapshotHistoryStore
 from app.services.strategy import LOOKBACK_DAYS, enrich_dashboard_snapshot
 from app.utils import utc_now_iso
@@ -38,11 +37,10 @@ class DashboardService:
 
     async def _build_snapshot(self) -> DashboardSnapshot:
         evm_task = asyncio.create_task(fetch_evm_protocol_snapshots())
-        fullsail_task = asyncio.create_task(fetch_fullsail_snapshot())
 
         protocols: list[ProtocolSnapshot] = []
         global_notes = [
-            "Blackhole is on Avalanche, Supernova is on Ethereum, and Full Sail is on Sui.",
+            "Blackhole is on Avalanche and Supernova is on Ethereum.",
             "Vote power is protocol-native. Compare pools within each protocol first, then use your own vote-power inputs to estimate payout.",
         ]
 
@@ -69,26 +67,7 @@ class DashboardService:
                 "At least one EVM protocol failed to refresh. See the per-protocol error card."
             )
 
-        try:
-            protocols.append(await fullsail_task)
-        except Exception as exc:  # noqa: BLE001
-            protocols.append(
-                ProtocolSnapshot(
-                    id="fullsail",
-                    name="Full Sail",
-                    chain="Sui",
-                    vote_power_symbol="veSAIL",
-                    ranking_basis="Unavailable",
-                    source="Full Sail public API",
-                    error=str(exc),
-                    notes=["Full Sail failed to refresh in the last API attempt."],
-                )
-            )
-            global_notes.append(
-                "Full Sail failed to refresh. See the per-protocol error card."
-            )
-
-        order = {"blackhole": 0, "supernova": 1, "fullsail": 2}
+        order = {"blackhole": 0, "supernova": 1}
         protocols.sort(key=lambda protocol: order.get(protocol.id, 99))
 
         snapshot = DashboardSnapshot(
