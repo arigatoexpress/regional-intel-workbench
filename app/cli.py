@@ -7,6 +7,9 @@ import sys
 from pathlib import Path
 
 from app.config import get_settings, resolve_vote_powers
+from app.intel_models import LogisticsDataSourceSpec
+from app.intel_models import LogisticsForecastModel
+from app.intel_models import LogisticsSignal
 from app.intel_models import RegionId
 from app.intel_models import RegionalIntelSnapshot
 from app.presenters.digest import build_digest_payload
@@ -25,7 +28,12 @@ from app.services.intel_analyst_store import IntelAnalystStore
 from app.services.intel_bundle_store import IntelBundleStore
 from app.services.intel_collection_store import IntelCollectionStore
 from app.services.intel_monitor_store import IntelMonitorStore
+from app.services.foundry_client import FoundryClient
+from app.services.foundry_client import FoundryConfigError
+from app.services.foundry_client import FoundryError
+from app.services.foundry_client import configured_summary
 from app.services.foundry_export import export_snapshot
+from app.services.foundry_upload import upload_foundry_packet
 from app.services.intel_watchlist_store import IntelWatchlistStore
 from app.services.regional_ooda import build_regional_ooda_packet
 from app.services.regional_intel import RegionalIntelService
@@ -535,6 +543,7 @@ async def _run_intel_foundry_export(
     refresh: bool,
     region: RegionId | None,
     as_json: bool,
+    include_logistics_fixture: bool,
 ) -> int:
     if refresh:
         snapshot = await _build_intel_snapshot(force=True)
@@ -548,7 +557,17 @@ async def _run_intel_foundry_export(
             return 2
         snapshot = RegionalIntelSnapshot.model_validate(latest_record)
 
-    manifest = export_snapshot(snapshot, output_dir, region=region)
+    if include_logistics_fixture:
+        manifest = export_snapshot(
+            snapshot,
+            output_dir,
+            region=region,
+            logistics_sources=_logistics_fixture_sources(),
+            logistics_signals=_logistics_fixture_signals(),
+            logistics_models=_logistics_fixture_models(),
+        )
+    else:
+        manifest = export_snapshot(snapshot, output_dir, region=region)
     if as_json:
         json.dump(manifest, sys.stdout, indent=2)
         sys.stdout.write("\n")
@@ -558,6 +577,285 @@ async def _run_intel_foundry_export(
     for object_type, info in manifest["object_types"].items():
         print(f"- {object_type}: {info['rows']} rows -> {info['path']}")
     return 0
+
+
+def _run_intel_foundry_status(*, as_json: bool) -> int:
+    config = configured_summary()
+    try:
+        client = FoundryClient.from_env()
+        health = client.health()
+        status_code = 0 if health.get("ok") else 2
+        payload = {"configured": config, "health": health}
+    except FoundryConfigError as exc:
+        payload = {
+            "configured": config,
+            "health": {"ok": False, "kind": "configuration", "error": str(exc)},
+        }
+        status_code = 2
+
+    if as_json:
+        json.dump(payload, sys.stdout, indent=2)
+        sys.stdout.write("\n")
+        return status_code
+
+    print("Foundry target")
+    print(f"- base_url: {payload['configured'].get('base_url') or 'not configured'}")
+    print(
+        "- credentials: "
+        + (
+            "configured"
+            if payload["configured"].get("credential_configured")
+            else "missing"
+        )
+    )
+    dataset_types = ", ".join(
+        payload["configured"].get("configured_dataset_types") or []
+    )
+    print(
+        f"- default ontology: {payload['configured'].get('default_ontology') or 'none'}"
+    )
+    print("- dataset mappings: " + (dataset_types or "none"))
+    print(f"- health: {'ok' if payload['health'].get('ok') else 'not ready'}")
+    if payload["health"].get("error"):
+        print(f"- note: {payload['health']['error']}")
+    return status_code
+
+
+def _foundry_name(item: dict[str, object]) -> str:
+    return str(item.get("apiName") or item.get("rid") or item.get("displayName") or "")
+
+
+def _run_intel_foundry_discover(
+    *,
+    ontology: str | None,
+    as_json: bool,
+) -> int:
+    try:
+        client = FoundryClient.from_env()
+        ontologies = client.list_ontologies().get("data") or []
+        ontology_names = [
+            _foundry_name(item) for item in ontologies if isinstance(item, dict)
+        ]
+        selected = (
+            ontology
+            or client.default_ontology
+            or (ontology_names[0] if ontology_names else None)
+        )
+        payload: dict[str, object] = {
+            "ok": True,
+            "base_url": client.auth.base_url,
+            "ontologies": ontology_names,
+            "selected_ontology": selected,
+            "object_types": [],
+            "action_types": [],
+        }
+        if selected:
+            object_types = client.list_object_types(selected).get("data") or []
+            action_types = client.list_action_types(selected).get("data") or []
+            payload["object_types"] = [
+                {
+                    "apiName": item.get("apiName"),
+                    "displayName": item.get("displayName"),
+                    "primaryKey": item.get("primaryKey"),
+                    "status": item.get("status"),
+                }
+                for item in object_types
+                if isinstance(item, dict)
+            ]
+            payload["action_types"] = [
+                {
+                    "apiName": item.get("apiName"),
+                    "displayName": item.get("displayName"),
+                    "rid": item.get("rid"),
+                }
+                for item in action_types
+                if isinstance(item, dict)
+            ]
+        status_code = 0
+    except FoundryError as exc:
+        payload = {"ok": False, "error": str(exc)}
+        status_code = 2
+
+    if as_json:
+        json.dump(payload, sys.stdout, indent=2)
+        sys.stdout.write("\n")
+        return status_code
+
+    print("Foundry discovery")
+    print(f"- base_url: {payload.get('base_url') or 'not configured'}")
+    ontology_names_for_print = payload.get("ontologies")
+    if not isinstance(ontology_names_for_print, list):
+        ontology_names_for_print = []
+    print("- ontologies: " + ", ".join(str(item) for item in ontology_names_for_print))
+    print(f"- selected ontology: {payload.get('selected_ontology') or 'none'}")
+    print("- object types:")
+    object_types_for_print = payload.get("object_types")
+    if not isinstance(object_types_for_print, list):
+        object_types_for_print = []
+    for item in object_types_for_print:
+        if not isinstance(item, dict):
+            continue
+        print(
+            f"  - {item.get('apiName')} "
+            f"(pk={item.get('primaryKey')}, display={item.get('displayName')})"
+        )
+    print("- action types:")
+    action_types_for_print = payload.get("action_types")
+    if not isinstance(action_types_for_print, list):
+        action_types_for_print = []
+    for item in action_types_for_print:
+        if not isinstance(item, dict):
+            continue
+        print(f"  - {item.get('apiName')}")
+    return status_code
+
+
+def _run_intel_foundry_upload(
+    *,
+    input_dir: Path,
+    object_types: list[str] | None,
+    branch: str,
+    prefix: str,
+    apply: bool,
+    as_json: bool,
+) -> int:
+    try:
+        client = FoundryClient.from_env()
+        payload = upload_foundry_packet(
+            input_dir,
+            client=client,
+            object_types=object_types,
+            branch=branch,
+            prefix=prefix,
+            apply=apply,
+        )
+        status_code = 0 if payload.get("ready", True) or payload.get("applied") else 2
+    except FoundryError as exc:
+        payload = {"ok": False, "error": str(exc)}
+        status_code = 2
+
+    if as_json:
+        json.dump(payload, sys.stdout, indent=2)
+        sys.stdout.write("\n")
+        return status_code
+
+    if payload.get("applied"):
+        print("Foundry upload complete")
+        for object_type, rows in (payload.get("uploaded_types") or {}).items():
+            print(f"- {object_type}: {rows} rows")
+    else:
+        print("Foundry upload plan")
+        for object_type, info in (payload.get("object_types") or {}).items():
+            marker = "mapped" if info.get("dataset_configured") else "missing dataset"
+            print(f"- {object_type}: {info.get('rows')} rows, {marker}")
+        if payload.get("missing_files"):
+            print("- missing files: " + ", ".join(payload["missing_files"]))
+        if payload.get("missing_datasets"):
+            print("- missing datasets: " + ", ".join(payload["missing_datasets"]))
+        if not apply:
+            print("Dry run only. Re-run with --apply to upload.")
+    return status_code
+
+
+def _logistics_fixture_sources() -> list[LogisticsDataSourceSpec]:
+    return [
+        LogisticsDataSourceSpec(
+            source_id="nws_alerts",
+            name="National Weather Service Alerts",
+            owner="NOAA/National Weather Service",
+            source_url="https://www.weather.gov/documentation/services-web-api",
+            retrieval_mode="public_api",
+            rights="U.S. government public weather data; cite NOAA/NWS.",
+            freshness_ttl="15 minutes",
+            output_policy="Store derived alert summaries, source URLs, and hashes.",
+            caveats=["Weather context requires human operations review."],
+        ),
+        LogisticsDataSourceSpec(
+            source_id="bts_faf",
+            name="BTS Freight Analysis Framework",
+            owner="Bureau of Transportation Statistics and FHWA",
+            source_url="https://www.bts.gov/faf",
+            retrieval_mode="public_download",
+            rights="Public DOT freight-flow dataset; cite BTS/FHWA.",
+            freshness_ttl="annual",
+            output_policy="Store derived freight context and links.",
+            caveats=["Long-run freight flow data is not live station volume."],
+        ),
+        LogisticsDataSourceSpec(
+            source_id="synthetic_station_baseline",
+            name="Synthetic Station Baseline",
+            owner="AI Efficiency Team",
+            source_url="https://github.com/arigatoexpress/AI-Efficiency",
+            retrieval_mode="synthetic_fixture",
+            rights="Synthetic demo data only.",
+            freshness_ttl="manual",
+            output_policy="Use for demos and tests only.",
+            caveats=["Not real FedEx volume, staffing, dispatch, or route data."],
+        ),
+    ]
+
+
+def _logistics_fixture_signals() -> list[LogisticsSignal]:
+    return [
+        LogisticsSignal(
+            signal_id="gunnison-weather-watch",
+            region_id="gunnison_valley_co",
+            signal_type="weather_alert",
+            title="Gunnison Valley public weather watch",
+            summary="Public weather context for manager verification before shift.",
+            source_id="nws_alerts",
+            source_name="National Weather Service",
+            source_url="https://api.weather.gov/alerts/active",
+            observed_at="2026-05-22T12:00:00Z",
+            data_classification="public",
+            confidence=0.9,
+            attributes={"verification": "Check current alert before use."},
+        ),
+        LogisticsSignal(
+            signal_id="western-co-freight-baseline",
+            region_id="gunnison_valley_co",
+            signal_type="freight_context",
+            title="Western Colorado freight-flow context",
+            summary="Long-run public freight context for synthetic baseline work.",
+            source_id="bts_faf",
+            source_name="BTS Freight Analysis Framework",
+            source_url="https://www.bts.gov/faf",
+            observed_at="2026-05-22T12:00:00Z",
+            data_classification="derived_public",
+            confidence=0.65,
+            attributes={"use": "Regional context only, not real station volume."},
+        ),
+        LogisticsSignal(
+            signal_id="synthetic-pm-sort-baseline",
+            region_id="gunnison_valley_co",
+            signal_type="synthetic_baseline",
+            title="Synthetic PM sort baseline",
+            summary="Demo-only baseline for load-estimation packet testing.",
+            source_id="synthetic_station_baseline",
+            source_name="Synthetic demo baseline",
+            source_url="https://github.com/arigatoexpress/AI-Efficiency",
+            observed_at="2026-05-22T12:00:00Z",
+            data_classification="synthetic",
+            confidence=1.0,
+            attributes={"baseline_packages": 1000, "real_fedex_data": False},
+        ),
+    ]
+
+
+def _logistics_fixture_models() -> list[LogisticsForecastModel]:
+    return [
+        LogisticsForecastModel(
+            model_id="seasonal-baseline-v0",
+            name="Seasonal Baseline V0",
+            purpose="Synthetic load-estimation baseline for public-data demos.",
+            source_url="https://github.com/arigatoexpress/AI-Efficiency",
+            license_or_rights="Synthetic methodology; no real FedEx data.",
+            input_policy="Public, synthetic, or derived-public inputs only.",
+            output_policy="Label outputs as estimates requiring human verification.",
+            supported_horizons=["same_shift", "next_day"],
+            caveats=["Not calibrated on production FedEx volume."],
+        )
+    ]
 
 
 async def _run_intel_ooda_packet(
@@ -942,6 +1240,64 @@ def main(argv: list[str] | None = None) -> int:
         default=None,
         help="Filter output to a single region.",
     )
+    intel_foundry_export_parser.add_argument(
+        "--include-logistics-fixture",
+        action="store_true",
+        help="Include public/synthetic station-ops logistics object files.",
+    )
+    intel_foundry_status_parser = subparsers.add_parser(
+        "intel-foundry-status",
+        help="Check configured Kadima/Foundry target without exposing credentials.",
+    )
+    intel_foundry_status_parser.add_argument(
+        "--json", action="store_true", help="Print the status as JSON."
+    )
+    intel_foundry_discover_parser = subparsers.add_parser(
+        "intel-foundry-discover",
+        help="List visible Kadima/Foundry ontologies, object types, and actions.",
+    )
+    intel_foundry_discover_parser.add_argument(
+        "--ontology",
+        default=None,
+        help="Ontology API name or RID to inspect; default uses configured ontology, then first visible ontology.",
+    )
+    intel_foundry_discover_parser.add_argument(
+        "--json", action="store_true", help="Print discovery as JSON."
+    )
+    intel_foundry_upload_parser = subparsers.add_parser(
+        "intel-foundry-upload",
+        help="Upload a local intel-foundry-export packet to configured Foundry datasets.",
+    )
+    intel_foundry_upload_parser.add_argument(
+        "--input-dir",
+        type=Path,
+        default=Path("data/foundry/regional-intel"),
+        help="Directory containing manifest.json and Foundry NDJSON files.",
+    )
+    intel_foundry_upload_parser.add_argument(
+        "--object-type",
+        action="append",
+        default=None,
+        help="Object type to upload. Repeat to limit upload; default uploads all files.",
+    )
+    intel_foundry_upload_parser.add_argument(
+        "--branch",
+        default="master",
+        help="Foundry dataset branch to write.",
+    )
+    intel_foundry_upload_parser.add_argument(
+        "--prefix",
+        default="regional_intel",
+        help="Path prefix inside each Foundry dataset.",
+    )
+    intel_foundry_upload_parser.add_argument(
+        "--apply",
+        action="store_true",
+        help="Actually upload. Omit for a dry-run plan.",
+    )
+    intel_foundry_upload_parser.add_argument(
+        "--json", action="store_true", help="Print the upload result as JSON."
+    )
     intel_ooda_packet_parser = subparsers.add_parser(
         "intel-ooda-packet",
         help="Print a read-only regional OODA packet from the latest stored snapshot.",
@@ -1055,7 +1411,21 @@ def main(argv: list[str] | None = None) -> int:
                 refresh=args.refresh,
                 region=args.region,
                 as_json=args.json,
+                include_logistics_fixture=args.include_logistics_fixture,
             )
+        )
+    if args.command == "intel-foundry-status":
+        return _run_intel_foundry_status(as_json=args.json)
+    if args.command == "intel-foundry-discover":
+        return _run_intel_foundry_discover(ontology=args.ontology, as_json=args.json)
+    if args.command == "intel-foundry-upload":
+        return _run_intel_foundry_upload(
+            input_dir=args.input_dir,
+            object_types=args.object_type,
+            branch=args.branch,
+            prefix=args.prefix,
+            apply=args.apply,
+            as_json=args.json,
         )
     if args.command == "intel-ooda-packet":
         return asyncio.run(

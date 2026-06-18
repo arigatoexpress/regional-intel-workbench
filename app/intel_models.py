@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from typing import Any
 from typing import Literal
 
 from pydantic import BaseModel, Field
@@ -137,6 +138,46 @@ class SourceHealth(BaseModel):
     item_count: int = 0
     last_seen_at: str | None = None
     notes: list[str] = Field(default_factory=list)
+
+
+class LogisticsDataSourceSpec(BaseModel):
+    source_id: str
+    name: str
+    owner: str
+    source_url: str
+    retrieval_mode: str
+    rights: str
+    freshness_ttl: str
+    output_policy: str
+    caveats: list[str] = Field(default_factory=list)
+
+
+class LogisticsSignal(BaseModel):
+    signal_id: str
+    region_id: RegionId
+    signal_type: str
+    title: str
+    summary: str
+    source_id: str
+    source_name: str
+    source_url: str
+    observed_at: str
+    data_classification: str
+    confidence: float = 0.0
+    attributes: dict[str, Any] = Field(default_factory=dict)
+    notes: list[str] = Field(default_factory=list)
+
+
+class LogisticsForecastModel(BaseModel):
+    model_id: str
+    name: str
+    purpose: str
+    source_url: str
+    license_or_rights: str
+    input_policy: str
+    output_policy: str
+    supported_horizons: list[str] = Field(default_factory=list)
+    caveats: list[str] = Field(default_factory=list)
 
 
 class RegionBrief(BaseModel):
