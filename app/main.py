@@ -54,6 +54,7 @@ from app.utils import clean_text
 BASE_DIR = Path(__file__).resolve().parent
 TEMPLATES_DIR = BASE_DIR / "templates"
 STATIC_DIR = BASE_DIR / "static"
+LLMS_TXT_PATH = BASE_DIR / "llms.txt"
 
 app = FastAPI(title="Regional Intelligence Workbench")
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
@@ -182,6 +183,14 @@ async def api_snapshot(force: bool = False):
 @app.get("/api/health")
 async def api_health():
     return {"status": "ok"}
+
+
+@app.get("/llms.txt", response_class=PlainTextResponse)
+async def llms_txt() -> PlainTextResponse:
+    return PlainTextResponse(
+        LLMS_TXT_PATH.read_text(encoding="utf-8"),
+        headers={"Cache-Control": "public, max-age=3600"},
+    )
 
 
 @app.get("/api/intel/health")

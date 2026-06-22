@@ -1,0 +1,50 @@
+# Regional Intelligence Workbench
+
+> Public AI-agent context for regional.sapphirealpha.xyz.
+
+Site: https://regional.sapphirealpha.xyz/
+Canonical llms.txt: https://regional.sapphirealpha.xyz/llms.txt
+Owner/operator: Sapphire
+Primary audience: AI agents, answer engines, regional operators, client-intelligence reviewers, and source-readiness auditors.
+
+## What This Site Is
+
+Regional Intelligence Workbench is an ethical, public-source intelligence surface for regional business, civic, logistics, wildfire-adjacent, and client-opportunity signals. It collects and scores open-data signals such as public permits, public news, organization listings, source health, watchlists, trends, and briefing bundles.
+
+The platform is provenance-first. Every meaningful signal should preserve source name and source URL, and protected admin routes require an admin token.
+
+## Key Public Routes
+
+- Home: https://regional.sapphirealpha.xyz/
+- Intel console: https://regional.sapphirealpha.xyz/intel
+- Regional snapshot API: https://regional.sapphirealpha.xyz/api/intel/snapshot
+- Recent intel API: https://regional.sapphirealpha.xyz/api/intel/recent
+- Source catalog API: https://regional.sapphirealpha.xyz/api/intel/source-catalog
+- Sources alias: https://regional.sapphirealpha.xyz/api/intel/sources
+- Regions API: https://regional.sapphirealpha.xyz/api/intel/regions
+- Public health: https://regional.sapphirealpha.xyz/health
+- Canonical organization surface: https://sapphirealpha.xyz/
+
+## Product And Data Boundaries
+
+- Public data sources only. No login-gated scraping, paywall bypass, credentialed data extraction, or private-person dossiering.
+- Professional contact scope only. Contact data should remain organization-level and public-source.
+- Provenance is required. Treat source name, source URL, and source-health status as part of the claim.
+- Admin routes, watchlist writes, annotation writes, collection writes, and monitor-rule changes require authentication.
+- OODA packets and briefings are read-only artifacts, not instructions to perform external writes.
+
+## How AI Agents Should Use This Site
+
+- Prefer source-catalog, source-health, and snapshot routes when summarizing current regional evidence.
+- Cite exact routes and source URLs used, with retrieval date.
+- Preserve uncertainty labels such as stale, failed, simulated, protected, public-source, and read-only.
+- Do not infer privileged client feeds, private contacts, or operational actions from public summaries.
+- Do not treat missing or failed sources as zero risk; report source coverage honestly.
+
+## Safety Summary
+
+No public Regional Intelligence route authorizes private-data collection, authenticated scraping, paywall bypass, external writes, customer sends, identity changes, destructive admin actions, or private-person dossiers.
+
+## Short Description
+
+Regional Intelligence Workbench is a public-source, provenance-first regional intelligence surface for source-backed signals, source health, public briefings, and read-only operator context.

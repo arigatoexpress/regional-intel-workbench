@@ -227,6 +227,16 @@ class IntelAppTestCase(unittest.TestCase):
         self.assertIn("ethics_rules", payload)
         self.assertIn("sources", payload)
 
+    def test_llms_txt_serves_public_source_agent_context(self) -> None:
+        response = self.client.get("/llms.txt")
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.headers["content-type"].startswith("text/plain"))
+        self.assertEqual(response.headers["cache-control"], "public, max-age=3600")
+        body = response.text
+        self.assertIn("# Regional Intelligence Workbench", body)
+        self.assertIn("https://regional.sapphirealpha.xyz/", body)
+        self.assertIn("No public Regional Intelligence route authorizes private-data collection", body)
+
     def test_snapshot_region_filter_and_client_view_shape(self) -> None:
         snapshot = self.client.get(
             "/api/intel/snapshot", params={"region": "austin_tx"}
